@@ -1,0 +1,122 @@
+0. INTRO
+========
+
+Textmodel is a datatype which can hold textstrings together with
+format information. It is similar to GtkTextBuffer in functionality,
+but it is completely independent of a gui-toolkit.
+
+Wxtextview is an example widget written for the wx toolkit. It has the
+basic functionality of a text editor. It is developed and tested
+mainly on windows, however it seems to work on linux and mac as well.
+
+Textmodel and wxtextview are experimental. They are neither bug free
+nor stable.  Wxtextview lacks the configurability which you might
+expect from a real text widget. Hack it to fit you needs.
+
+With release 0.2 two demos were added which show the more advanced 
+possibilities of textmodel:
+
+:notebook.py:
+
+ A mathematica-like notebook interface for python
+
+:math_demo.py:
+ 
+ A demonstration of typesetting mathematics
+
+
+1. USAGE
+========
+
+
+Running the demos:
+------------------
+
+Just cd to the demo directory and execute the scripts. No installation
+is needed. External dependencies are wxpython (all demos) and
+matplotlib (notebook). The demos were tested on linux, windows and mac
+platforms.
+
+::
+
+    $ cd demo/
+    $ python demo1.py
+
+Using textmodel:
+----------------
+
+::
+
+    from textmodel import TextModel, defaultstyle
+    
+    text = TextModel(u'Hello World!')
+
+    # highlight the word "World"
+    text.set_properties(6, 11, bgcolor = 'yellow')
+
+    # query the color
+    print text.get_style(0)['bgcolor'] # --> color of first character
+    print text.get_style(10)['bgcolor'] # --> color of 10th character
+
+
+
+Using the wxtextview-widget:
+----------------------------
+
+::
+
+    from textmodel import TextModel
+    from wxtextview import WXTextView
+
+    import wx
+    app = wx.App()
+
+
+    model = TextModel(u'Hello World!')
+    model.set_properties(6, 11, fontsize=14)
+    model.set_properties(6, 11, bgcolor='yellow')
+
+    # display the texmodel in a view 
+    frame = wx.Frame(None)
+    view = WXTextView(frame, -1)
+    view.model = model
+    frame.Show()
+
+    # set cursor and selection
+    view.cursor = 5
+    view.selection = 0, 5
+
+    # display the same textmodel in a second view
+    frame2 = wx.Frame(None)
+    view2 = WXTextView(frame2, -1)
+    view2.model = model
+    frame2.Show()
+
+    app.MainLoop()
+
+
+
+2. NOTES
+========
+
+Most python files contain tests and demos. For example:
+
+::
+
+    $ cd textmodel/
+    $ python  textmodel.py
+
+
+    ######################## textmodel.py ########################
+    > test_00: remove w. simplify............................... ok
+    > test_01: row, col......................................... ok
+    > test_02: update linelengths bei insert.................... ok
+    > test_03: TextModel........................................ ok
+    ...
+
+
+
+3. LICENSE
+==========
+
+See file LICENSE.

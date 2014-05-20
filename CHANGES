@@ -1,0 +1,35 @@
+Version 0.2.2
+~~~~~~~~~~~
+
+- faster drag scrolling
+- many small bug fixes
+
+Version 0.2.1
+~~~~~~~~~~~
+
+- many small bug fixes
+
+Version 0.2
+~~~~~~~~~~~
+
+- many conceptual changes and bugfixes
+- new demo: notebook.py
+- new demo: math_demo.py
+
+Version 0.1.1
+~~~~~~~~~~~~~
+
+- Fixed a bug in the manifest template
+
+
+Version 0.1
+~~~~~~~~~~~
+
+- added demos
+- made this run on mac and linux
+- fixed lots of bugs
+
+Verison 0.0
+~~~~~~~~~~~
+
+- initial release
