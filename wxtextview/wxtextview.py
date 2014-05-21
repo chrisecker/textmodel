@@ -30,14 +30,17 @@ class DCStyler:
         self.last_style = style
         weight = {
             'bold' : wx.FONTWEIGHT_BOLD,
-            'normal' : wx.NORMAL
+            'normal' : wx.FONTWEIGHT_NORMAL
             }[style['weight']]
-        font = wx.Font(style['fontsize'], wx.MODERN, wx.NORMAL, weight,
+        font = wx.Font(style['fontsize'], wx.FONTFAMILY_MODERN, wx.FONTSTYLE_NORMAL, weight,
                        style['underline'], style['facename'])
         self.dc.SetFont(font)
-        self.dc.SetTextBackground(wx.NamedColour(style['bgcolor']))
-        self.dc.SetTextForeground(wx.NamedColour(style['textcolor']))
-
+        try: # Phoenix
+            self.dc.SetTextBackground(wx.Colour(style['bgcolor']))
+            self.dc.SetTextForeground(wx.Colour(style['textcolor']))
+        except TypeError: # Classic
+            self.dc.SetTextBackground(wx.NamedColour(style['bgcolor']))
+            self.dc.SetTextForeground(wx.NamedColour(style['textcolor']))
 
 class WXTextView(wx.ScrolledWindow, TextView):
     _scrollrate = 10, 10
@@ -102,7 +105,7 @@ class WXTextView(wx.ScrolledWindow, TextView):
         ctrl = event.ControlDown()
         shift = event.ShiftDown()
         alt = event.AltDown()
-        char = event.GetUniChar()
+        char = event.GetUnicodeKey()
         action = self.actions.get((keycode, ctrl, alt))
         if action is None:
             action = unichr(keycode)
@@ -176,7 +179,7 @@ class WXTextView(wx.ScrolledWindow, TextView):
         x, y = self.CalcScrolledPosition((0,0))
         layout = self.updater.layout
         layout.draw(x, y, dc, styler)
-        if wx.Window_FindFocus() is self:
+        if wx.Window.FindFocus() is self:
             layout.draw_cursor(self.index, x, y, dc, defaultstyle)
         for j1, j2 in self.get_selected():
             layout.draw_selection(j1, j2, x, y, dc)
@@ -227,7 +230,9 @@ class WXTextView(wx.ScrolledWindow, TextView):
         fw, fh = self._scrollrate
 
         width, height = self.GetClientSize()
-        firstcol, firstrow = self.ViewStart # -> Scroll in Inc-Schritten
+
+        firstcol, firstrow = self.GetViewStart() # Phoenix Fix
+        ## firstcol, firstrow = self.ViewStart # -> Scroll in Inc-Schritten
         x = firstcol*fw
         y = firstrow*fh
         if r.y1 < y:
@@ -242,7 +247,9 @@ class WXTextView(wx.ScrolledWindow, TextView):
         elif r.x2 > x+width:
             x = r.x2-width
             firstcol = ceil(x/fw)
-        if (firstcol, firstrow) != self.ViewStart:
+
+        if (firstcol, firstrow) != self.GetViewStart(): # Phoenix Fix
+        ### if (firstcol, firstrow) != self.ViewStart:
             self.Scroll(firstcol, firstrow)
 
     def keep_cursor_on_screen(self):

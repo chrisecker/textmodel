@@ -594,7 +594,7 @@ def init_testing(redirect=True):
     box.Add(view, 1, wx.ALL|wx.GROW, 1)
     win.SetSizer(box)
     win.SetAutoLayout(True)
-
+    frame.CreateStatusBar().SetStatusText('wxPython %s' % wx.version())
     frame.Show()
     return locals()
 
