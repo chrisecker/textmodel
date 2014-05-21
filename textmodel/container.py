@@ -51,7 +51,7 @@ class Container:
         assert found
         return self.from_childs(l)
 
-    def __len__(self): 
+    def __len__(self):
         n = 0
         for texel in self.get_childs():
             n += len(texel)
@@ -66,10 +66,10 @@ class Container:
             j2 = j1+len(child)
             yield j1, j2, child
             j1 = j2
-        
+
     def get_text(self):
         return self.get_content().get_text()
-        
+
     def get_style(self, i):
         return self.get_content().get_style(i)
 
@@ -96,16 +96,16 @@ class Container:
                 child = child.set_properties(i1, i2, properties)
                 l.append(child)
                 i1 -= n
-                i2 -= n            
+                i2 -= n
         return checked(group(l))
-        
+
     def split(self, i):
         if i == 0:
-            return NULL_TEXEL, Group([self]) 
+            return NULL_TEXEL, Group([self])
         elif i == len(self):
             return Group([self]), NULL_TEXEL
         return self.get_content().split(i)
-        
+
     def takeout(self, i1, i2):
         if i1 <= 0 and i2 >= len(self):
             return NULL_TEXEL, self

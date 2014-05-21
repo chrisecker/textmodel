@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 # colorize demo
 
 import sys
@@ -23,5 +25,6 @@ filename = '../wxtextview/textview.py'
 rawtext = open(filename).read()
 model = pycolorize(rawtext)
 view.set_model(model)
+frame.CreateStatusBar().SetStatusText('wxPython %s' % wx.version())
 frame.Show()
 app.MainLoop()

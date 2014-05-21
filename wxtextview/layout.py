@@ -10,8 +10,8 @@
 # - Backends überschreiben Factory-Moethoden um modifizierte Boxen zu erzeugen
 # - Keine Empties
 # - Ein Texel muss über alle Indizes (0 bis n) Auskunft geben können
-# - Das übergeordnete Texel ist dafür verantwortlich, dass nur sinnvolle Anfragen 
-#   gestellt werden. Beispielsweise sollte ein abgeschlossener Paragraf nicht 
+# - Das übergeordnete Texel ist dafür verantwortlich, dass nur sinnvolle Anfragen
+#   gestellt werden. Beispielsweise sollte ein abgeschlossener Paragraf nicht
 #   über die Position n Auskunft geben
 #
 # Backends lassen sich auf 2 Arten implementieren: (a) durch Anpassen
@@ -52,7 +52,7 @@ class Box:
 
     def dump(self, i, x, y, indent=0):
         print " "*indent, i, i+len(self), x, y, self
-        
+
     def __len__(self):
         return self.length
 
@@ -130,7 +130,7 @@ class Box:
         if child is None:
             return self, i, x0, y0
         return child.find_box(i-j, x1, y1)
-        
+
 
     def can_leftappend(self):
         # Wenn zwei benachbarte Texel für das Einfüen infrage kommen,
@@ -142,7 +142,7 @@ class Box:
         return True
 
 
-    
+
 class TextBox(Box):
     def __init__(self, text, style=defaultstyle, device=None):
         self.text = text
@@ -234,7 +234,7 @@ class NewlineBox(TextBox):
     # sehr praktisch die Font-Information für das nachfolgende Zeichen
     # ablegen können.
     is_dummy = True
-    def __init__(self, style, device=None):        
+    def __init__(self, style, device=None):
         TextBox.__init__(self, '\n', style, device)
         self.width = 0
 
@@ -247,10 +247,10 @@ class NewlineBox(TextBox):
         # angefangen wird. Die letzte Position einer Zeile ist gerade
         # der Index des NL-Zeichens, also 0.
         return 0
-    
+
 
 class TabulatorBox(TextBox):
-    def __init__(self, style, device=None):        
+    def __init__(self, style, device=None):
         TextBox.__init__(self, ' ', style, device)
         #self.width = 0
 
@@ -266,7 +266,7 @@ class IterBox(Box):
         print " "*indent, i, i+len(self), x, y, self
         for j1, j2, x1, y1, child in self.iter(i, x, y):
             child.dump(j1, x1, y1, indent+4)
-        
+
     def iter(self, i, x, y):
         raise NotImplementedError()
 
@@ -306,7 +306,7 @@ class IterBox(Box):
 
     def get_index(self, x, y):
         # Sucht die zu (x,y) nächstgelegene Indexposition. Kann auch
-        # None zurückgeben. 
+        # None zurückgeben.
 
         # 1. Durchlauf: nur Kindboxen die (x, y) enthalten
         l = []
@@ -322,7 +322,7 @@ class IterBox(Box):
             l.sort() # Achtung: so werden große Indexposition bevorzugt!
             assert -l[0][-1] <= len(self)
             return -l[0][-1]
-        
+
         # 2. Durchlauf: restlicher Kindboxen. ACHTUNG: die
         # vollständige Suche ist zwar allgemein, aber sehr
         # ineffizient! Die Methode get_index sollte daher wenn immer
@@ -470,7 +470,7 @@ class Paragraph(VBox):
         VBox.__init__(self, rows, device)
 
     def has_newline(self):
-        return isinstance(self.childs[-1].childs[-1], NewlineBox) 
+        return isinstance(self.childs[-1].childs[-1], NewlineBox)
 
     def get_newlinebox(self):
         # Die Newlinebox wird von Paragraphstack verwenet, um die Höhe
@@ -551,7 +551,7 @@ class ParagraphStack(ChildBox):
         self.height = h+extra_h
         self.length = length
         self.extra_height = extra_h
-        
+
     def iter(self, i, x, y):
         j1 = i
         for child in self.childs:
@@ -570,7 +570,7 @@ class ParagraphStack(ChildBox):
         return ChildBox.get_index(self, x, y)
 
     def responding_child(self, i, x0, y0):
-        # Die letzte Position verwalten wir direkt. 
+        # Die letzte Position verwalten wir direkt.
         if i == len(self) and self.extra_height:
             return None, i, x0, y0
         return IterBox.responding_child(self, i, x0, y0)
@@ -590,11 +590,11 @@ class ParagraphStack(ChildBox):
     def replace(self, i1, i2, new_paragraphs):
         boxes = self.childs
         j1, j2 = self.get_envelope(i1, i2)
-        assert i1 == j1 and i2 == j2 
+        assert i1 == j1 and i2 == j2
         self.childs = listtools.replace(boxes, j1, j2, new_paragraphs)
         self.layout()
 
-    def get_envelope(self, i1, i2):        
+    def get_envelope(self, i1, i2):
         j1, j2 = listtools.get_envelope(self.childs, i1, i2)
         if i1 == self.length and self.childs:
             j1 -= len(self.childs[-1])
@@ -641,7 +641,7 @@ class Updater:
         factory = self.factory
         boxes = factory.create_boxes(self.model.texel, i1, i2)
         return create_paragraphs(
-            boxes, self._maxw, 
+            boxes, self._maxw,
             Paragraph = factory.Paragraph,
             device = factory.device)
 
@@ -683,11 +683,11 @@ class Factory:
     ParagraphStack = ParagraphStack
     def __init__(self, device=TESTDEVICE):
         self.device = device
-    
+
     def create_boxes(self, texel, i1=None, i2=None):
         if i1 is None:
             assert i2 is None
-            i1 = 0 
+            i1 = 0
             i2 = len(texel)
         else:
             assert i1 <= i2
@@ -726,7 +726,7 @@ class Factory:
         return [self.TabulatorBox(texel.style, self.device)]
 
 
-        
+
 def check_box(box, texel=None):
     # - muss für alle Indizes infos liefern
     for i in range(len(box)+1):
@@ -750,17 +750,17 @@ def check_box(box, texel=None):
     for i in range(len(box)):
         if i+2>len(box):
             continue
-        j1, j2 = box.extend_range(i, i+2)        
+        j1, j2 = box.extend_range(i, i+2)
         a, b = texel.split(j1)
-        assert len(a)+len(b) == len(texel)        
+        assert len(a)+len(b) == len(texel)
         c, d = texel.split(j2)
         assert len(c)+len(d) == len(texel)
         rest, part = texel.takeout(j1, j2)
         assert len(part) == j2-j1
         assert len(rest)+len(part) == len(texel)
 
-    return True        
-    
+    return True
+
 
 
 def test_00():
@@ -774,7 +774,7 @@ def test_00():
     p2 = Paragraph([Row([t2])])
     assert p2.height == 1
     s = ParagraphStack([p1, p2])
-    assert s.height == 2    
+    assert s.height == 2
     assert str(t1.split(5)) == "(TB('01234'), TB('56789'))"
 
 
@@ -826,7 +826,7 @@ def test_02():
     paragraphs = create_paragraphs(boxes)
     stack = ParagraphStack(paragraphs)
     assert stack.extra_height > 0
-    
+
 
 def test_03():
     "Factory"
@@ -881,13 +881,13 @@ def test_04():
     updater = Updater(model, factory, maxw=0)
     layout = updater.layout
 
-    ins = TextModel("xyz\n")    
+    ins = TextModel("xyz\n")
     i = len(model)
     model.insert(i, ins)
     updater.inserted(i, len(ins))
-    
+
     for c in "abc":
-        ins = TextModel(c)    
+        ins = TextModel(c)
         i = len(model)
         model.insert(i, ins)
         updater.inserted(i, len(ins))
@@ -901,7 +901,7 @@ def test_05():
     model = TextModel("123\n\n567890 2 4 6 8 0")
     updater = Updater(model, factory, maxw=0)
     layout = updater.layout
-    
+
     def check(box):
         if not box.device is device:
             print box

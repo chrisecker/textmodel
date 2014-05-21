@@ -98,7 +98,7 @@ def get_interval(l, i):
     # Gibt das Element zurück, das die Position i enthält. Wenn i an
     # einer Grenze liegt, dann wird das rechte Element
     # zurückgeliefert. Achtung: die rechte Kante gehört dazu! Das
-    # erlaubt es, "Anfügen" als "Ersetzen" zu beschreiben. 
+    # erlaubt es, "Anfügen" als "Ersetzen" zu beschreiben.
 
     j1 = 0
     k1 = k2 = None
@@ -129,7 +129,7 @@ def get_items(l, i1, i2):
         j1 = j2
     return k1, k2, items
 
-                                
+
 def replace(l, i1, i2, new):
     # Achtung: das intervall kann auch leer sein!
     # -> replace(l, i1, i1, new) fügt an die Stelle i1 ein
@@ -162,7 +162,7 @@ def listjoin(a, b, fun):
 def test_00():
     assert get_envelope(['012345', '678', '9012345'], 6, 10) == (6, 16)
     assert get_envelope(['012345', '678', '9012345'], 6, 7) == (6, 9)
-    
+
 
 def test_01():
     assert replace(['012345', '678', '9012345'], 6, 9, []) == ('012345', '9012345')

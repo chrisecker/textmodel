@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import sys
 sys.path.insert(0, '..')
 
@@ -19,5 +21,6 @@ view.model = model
 view.cursor = 5
 view.selection = 0, 5
 
+frame.CreateStatusBar().SetStatusText('wxPython %s' % wx.version())
 frame.Show()
 app.MainLoop()

@@ -4,7 +4,7 @@
 
 def pyshell(namespace=None):
     import wx.py
-    style = wx.DEFAULT_FRAME_STYLE 
+    style = wx.DEFAULT_FRAME_STYLE
     f = wx.Frame(None,
                  pos=wx.DefaultPosition,
                  style=style
@@ -14,7 +14,7 @@ def pyshell(namespace=None):
     if namespace is None:
         namespace = {}
     shell = wx.py.shell.Shell(
-        f, -1, locals=namespace,                  
+        f, -1, locals=namespace,
         size=(1000, 200),
         )
     f.shell = shell
@@ -37,7 +37,7 @@ def logwindow():
                    #|wx.FRAME_FLOAT_ON_PARENT \
                    #|wx.FRAME_NO_TASKBAR \
                    #|wx.FRAME_TOOL_WINDOW,
-                #title='Logfenster'                   
+                #title='Logfenster'
                 )
 
     from logwindow import LogWindow
@@ -60,4 +60,4 @@ if __name__=='__main__':
     alltests.dotests()
 
 
-    
+

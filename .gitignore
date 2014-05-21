@@ -1,0 +1,4 @@
+# Global wildcards to ignore
+*.pyc
+*.pyd
+*.pyo

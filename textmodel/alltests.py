@@ -31,14 +31,14 @@ class Tester:
     def reset_buffer(self):
         self.stdoutbuffer = StringIO.StringIO()
         self.stderrbuffer = StringIO.StringIO()
-        
+
     def redirect_io(self):
         #print "stdout:", sys.stdout
         assert sys.stdout is self.bkstdout
         assert sys.stderr is self.bkstderr
         sys.stdout = self.stdoutbuffer
         sys.stderr = self.stderrbuffer
-        
+
     def restore_io(self):
         #assert sys.stdout is self.stdoutbuffer
         #assert sys.stderr is self.stderrbuffer
@@ -53,7 +53,7 @@ class Tester:
         print text,
         if self.redirect:
             self.reset_buffer()
-            self.redirect_io()        
+            self.redirect_io()
         ok = True
         try:
             obj()
@@ -72,21 +72,21 @@ class Tester:
                 print "stdout:"
                 print self.stdoutbuffer.getvalue()
             if self.stderrbuffer.len:
-                print "stderr:"                
+                print "stderr:"
                 print self.stderrbuffer.getvalue()
-                
+
         else:
             if self.stdoutbuffer.len:
                 print "stdout:"
                 print self.stdoutbuffer.getvalue()
             if self.stderrbuffer.len:
-                print "stderr:"                
+                print "stderr:"
                 print self.stderrbuffer.getvalue()
             print "error"
             print tb
         return ok
 
-    
+
 def test_00():
     "output"
     print 123+432
@@ -103,7 +103,7 @@ def _devel():
 
 def dotests(silent=False):
     """Kann aus Modulen aufgerufen werden. Durchsucht den aktuellen Namespace
-nach test-objekten. Namen von testobjekten können als sys.argv übergeben 
+nach test-objekten. Namen von testobjekten können als sys.argv übergeben
 werden. Ansonsten werden alle Objekte, deren Name mit 'test_'-anfängt getestet.
 """
 
@@ -121,7 +121,7 @@ werden. Ansonsten werden alle Objekte, deren Name mit 'test_'-anfängt getestet.
                 names.append(name)
         names.sort()
 
-        
+
     hashes = '#' * ((60-len(filename))/2)
     print " %s %s %s" % (hashes, filename, hashes)
     tester = Tester(silent=silent)
@@ -135,7 +135,7 @@ werden. Ansonsten werden alle Objekte, deren Name mit 'test_'-anfängt getestet.
             n_ok += 1
     print "Anzahl Tests:\t%i" % n
     print "Misslungen:\t%i" % (n-n_ok)
-    
+
 
 #_devel()
 #dotests(silent=True)

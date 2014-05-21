@@ -12,7 +12,7 @@ class ViewBase(object):
 
     models = overridable_property('models',
         "List of Models being observed. Do not modify directly.")
-    
+
     model = overridable_property('model',
         "Convenience property for views which observe only one Model.")
 
@@ -29,7 +29,7 @@ class ViewBase(object):
     #
     #		Getting properties
     #
-    
+
     def get_model(self):
         models = self._models
         if models:
@@ -55,19 +55,19 @@ class ViewBase(object):
     #
     #   Model association
     #
-    
+
     def add_model(self, model):
         """Add the given Model to the set of models being observed."""
         if model not in self._models:
             self._models.append(model)
             model.add_view(self)
-    
+
     def remove_model(self, model):
         """Remove the given Model from the set of models being observed."""
         if model in self._models:
             self._models.remove(model)
             model.remove_view(self)
-    
+
     #
     #		Callbacks
     #

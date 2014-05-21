@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import sys
 sys.path.insert(0, '..')
 
@@ -15,19 +17,20 @@ model.set_properties(0, 11, bgcolor='yellow')
 
 instructions = """
 
-You can edit this text as you like. Undo 
-is ctrl-z and redo ctrl-r. The second 
-window displays exactly the same text and 
-follows the changes. 
- 
+You can edit this text as you like. Undo
+is ctrl-z and redo ctrl-r. The second
+window displays exactly the same text and
+follows the changes.
+
 """
 
 model.insert(len(model), TextModel(instructions))
 
-# display the texmodel in a view 
+# display the texmodel in a view
 frame = wx.Frame(None)
 view = WXTextView(frame, -1)
 view.model = model
+frame.CreateStatusBar().SetStatusText('wxPython %s' % wx.version())
 frame.Show()
 
 # set cursor and selection
@@ -38,6 +41,7 @@ view.selection = 0, 5
 frame2 = wx.Frame(None)
 view2 = WXTextView(frame2, -1)
 view2.model = model
+frame2.CreateStatusBar().SetStatusText('wxPython %s' % wx.version())
 frame2.Show()
 
 app.MainLoop()

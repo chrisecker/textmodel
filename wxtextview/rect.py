@@ -7,7 +7,7 @@ class Rect:
         self.y1 = min(y1, y2)
         self.x2 = max(x1, x2)
         self.y2 = max(y1, y2)
-        
+
     def __repr__(self):
         return 'Rect%s' % repr((self.x1, self.y1, self.x2, self.y2))
 

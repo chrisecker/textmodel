@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # -*- coding: latin-1 -*-
 
 
@@ -6,7 +7,7 @@ Demo of Math Typesetting
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
 The purpose of this demo is to show how to do some non trivial
-typesetting. 
+typesetting.
 
 Usually text is linear, i.e. it consists of characters and one
 character follows the other. This is what simple text editor can
@@ -45,7 +46,7 @@ class Fraction(Container):
 
     def from_childs(self, childs):
         return self.__class__(childs[1:2], childs[3:4])
-    
+
     def dump(self, i=0):
         print (" "*i)+"Frac(["
         self.denominator.dump(i+4)
@@ -84,7 +85,7 @@ class EntryBox(IterBox):
 
 def extend_range_seperated(iterbox, i1, i2):
     # Extend-Range für seperierte Kindfelder. I1 und i2 werden
-    # ausgeweitet, wenn mehr als ein Kind enthalten sind. 
+    # ausgeweitet, wenn mehr als ein Kind enthalten sind.
     last = 0
     for j1, j2, x, y, child in iterbox.iter(0, 0, 0):
         if not (i1<j2 and j1<i2):
@@ -117,7 +118,7 @@ class FractionBox(IterBox):
         yield j1, j2, x+0.5*(width-d.width), y, d
         y += max(self.m, d.height+d.depth)
         j1 = j2
-        j2 += len(n) 
+        j2 += len(n)
         yield j1, j2, x+0.5*(width-n.width), y, n
 
     def layout(self):
@@ -140,11 +141,11 @@ class FractionBox(IterBox):
             if i1<= i<i2:
                 return 0, len(self)
         return extend_range_seperated(self, i1, i2)
-        
+
     def can_leftappend(self):
          return False
 
-        
+
 
 class Root(Container):
     def __init__(self, content=()):
@@ -155,7 +156,7 @@ class Root(Container):
 
     def from_childs(self, childs):
         return self.__class__(childs[1:2])
-    
+
 
 
 class RootBox(IterBox):
@@ -164,7 +165,7 @@ class RootBox(IterBox):
         if device is not None:
             self.device = device
         content = self.content = EntryBox(boxes, device)
-        self.length = len(content)+1        
+        self.length = len(content)+1
         self.width = content.width+12
         self.height = content.height+5
         self.depth = content.depth
@@ -180,7 +181,7 @@ class RootBox(IterBox):
         w1 = 5
         w2 = self.content.width+2
         points = [
-            (x, y+h/2), 
+            (x, y+h/2),
             (x+w1/2, y+h),
             (x+w1, y),
             (x+w1+w2, y),
@@ -192,7 +193,7 @@ class RootBox(IterBox):
             self.device.invert_rect(x, y, self.width, self.height, dc)
         else:
             IterBox.draw_selection(self, i1, i2, x, y, dc)
-            
+
     def can_leftappend(self):
         return False
 
@@ -207,7 +208,7 @@ class Factory(_Factory):
     def Fraction_handler(self, texel, i1, i2):
         denomboxes = self.create_boxes(texel.denominator)
         nomboxes = self.create_boxes(texel.nominator)
-        return [FractionBox(denomboxes, nomboxes, 
+        return [FractionBox(denomboxes, nomboxes,
                             style=texel.get_style(0),
                             device=self.device)]
 
@@ -219,7 +220,7 @@ class Factory(_Factory):
 class WXMathTextView(WXTextView):
     def create_factory(self):
         self.factory = Factory(WxDevice())
-    
+
 
 
 def mk_textmodel(texel):
@@ -241,8 +242,8 @@ def init_testing(redirect=True):
     box.Add(view, 1, wx.ALL|wx.GROW, 1)
     win.SetSizer(box)
     win.SetAutoLayout(True)
-
-    frame.Show()    
+    frame.CreateStatusBar().SetStatusText('wxPython %s' % wx.version())
+    frame.Show()
     return locals()
 
 def test_00():
@@ -266,7 +267,7 @@ def test_00():
     model.insert_text(1, "x")
     model.remove(1, 2)
     #model.texel.dump()
-    
+
     layout = ns['layout']
     assert check_box(layout)
 
@@ -325,7 +326,7 @@ def test_04():
 
     view = ns['view']
     view.cursor = 5
-    view.selection = 3, 6    
+    view.selection = 3, 6
     return ns
 
 
@@ -334,7 +335,7 @@ def test_05():
     model = ns['model']
     model.remove(0, len(model))
     model.insert_text(0, '\n')
-                 
+
     frac = Fraction([Characters(u'Zähler')], [Characters(u'Nenner')])
     model.insert(1, mk_textmodel(frac))
     model.insert_text(1, 'Bruch = ')
@@ -345,7 +346,7 @@ def test_05():
 
     view = ns['view']
     view.cursor = 5
-    view.selection = 3, 6    
+    view.selection = 3, 6
     return ns
 
 
@@ -362,7 +363,7 @@ def test_06():
     model.remove(0, len(model))
     frac = Fraction([Characters(u'Zähler')], [Characters(u'Nenner')])
     model.insert(0, mk_textmodel(frac))
-    model.insert(14, mk_textmodel(frac))    
+    model.insert(14, mk_textmodel(frac))
 
     layout = ns['layout']
     box2 = layout.childs[0].childs[0].childs[0]
@@ -378,24 +379,24 @@ def test_06():
 def demo_00():
     ns = test_01()
     from wxtextview import testing
-    #testing.pyshell(ns)    
+    #testing.pyshell(ns)
     ns['app'].MainLoop()
 
 
 def demo_01():
     ns = test_05()
     from wxtextview import testing
-    testing.pyshell(ns)    
+    testing.pyshell(ns)
     ns['app'].MainLoop()
 
 def demo_02():
     ns = test_06()
     from wxtextview import testing
-    testing.pyshell(ns)    
+    testing.pyshell(ns)
     ns['app'].MainLoop()
 
-    
-    
+
+
 if __name__ == '__main__':
     from textmodel import alltests
     import sys
@@ -403,4 +404,4 @@ if __name__ == '__main__':
     if len(sys.argv) <= 1:
         sys.argv.append('demo_00')
     alltests.dotests()
-    
+

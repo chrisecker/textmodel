@@ -11,7 +11,7 @@ from layout import Factory, Updater, TESTDEVICE
 
 def undo(info):
     func = info[0]
-    args = info[1:]    
+    args = info[1:]
     redo = apply(func, args)
     return redo
 
@@ -49,7 +49,7 @@ class TextView(ViewBase):
         if len(self._undoinfo) > 0:
             self.add_redo(undo(self._undoinfo[0]))
             del self._undoinfo[0]
-                
+
     def add_undo(self, info, clear_redo = 1):
         if info is not None:
             self._undoinfo.insert(0, info)
@@ -130,7 +130,7 @@ class TextView(ViewBase):
             row, col = model.index2position(index)
             print "row=", row
             print "col=", col
-            
+
         elif action == 'move_word_end':
             i = index
             n = len(model)
@@ -158,7 +158,7 @@ class TextView(ViewBase):
             self.set_index(index-1, shift)
         elif action == 'move_paragraph_end':
             i = row
-            linelengths = model.texel.get_linelengths() 
+            linelengths = model.texel.get_linelengths()
             try:
                 while linelengths[i] == 1:
                     i += 1
@@ -166,12 +166,12 @@ class TextView(ViewBase):
                     i += 1
                 self.move_cursor_to(i, 0, shift)
             except IndexError:
-                self.set_index(len(model), shift)                    
+                self.set_index(len(model), shift)
         elif action == 'move_down':
             self.move_cursor_to(row+1, col, shift)
         elif action == 'move_paragraph_begin':
             i = row-1
-            linelengths = model.texel.get_linelengths() 
+            linelengths = model.texel.get_linelengths()
             while linelengths[i] == 1 and i>=0:
                 i -= 1
             while linelengths[i] > 1 and i>=0:
@@ -186,7 +186,7 @@ class TextView(ViewBase):
         elif action == 'move_page_down':
             width, height = self.GetClientSize()
             i = self.compute_index(x, y+height)
-            self.set_index(i, shift)            
+            self.set_index(i, shift)
         elif action == 'move_page_up':
             width, height = self.GetClientSize()
             i = self.compute_index(x, y-height)
@@ -230,13 +230,13 @@ class TextView(ViewBase):
             except IndexError:
                 i = 0
             self.remove(i, index)
-        else:                  
+        else:
             #print keycode
             assert len(action) == 1 # single character
             del_selection()
             index = self.index
-                
-            s = TextModel(action, **style)  
+
+            s = TextModel(action, **style)
             n = len(model)
             assert len(s) == 1
             self.insert(index, s)
@@ -250,7 +250,7 @@ class TextView(ViewBase):
 
     def cut(self):
         raise NotImplemented()
-         
+
     def select_word(self, x, y):
         i = self.updater.layout.get_index(x, y)
         if i is None:
@@ -324,7 +324,7 @@ class TextView(ViewBase):
 
     def keep_cursor_on_screen(self):
         pass
-        
+
     ###
     def set_index(self, index, extend=False, update=True):
         if index < 0:
@@ -344,7 +344,7 @@ class TextView(ViewBase):
         return self._index
 
     def current_position(self):
-        # gibt die Cursorposition als row, col zurück 
+        # gibt die Cursorposition als row, col zurück
         model = self.model
         i = self.index
         if model is None or i == 0:
@@ -359,7 +359,7 @@ class TextView(ViewBase):
             # nicht. Nach einem Return wäre die nächste Position am
             # Anfang der nächsten Zeile. Ansonsten einfach ein Zeichen
             # weiter rechts.
-            
+
             row, col = model.index2position(i-1)
             if model.get_text(len(model)-1) == '\n':
                 col = 0
@@ -406,7 +406,7 @@ class TextView(ViewBase):
         # selektiert) oder die Länge 1. Zukünftig kann sich das ändern
         # (z.B. bei Tabellen), sodass auch mehr als 1 Bereich
         # selektiert werden kann. Dazu könnte Box.extend_selection in
-        # Box.get_selected umbenannt werden.        
+        # Box.get_selected umbenannt werden.
         selection = self.selection
         if selection is None:
             return []
@@ -416,7 +416,7 @@ class TextView(ViewBase):
     def start_selection(self):
         index = self.index
         self.selection = index, index
-        
+
     def extend_selection(self):
         # setzt den Endpunkt der Selektion auf den Index
         selection = self.selection
@@ -425,9 +425,9 @@ class TextView(ViewBase):
             self.selection = index, index
         else:
             self.selection = selection[0], index
-        
-        
-    
+
+
+
 if __name__ == '__main__':
     import alltests
     alltests.dotests()

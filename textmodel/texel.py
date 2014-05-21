@@ -48,13 +48,13 @@ class Texel:
 
     def dump(self, i=0):
         pass
-    
+
 
 
 def check(texel):
     # Führt diverse Tests durch. Insbesondere wird geprüft, ob das
     # Texel-Protokoll korrekt und vollständig implementiert ist.
-    
+
     # 1. Sind alle nötigen Methoden implementiert?
     for name in dir(Texel):
         if name.startswith('__') and name != '__len__':

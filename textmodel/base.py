@@ -7,13 +7,13 @@ Simplification
 ~~~~~~~~~~~~~~
 
 Nach set_properties():
-    
+
     - Es können Objekte mit Länge Null erzeugt werden (überall)
     - möglicherweise können Characters zusammengefasts werden (überall)
     - Es wird unnötig geschachtelt g[g[c]]
-   
+
 Nach insert():
- 
+
     - Characters können zusammengefasst werden (an Schnittkanten)
     - Gruppen können zusammengefasst werden (an Schnittkanten)
     - Gruppen können aufgelöst werden (an Schnittkante)
@@ -21,7 +21,7 @@ Nach insert():
     Optimierungen:
     - simplify muss nicht immer an _beiden_ Schnittkanten ausgeführt werden
     -> an welcher?
-    
+
 Nach split():
 
     - wie insert
@@ -36,8 +36,8 @@ import listtools
 def hash_style(style):
     return tuple(sorted(style.items()))
 
-style_pool = {} 
-defaultstyle = {}   
+style_pool = {}
+defaultstyle = {}
 def create_style(**kwds):
     global style_pool
     style = defaultstyle.copy()
@@ -50,8 +50,8 @@ def create_style(**kwds):
         return style
 
 defaultstyle = create_style(
-    textcolor = 'black', 
-    bgcolor = 'white', 
+    textcolor = 'black',
+    bgcolor = 'white',
     fontsize = 10
     )
 
@@ -66,7 +66,7 @@ def style_add((n1, style1), (n2, style2)):
     if style1 is style2:
         return [(n1+n2, style1)]
     return [(n1, style1), (n2, style2)]
-    
+
 
 def get_interval(container, slice):
     if slice.start is None:
@@ -130,21 +130,21 @@ class Glyph:
     def set_properties(self, i1, i2, properties):
         if i1<=0 and i2>0:
             clone = shallow_copy(self)
-            clone.style = updated_style(self.style, properties)            
+            clone.style = updated_style(self.style, properties)
             return clone
         return self
 
     def split(self, i):
         if i == 0:
-            return NULL_TEXEL, self 
+            return NULL_TEXEL, self
         elif i == len(self):
             return self, NULL_TEXEL
         assert False
-        
+
     def takeout(self, i1, i2):
         if i1 == i2:
-            return self, NULL_TEXEL 
-        return NULL_TEXEL, self 
+            return self, NULL_TEXEL
+        return NULL_TEXEL, self
 
     def insert(self, i, texel):
         if i == 0:
@@ -164,16 +164,16 @@ class CharactersBase:
     style = None
     def __len__(self):
         return len(self.data)
-        
+
     def get_text(self):
         return self.data
-        
+
     def get_style(self, i):
         return self.style
-        
+
     def simplify(self, i):
         return self
-        
+
     def get_styles(self, i1, i2):
         i1 = max(0, i1)
         i2 = min(len(self), i2)
@@ -221,8 +221,8 @@ class CharactersBase:
             styles = [(l-m, style)]+list(styles[1:])
 
         assert listtools.calc_length(r) == len(self)
-        return checked(group(r))            
-                
+        return checked(group(r))
+
     def __getitem__(self, r):
         i1, i2 = get_interval(self, r)
         clone = shallow_copy(self)
@@ -244,7 +244,7 @@ class Characters(CharactersBase):
         unicode(text) # check proper encoding
         self.data = text
         self.style = style
-        
+
     def __str__(self):
         return "C(%s)" % repr(self.data)
 
@@ -253,14 +253,14 @@ class Characters(CharactersBase):
 
     def __len(self):
         return len(self.data)
-        
+
     def split(self, i):
         if i<0 or i>len(self):
             raise IndexError, i
         l = Characters(self.data[:i], self.style)
         r = Characters(self.data[i:], self.style)
         return l, r
-        
+
     def set_properties(self, i1, i2, properties):
         if i1 == i2:
             return self
@@ -287,16 +287,16 @@ class Characters(CharactersBase):
 
     def get_linelengths(self):
         return []
-        
+
 NULL_TEXEL = Characters('')
-        
+
 class NewLine(Glyph):
     def __repr__(self):
         return 'NL'
 
     def __str__(self):
         return 'NL'
-    
+
     def get_text(self):
         return u'\n'
 
@@ -342,7 +342,7 @@ def group(content):
         if isinstance(texel, Group):
             l2.extend(texel.data)
         else:
-            l2.append(texel)        
+            l2.append(texel)
     while len(l1)+len(l2) > maxlength:
         if not len(l1): # Wenn die Ursprüngliche Liste sehr lang war
                         # (> optlength^optlength), dann sind mehrere
@@ -351,7 +351,7 @@ def group(content):
             l2 = []
         l2.append(Group(l1[:optlength]))
         l1 = l1[optlength:]
-        
+
     r = l2+l1
     if len(r) == 1:
         return r[0]
@@ -366,13 +366,13 @@ class Group:
             n = len(texel)
             if not n:
                 continue
-            length += n            
+            length += n
             data.append(texel)
         self._length = length
 
     def __len__(self):
         return self._length
-        
+
     def __repr__(self):
         return "G(%s)" % repr(self.data)
 
@@ -391,7 +391,7 @@ class Group:
 
     def get_text(self):
         return u''.join(texel.get_text() for texel in self.data)
-        
+
     def get_style(self, i):
         for texel in self.data:
             n = len(texel)
@@ -401,7 +401,7 @@ class Group:
 
     def get_linelengths(self):
         linelengths = []
-        n = 0 # Länge der letzten (nicht abgeschlossenen) Zeile 
+        n = 0 # Länge der letzten (nicht abgeschlossenen) Zeile
         for i, texel in enumerate(self.data):
             l = texel.get_linelengths()
             if l:
@@ -425,7 +425,7 @@ class Group:
     def set_styles(self, i, styles):
         data = []
         for texel in self.data:
-            # XXX kann optimiert werden            
+            # XXX kann optimiert werden
             data.append(texel.set_styles(i, styles).simplify(0))
             i -= len(texel)
         assert listtools.calc_length(data) == len(self)
@@ -463,8 +463,8 @@ class Group:
                     # Eintrag wurde vollständig angewendet
                     nc -= l
                     styles = styles[1:]
-        return checked(group(r))            
-     
+        return checked(group(r))
+
 
     def set_properties(self, i1, i2, properties):
         assert i2 >= i1
@@ -479,7 +479,7 @@ class Group:
             i1 -= n
             i2 -= n
         return checked(group(r))
-        
+
     def split(self, i):
         if i<0 or i>len(self):
             raise IndexError(i)
@@ -517,9 +517,9 @@ class Group:
             else: # item hat keine Schnittmenge mit [i1, i2]
                 rest.append(item)
         return group(rest), group(part)
-        
+
     def insert(self, i, texel):
-        
+
         # Die folgende Schleife untersucht nicht den Fall, dass hinter
         # dem letzten Element eingefügt wird oder dass data leer
         # ist. Beide Fälle werden hier behandelt.
@@ -539,7 +539,7 @@ class Group:
             i -= n
         assert len(self)+len(texel) == len(Group(data))
         return group(data)
-        
+
     def simplify(self, i):
         # Gruppen werden zusammengefasst, wenn die Länge von self
         # nicht maxlength übersteigen würde.
@@ -551,7 +551,7 @@ class Group:
             n = len(elem)
             assert n>0
             # leere Elemente wurden schon im Group-Konstruktor entfernt
-            
+
             if i == n:
                 # elem ist das linke Element!
                 elem = elem.simplify(i)
@@ -582,7 +582,7 @@ class Group:
                         new = Characters(l.data+elem.data, elem.style)
                         data.append(new)
                         i -= len(elem)
-                    
+
                     # Gruppenverketting möglich?
                     elif isinstance(elem, Group) and \
                             isinstance(l, Group) and \
@@ -595,7 +595,7 @@ class Group:
                     else:
                         data.append(l)
                         data.append(elem)
-                        i -= len(elem)                
+                        i -= len(elem)
             else:
                 data.append(elem)
                 i -= len(elem)
@@ -607,7 +607,7 @@ class Group:
 
         assert len(tmp) == len(self)
         return checked(tmp)
-        
+
     def dump(self, i=0):
         print (" "*i)+"G(["
         for texel in self.data:
@@ -666,7 +666,7 @@ def test_02():
     "insert and simplify"
     t1 = Characters(text1)
     t2 = Characters(text2)
-    
+
     # Text wird beim einfügen in Text mit gleichem Style immer
     # zusammengeführt
     for i in range(len(t1)+1):
@@ -689,7 +689,7 @@ def test_02():
     assert isinstance(t, Characters)
 
 
-def test_03():    
+def test_03():
     "ungroup"
     G = Group
     C = Characters
@@ -709,7 +709,7 @@ def test_04():
             item1, item2 = item.split(i)
             assert len(item1)+len(item2) == n
 
-            
+
 def test_05():
     "insert"
     c = Characters(text1)
@@ -743,7 +743,7 @@ def test_06():
     #print t.simplify(5)
     assert str(t.simplify(5)) == "C('0123456789')"
 
-    
+
 def test_07():
     "set properties"
     texel = Characters('0123')
@@ -759,10 +759,10 @@ def test_07():
         i1, i2 = sorted([i1, i2])
         size = choice([10, 14])
         #print str(texel)
-        
+
         new = texel.set_properties(i1, i2, {'s':size}).simplify(i1).simplify(i2)
         assert not "C(u'')" in str(texel)
-        assert not "C(u'')" in str(new)    
+        assert not "C(u'')" in str(new)
         texel = new
 
 
@@ -801,7 +801,7 @@ def test_08():
     t = t.set_styles(6, [(1, s2)])
     assert styles2str(t.get_styles(0, len(t))) == '0001102000'
 
-    # Styling überschreiben 
+    # Styling überschreiben
     n = len(t)
     styles = t.get_styles(1, len(t))
     t = t.set_styles(5, [(len(t)-5, s0)])
@@ -824,10 +824,10 @@ def test_08():
 def test_09():
     "NewLine"
     texel = NewLine()
-    assert check(texel) 
-    
+    assert check(texel)
+
 
 if __name__=='__main__':
     import alltests
     alltests.dotests()
-    
+

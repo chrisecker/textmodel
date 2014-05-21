@@ -37,7 +37,7 @@ Try to execute the following cells."""
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # - cell.execute bekommt als Argument das komplette Modell und i1, i2
 #
-# - cell.execute übergibt an den Interpreter eine Ausgabe Fnuktion (output). 
+# - cell.execute übergibt an den Interpreter eine Ausgabe Fnuktion (output).
 #
 # - Der Interpreter benutzt die Ausgabefunktion um Stdout, Stderr zu
 #   schreiben.
@@ -87,7 +87,7 @@ class TextBuffer:
             l = self.err
         else:
             l = self.out
-            
+
         l.append(u)
         self.stdout = ''.join(self.out)
         self.stderr = ''.join(self.err)
@@ -107,7 +107,7 @@ class TexelBuffer:
             texel = TextModel(unicode(obj)).texel
         self.texel = self.texel.insert(self.i, texel)
         self.i += len(texel)
-            
+
 
 class FakeFile:
     def __init__(self, fun):
@@ -158,7 +158,7 @@ class SimpleInterpreter:
         if self.expression and self.ok:
             ans = self.namespace['ans']
             output(ans)
-        
+
     def show_traceback(self):
         type, value, tb = sys.exc_info()
         skip = 1
@@ -197,7 +197,7 @@ class Cell(Container):
             self.output, EMPTY_NL
 
     def from_childs(self, childs):
-        return self.__class__(input=childs[1:2], output=childs[3:4], 
+        return self.__class__(input=childs[1:2], output=childs[3:4],
                               number = self.number)
 
     def execute(self):
@@ -209,7 +209,7 @@ class Cell(Container):
 
 
 def extend_range_seperated(self, i1, i2):
-    # Extend-Range für seperierte Kindfelder 
+    # Extend-Range für seperierte Kindfelder
     for j1, j2, x, y, child in self.iter(0, 0, 0):
         if not (i1<j2 and j1<i2):
             continue
@@ -265,7 +265,7 @@ class CellBox(IterBox):
         j1 = j2
         j2 = j1+len(output)
         y += input.height+input.depth+20
-        yield j1, j2, x+80, y, output        
+        yield j1, j2, x+80, y, output
 
     def layout(self):
         # w und h bestimmen
@@ -282,7 +282,7 @@ class CellBox(IterBox):
 
     def __repr__(self):
         return self.__class__.__name__+'(%s, %s)' % \
-            (repr(list(self.input.content.childs)), 
+            (repr(list(self.input.content.childs)),
              repr(list(self.output.content.childs)))
 
     def get_index(self, x, y):
@@ -319,7 +319,7 @@ class CellBox(IterBox):
         if i == len(self):
             return None, i, x0, y0 # None => kein Kind kümert sich darum
         return IterBox.responding_child(self, i, x0, y0)
- 
+
     def get_cursorrect(self, i, x0, y0, style):
         child, j, x1, y1 = self.responding_child(i, x0, y0)
         if child is not None:
@@ -334,7 +334,7 @@ class CellBox(IterBox):
             return Rect(x0, y0, sepwidth, y0+2)
         assert i == len(self)
         h = self.height
-        return Rect(x0, y0+h, sepwidth, y0+h+2)            
+        return Rect(x0, y0+h, sepwidth, y0+h+2)
 
 
 class CellStack(VBox):
@@ -347,11 +347,11 @@ class CellStack(VBox):
     def replace(self, i1, i2, new_cells):
         boxes = self.childs
         j1, j2 = self.get_envelope(i1, i2)
-        assert i1 == j1 and i2 == j2 
+        assert i1 == j1 and i2 == j2
         cells = listtools.replace(boxes, j1, j2, new_cells)
         return CellStack(cells, self._maxw, self.device)
 
-    def get_envelope(self, i1, i2):        
+    def get_envelope(self, i1, i2):
         j1, j2 = listtools.get_envelope(self.childs, i1, i2)
         if i1 == self.length and self.childs:
             j1 -= len(self.childs[-1])
@@ -417,11 +417,11 @@ class FigureBox(IterBox):
 
     def draw_selection(self, i1, i2, x, y, dc):
         self.device.invert_rect(x, y, self.width, self.height, dc)
-        
 
 
-# Wir fassen hier Updater und Factory in eine Klasse zusammen.  
-class Updater(layout.Factory):        
+
+# Wir fassen hier Updater und Factory in eine Klasse zusammen.
+class Updater(layout.Factory):
     _maxw = 0
 
     CellStack = CellStack
@@ -438,19 +438,19 @@ class Updater(layout.Factory):
     def Cell_handler(self, texel, i1, i2):
         boxes = self.create_boxes(texel.input)
         l = layout.create_paragraphs(
-            boxes, maxw=self._maxw, 
+            boxes, maxw=self._maxw,
             Paragraph = self.Paragraph,
             device = self.device)
         inbox = self.ParagraphStack(l, device=self.device)
 
         boxes = self.create_boxes(texel.output)
         l = layout.create_paragraphs(
-            boxes, maxw=0, 
+            boxes, maxw=0,
             Paragraph = self.Paragraph,
             device = self.device)
         outbox = self.ParagraphStack(l, device=self.device)
 
-        return [CellBox([inbox], [outbox], number=texel.number, 
+        return [CellBox([inbox], [outbox], number=texel.number,
                         device=self.device)]
 
     def Plot_handler(self, texel, i1, i2):
@@ -463,14 +463,14 @@ class Updater(layout.Factory):
         factory = self.factory
         boxes = factory.create_boxes(self.model.texel, i1, i2)
         return create_paragraphs(
-            boxes, self._maxw, 
+            boxes, self._maxw,
             Paragraph = factory.Paragraph,
             device = factory.device)
 
     def create_cells(self, i1, i2):
         boxes = self.create_boxes(self.model.texel, i1, i2)
         for box in boxes:
-            assert isinstance(box, CellBox) 
+            assert isinstance(box, CellBox)
         return boxes
 
     def rebuild(self):
@@ -513,7 +513,7 @@ class WXTextView(_WXTextView):
     def create_updater(self):
         device = WxDevice()
         updater = Updater(self.model, device)
-        self.factory = updater        
+        self.factory = updater
         self.updater = updater
 
     def on_char(self, event):
@@ -532,18 +532,18 @@ class WXTextView(_WXTextView):
         return find_cell(self.model.texel, self.index)
 
     def execute(self):
-        i0, cell = self.find_cell()    
+        i0, cell = self.find_cell()
         n = len(cell)
         new = cell.execute()
         assert i0>=0
         assert i0+n<=len(self.model)
         self.model.remove(i0, i0+n)
-        self.model.insert(i0, mk_textmodel(new))        
-        
+        self.model.insert(i0, mk_textmodel(new))
+
     def insert(self, i, textmodel):
         needscell = True
         try:
-            i0, cell = self.find_cell()            
+            i0, cell = self.find_cell()
             if not (i == i0 or i == i0+len(cell)):
                 needscell = False
         except NotFound:
@@ -558,10 +558,10 @@ class WXTextView(_WXTextView):
             info = self.model.insert(i, mk_textmodel(cell))
             i = i+1
         _WXTextView.insert(self, i, textmodel)
-            
-        
-        
-        
+
+
+
+
 
 def output_plot():
     import matplotlib
@@ -667,7 +667,7 @@ def test_01():
     "interpreter"
     buf = TextBuffer()
     inter = SimpleInterpreter()
-    inter.execute("asdasds", buf.output)    
+    inter.execute("asdasds", buf.output)
     assert buf.stderr == '  File "input[1]", line 1, in <module>\nNameError: ' \
         'name \'asdasds\' is not defined\n'
     assert inter.ok == False
@@ -678,7 +678,7 @@ def test_01():
     inter.execute("a=1", buf.output)
     assert inter.namespace['a'] == 1
     assert not buf.stderr
-    
+
     inter.execute("a", buf.output)
     assert not buf.stderr
     assert inter.namespace['ans'] == 1
@@ -706,7 +706,7 @@ def test_02():
     cell = cell.execute()
     assert cell.output.get_text() == '3'
     #print repr(cell.output.get_text())
-    
+
     cell = Cell([Characters(u'for a in range(2):\n    print a')], [Characters(u'')])
     cell = cell.execute()
     assert cell.output.get_text() == u'0\n1\n'
@@ -723,7 +723,7 @@ def test_03():
     tmp2 = TextModel(u'for a in range(10):\n    print a')
     cell1 = Cell([tmp1.texel], [Characters(u'')])
     cell2 = Cell([tmp2.texel], [Characters(u'')])
-    
+
     model = TextModel('')
     model.insert(len(model), mk_textmodel(cell1))
     model.insert(len(model), mk_textmodel(cell2))
@@ -761,11 +761,11 @@ def test_06():
     "output"
     buf = TextBuffer()
     inter = SimpleInterpreter()
-    inter.execute("output(1)", buf.output)    
+    inter.execute("output(1)", buf.output)
     assert not buf.stderr
-    inter.execute("output(1.1)", buf.output)    
+    inter.execute("output(1.1)", buf.output)
     assert not buf.stderr
-    inter.execute(u"output('ö')", buf.output)  
+    inter.execute(u"output('ö')", buf.output)
     assert not buf.stderr
 
     code = '''import matplotlib.pyplot as plt
@@ -774,7 +774,7 @@ plt.ylabel('some numbers')
 figure = plt.figure()
 output(figure)
 '''
-    buf = TextBuffer()    
+    buf = TextBuffer()
     inter.execute(code, buf.output)
     assert buf.stdout == 'Graphics ---'
     assert not buf.stderr
@@ -806,7 +806,7 @@ def test_11():
     model.insert(len(model), mk_textmodel(cell))
 
     assert find_cell(model.texel, 1) == (0, cell)
-    
+
     view = ns['view']
     view.index = 1
     #print model.texel
@@ -824,7 +824,7 @@ def test_12():
     model.insert(len(model), mk_textmodel(cell))
 
     assert find_cell(model.texel, 1) == (0, cell)
-    
+
     view = ns['view']
     view.index = 1
     #print model.texel
@@ -838,7 +838,7 @@ def test_13():
     model.remove(0, len(model))
     tmp = TextModel(u'''import matplotlib.pyplot as plt
 figure = plt.figure(
-    facecolor='white', 
+    facecolor='white',
     figsize=(3, 2.5))
 figure.set_frameon(False)
 plot = figure.add_subplot ( 111 )
@@ -849,7 +849,7 @@ output(figure)''')
     model.insert(len(model), mk_textmodel(cell))
 
     assert find_cell(model.texel, 1) == (0, cell)
-    
+
     view = ns['view']
     view.index = 1
     view.execute()
@@ -865,7 +865,7 @@ def test_14():
     model.insert(len(model), mk_textmodel(cell))
 
     assert find_cell(model.texel, 1) == (0, cell)
-    
+
     view = ns['view']
     view.index = 1
     layout = view.updater.layout
@@ -882,14 +882,14 @@ def demo_00():
     from wxtextview import testing
     ns = test_11()
     #print "app=", repr(ns['app'])
-    testing.pyshell(ns)    
+    testing.pyshell(ns)
     ns['app'].MainLoop()
 
 def demo_01():
     from wxtextview import testing
     ns = test_13() #12
     #print "app=", repr(ns['app'])
-    testing.pyshell(ns)    
+    testing.pyshell(ns)
     ns['app'].MainLoop()
 
 def demo_02():
@@ -906,12 +906,12 @@ def demo_02():
         tmp = TextModel(code)
         cell = Cell([tmp.texel], [])
         model.insert(len(model), mk_textmodel(cell))
-    
+
     view = ns['view']
     view.index = 1
     ns['app'].MainLoop()
-    
-    
+
+
 if __name__ == '__main__':
     from textmodel import alltests
     import sys
@@ -920,4 +920,4 @@ if __name__ == '__main__':
         sys.argv.append('demo_02')
 
     alltests.dotests()
-    
+
