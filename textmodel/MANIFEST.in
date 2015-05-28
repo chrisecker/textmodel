@@ -1,0 +1,6 @@
+
+include textmodel/*.py
+include demo/extending.py
+include demo/statistics.py
+include LICENSE
+include CHANGES

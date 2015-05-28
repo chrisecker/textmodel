@@ -1,0 +1,142 @@
+Text Model
+==========
+
+A data type for storing and manipulating rich text data. It aims to be
+fast and efficient and it is suited even for very large texts. 
+
+Quick example
+-------------
+
+::
+
+    >>> from textmodel import TextModel
+    >>> text = TextModel(u'Hello World')
+    >>> text2 = TextModel(u'!', fontsize=20)
+    >>> text.insert(11, text2)
+    >>> text.set_properties(6, 11, bgcolor='yellow')
+    >>> for i in range(1000):
+    ...     text.insert_text(len(text), "Line %i\n" % i)
+    >>> print text.linelength(0)
+    19
+
+Introduction
+------------
+
+Storing and editing text information is a problem with a long history
+in computer science. Known solutions include the `gap buffer
+<http://en.wikipedia.org/wiki/Gap_buffer>`_ (used by Emacs), the
+`piece table <http://www.cs.unm.edu/~crowley/papers/sds.pdf>`_ (used
+by MS-Word) and the `rope data structure
+<http://en.wikipedia.org/wiki/Rope_%28data_structure%29>`_ .
+
+The text model uses internally a structure which I named "texel tree"
+and which is probably a new approach to the text problem. The goal was
+to find a data structure which stores text together with format
+information and is
+
+- fast (even when implemented in a scripting language)
+- efficient (in memory consumption)
+- hierarchic (so that texts can contain tables and math formulas)
+
+The texel tree consists of nodes which are called texels (text
+elements). Each texel can have a variable number of child texels
+(between 8 and 15), forming a highly branched tree, similar to a
+B-tree. Operations to the tree a performed in such a way, that the
+tree is kept balanced, i.e. all branches have exactly the same
+depth. The texel tree is fast because it allows all text operations
+(insert, remove, copy, paste) in logarithmic time. It is efficient
+because it stores text on the level of strings and not on the
+character level. 
+
+Text model is an interface to the texel tree, hiding all the
+complexity of the recursive texel data structure. It is termed "text
+model" because in a model-view-controller scenario it would have the
+role of the "model". A matching view component is wxtextview
+`wxtextview <https://pypi.python.org/pypi/wxtextview>`_. In
+combination they can be used as text editor.
+
+
+Speed
+-----
+
+Note that textmodel is not yet optimized. By saying that the texel
+structure is fast, I mean that the time of operations grows only
+slowly with the length of the text. I would not be surprised, if the
+times could be improved by a factor of 2.
+
+The following table shows how the time needed to insert a line grows
+with the length of the text. The text length is measured as number of
+text nodes, where each text node holds one line of text, e.g. 50000
+means a text with 50 thousand lines of text.
+
+=============== ====================
+  # lines        time (milliseconds)
+=============== ====================
+          1         0.332514
+          3         0.379985
+          5         0.436915
+         10         0.519033
+         30         0.596213
+         50         0.657198
+        100         0.75822
+        300         0.843198
+        500         0.897312
+       1000         0.998324
+       3000         1.081806
+       5000         1.136462
+      10000         1.246638
+      30000         1.356982
+      50000         1.404089
+=============== ====================
+
+As the table shows, the time grows only very little with number of
+lines. Ideally, I would expect a logarithmic dependence on text
+length. This is especially true for the following:
+
+- inserting strings
+- inserting other trees (=paste)
+- copying text
+- removing text
+- calculating index positions from (row, col)-tuples and vice versa
+- counting lines
+
+
+
+Implementation details
+----------------------
+
+The texel tree consists of different kinds of texels: group texels,
+character texels, glyphs and containers.
+
+Character texels hold strings of uniformly styled unicode
+text. NewLines are a special case of character texels. Groups hold
+child elements. The following texel stores the words *Hello world!*
+with *world* marked with red.
+
+::
+
+  G[C('Hello'), C('world!', bgcolor='red')] 
+  
+Each texel has a length, which corresponds to the number of contained
+characters. For example, the length of C('Hello') is 5 and the length
+of an empty group is zero.
+
+There are also texels for new lines and tabs and a special mark for the end of text. 
+
+Users can introduce new texels, e.g. tables and math formulas.
+
+Each texel has a **weights** attribute. This is a tuple with 3 integer
+numbers, where only the first one is actually used by textmodel and
+the other two are free to be used in applications. The value
+*Weights[0]* is the number NewLines contained in the texel and its
+childs. For example in the tree
+
+::
+
+  G[C('Hello'), C('world!', bgcolor='red'), NL]
+
+this is 1 for the group G and the newline itself, but 0 for the two
+characters texels. The *weights[0]* data is used by methods as nlines,
+linelength, lineend and index2position to efficiently find the newline
+texels.
+

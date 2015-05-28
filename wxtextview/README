@@ -1,0 +1,70 @@
+WXTextView
+==========
+
+Wxtextview is user drawn widget for the wx toolkit. It has the
+functionality of a rich text editor and can handle even very long
+texts without beeing slow.
+
+There are two demos showing advanced possibilities of WXTextView:
+
+:notebook.py:
+
+ A notebook interface similar to mathematica / ipython
+
+:math_demo.py:
+ 
+ A demonstration of editing math equations
+
+
+1. USAGE
+========
+
+
+Running the demos:
+------------------
+
+Just cd to the demo directory and execute the scripts. No installation
+is needed. External dependencies are textmodel (all demos), wxpython
+(all demos) and matplotlib (notebook). The demos were tested on linux,
+windows and mac platforms.
+
+::
+
+    $ cd demo/
+    $ python demo1.py
+
+
+Using the wxtextview-widget:
+----------------------------
+
+::
+
+    from wxtextview import WXTextView
+    from textmodel import TextModel
+
+    import wx
+    app = wx.App()
+
+
+    model = TextModel(u'Hello World!')
+    model.set_properties(6, 11, fontsize=14)
+    model.set_properties(6, 11, bgcolor='yellow')
+
+    # display the texmodel in a view 
+    frame = wx.Frame(None)
+    view = WXTextView(frame, -1)
+    view.model = model
+    frame.Show()
+
+    # set cursor and selection
+    view.index = 5
+    view.selection = 0, 5
+
+    # display the same textmodel in a second view
+    frame2 = wx.Frame(None)
+    view2 = WXTextView(frame2, -1)
+    view2.model = model
+    frame2.Show()
+
+    app.MainLoop()
+
