@@ -4,7 +4,7 @@ from . import treebase
 from . import texeltree
 from .texeltree import Texel, NULL_TEXEL, G, grouped, defaultstyle, \
       updated_style, _style_add, SPACE
-from .treebase import join, simple_insert, add_weights
+from .treebase import join, simple_insert
 from .listtools import calc_length, listjoin
 
 
@@ -12,10 +12,8 @@ class Container(Texel, treebase.Element):
     has_childs = True
     def __init__(self, style=defaultstyle):
         self.style = style
-        weights = self.weights
-        for i1, i2, child in self.iter_extended():
-            weights = add_weights(weights, child.weights)
-        self.weights = weights
+        w_list = zip(*[child.weights for i1, i2, child in self.iter_extended()])
+        self.weights = [f(l) for (l, f) in zip(w_list, self.functions)]
 
     def get_content(self):
         raise NotImplemented()

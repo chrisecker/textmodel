@@ -1,6 +1,7 @@
 # -*- coding: latin-1 -*-
 
 
+
 """treebase.py -- basic hierarchical data structure
 
 This file defines a hierarchical data structure consisting of
@@ -53,7 +54,7 @@ def depth(element):
        0
     """
     if isinstance(element, Group):
-        return element._depth
+        return element.get_depth()
     return 0
 
 
@@ -189,8 +190,6 @@ def dump_list(l):
         element.dump()
     return True
 
-def add_weights(a, b):
-    return [x+y for x, y in zip(a, b)]
 
 
 class Element:
@@ -198,13 +197,22 @@ class Element:
 
 If element is a container, it must provide the "iter_childs" and
 "replace_child" methods. Containers are marked by the flag "has_childs"."""
-    weights = (0, 0, 0)
+    weights = (0, 0)
+    functions = (
+        lambda l:max(l)+1, # depth
+        sum,               # length
+        )
+
     has_childs = False # if true, childs can be accessed using the
                        # iter_childs method
 
+    def get_depth(self):
+        """Returns the depth of $self$."""
+        return self.weights[0]
+
     def __len__(self):
         """Returns the length of $self$ in index units."""
-        raise NotImplementedError()
+        return self.weights[1]
 
     def iter_childs(self):
         """Iterates over all child elements.
@@ -278,7 +286,7 @@ If element is a container, it must provide the "iter_childs" and
 
     def dump(self, i=0):
         """Print out a graphical representation of the tree."""
-        print (" "*i)+str(self.__class__.__name__)
+        print (" "*i)+str(self.__class__.__name__), self.weights
         for i1, i2, child in self.iter_childs():
             child.dump(i+2)
 
@@ -293,26 +301,18 @@ If element is a container, it must provide the "iter_childs" and
         return Group(l)
 
 
+
 class Group(Element):
-    _depth = 1
-    _length = 0
     has_childs = True
+
     def __init__(self, items):
         self.childs = filter(len, items)
-        self.post_init()
+        if len(self.childs):            
+            self.compute_weights()
 
-    def post_init(self):
-        if not len(self.childs):
-            return
-        self._depth = max([depth(x) for x in self.childs])+1
-        self._length = sum([len(x) for x in self.childs])
-        weights = self.weights
-        for child in self.childs:
-            weights = add_weights(weights, child.weights)
-        self.weights = weights
-
-    def __len__(self):
-        return self._length
+    def compute_weights(self):
+        w_list = zip(*[child.weights for child in self.childs])
+        self.weights = [f(l) for (l, f) in zip(w_list, self.functions)]
 
     def iter_childs(self):
         i1 = 0
@@ -740,9 +740,7 @@ class Text(Element):
     # An element which holds string data (for testing)
     def __init__(self, text):
         self.text = text
-
-    def __len__(self):
-        return len(self.text)
+        self.weights = (0, len(text))
 
     def can_merge(self, other):
         return isinstance(other, Text)
@@ -773,7 +771,7 @@ class Text(Element):
         return "T(%s)" % repr(self.text)
 
     def dump(self, n=0):
-        print (" "*n)+str(self)
+        print (" "*n)+str(self), self.weights
 T = Text
 
 
@@ -812,12 +810,16 @@ def test_00():
 def test_01():
     "is_homogeneous"
     assert not is_homogeneous([G([T('X')]), T('0'), T('1')])
+    for x in G([T('X')]), G([T('0'), T('1')]):
+        print depth(x), x
     assert is_homogeneous([G([T('X')]), G([T('0'), T('1')])])
 
 
 def test_02():
     "strip"
     element = G([G([G([T('1'), T('2')]), G([T('3')])])])
+    element.dump()
+    print depth(element)
     assert depth(element) == 3
     assert depth(strip(element)) == 2
     #strip(element).dump()
@@ -882,6 +884,13 @@ def test_06():
     assert is_root_efficient(texel)
 
 
+def test_07():
+    "depth"
+    assert depth(Text('abc')) == 0
+    assert depth(G([Text('abc')])) == 1
+    assert depth(G([])) == 0
+    element = G([G([G([T('1'), T('2')]), G([T('3')])])])
+    assert depth(element) == 3
 
 
 # XXX TODO: add more tests

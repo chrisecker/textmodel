@@ -3,7 +3,7 @@
 
 from .texeltree import defaultstyle, create_style, check, Characters, Group, \
     NewLine, Tabulator, heal, insert, ENDMARK
-from .treebase import is_homogeneous, add_weights
+from .treebase import is_homogeneous
 from .treebase import grouped as _grouped
 from .container import iter_extended
 from .modelbase import Model
@@ -15,8 +15,15 @@ import re
 class NotFound(Exception): 
     pass
 
+
+# Warning: The following helper functions for searching indices only
+# work with certain weight functions. They will work for weights
+# aggregated by 'sum', such as lengths and line numbers. But trying to
+# find depth values will lead to unexpected and unpredicted behaviour.
+
 def _find_weight(texel, w, windex):
     """Returns position *i* at which weight *windex* switches to value *w*."""
+    assert type(w) is int
     if w == 0:
         return 0
     if texel.has_childs:
@@ -43,28 +50,27 @@ def _next_change(texel, windex, i):
         return 0
 
 
-def _get_weights(texel, i):
-    """Returns the weights at index *i*."""
+def _get_weight(texel, windex, i): 
+    """Returns the weight *windex* at index *i*."""
     if i<0:
         raise IndexError
     if i >= len(texel):
-        return texel.weights
-    weights = (0,)*len(texel.weights)
+        return texel.weights[windex]
+    w = 0
     if i == 0:
-        return weights
+        return w
 
     for i1, i2, child in iter_extended(texel):
         if i2 <= i:
-            weights = add_weights(weights, child.weights)
+            w += child.weights[windex]
         elif i1 <= i <= i2:
-            weights = add_weights(weights, _get_weights(child, i-i1))
+            w += _get_weight(child, windex, i-i1)
         else:
             break
-    return weights
+    return w
 
 
 def _get_text(texel, i1, i2):
-    # XXX TODO: rethink this algorithm
     r = []
     if isinstance(texel, Group):
         for j1, j2, child in iter_extended(texel):
@@ -72,7 +78,7 @@ def _get_text(texel, i1, i2):
                 r.append(_get_text(child, i1-j1, i2-j1))
         return u''.join(r)
     text = texel.get_text()
-    return text[i1:i2]
+    return text[max(0, i1):min(i2, len(text))]
 
 
 
@@ -150,7 +156,7 @@ class TextModel(Model):
 
     def nlines(self):
         """Returns the number of lines."""
-        return self.texel.weights[0]+1
+        return self.texel.weights[2]+1
 
     def get_text(self, i1=None, i2=None):
         """Retuns the text between *i1* and *i2* as unicode string."""
@@ -170,7 +176,7 @@ class TextModel(Model):
 
     def position2index(self, row, col):
         """Returns the index corresponding to *row* and *col*."""
-        i = _find_weight(self.texel, row, 0)
+        i = _find_weight(self.texel, row, 2)
         if i is None:
             raise IndexError(row)
         return i+col
@@ -189,34 +195,34 @@ class TextModel(Model):
         if i < 0:
             raise IndexError(i)
 
-        weights = _get_weights(texel, i)
-        row = weights[0]
-        j = _find_weight(texel, row, 0)
+        row = _get_weight(texel, 2, i)
+        assert type(row) is int
+        j = _find_weight(texel, row, 2)
         col = i-j
         return row, col
 
     def linestart(self, row):
         """Returns the index where line number *row* starts."""
         try:
-            return _find_weight(self.texel, row, 0)
+            return _find_weight(self.texel, row, 2)
         except NotFound:
             raise IndexError(row)
 
     def lineend(self, row):
         """Returns the index where line number *row* ends."""
         try:
-            return _find_weight(self.get_xtexel(), row+1, 0)-1
+            return _find_weight(self.get_xtexel(), row+1, 2)-1
         except NotFound:
             raise IndexError(row)
 
     def linelength(self, row):
         """Returns the length of line *row*."""
         try:
-            i1 = _find_weight(self.texel, row, 0)
+            i1 = _find_weight(self.texel, row, 2)
         except NotFound:
             raise IndexError(row)
         try:
-            i2 = _find_weight(self.texel, row+1, 0)
+            i2 = _find_weight(self.texel, row+1, 2)
         except NotFound:
             i2 = len(self)
         return i2-i1
@@ -480,6 +486,8 @@ def test_05():
 
     # Styles are compared by their id. Same styles always have the
     # same id. This is assured by the factory function "new_style()"
+    assert defaultstyle is create_style() 
+    assert t3.get_style(0) == defaultstyle
     assert id(t3.get_style(0)) == id(defaultstyle)
 
     t3.set_properties(5, 10, textcolor='red')
@@ -506,6 +514,7 @@ def test_05():
     t3.set_properties(0, len(t3), **defaultstyle)
     for i in range(len(t3)):
         style = t3.get_style(i)
+        assert style == defaultstyle
         assert id(style) == id(defaultstyle)
 
     t3.set_properties(0, len(t3), fontsize = 6)

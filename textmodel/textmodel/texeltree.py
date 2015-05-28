@@ -6,7 +6,7 @@ from copy import copy as shallow_copy
 from .treebase import remove, copy, simple_insert, insert, groups, \
     depth, get_rightmost, get_leftmost, exchange_rightmost, \
     remove_leftmost, ungroup, strip, heal, is_homogeneous, \
-    is_root_efficient, join, homogenize, add_weights, maxdepth
+    is_root_efficient, join, homogenize, maxdepth
 from .treebase import grouped as _grouped
 from .listtools import listjoin, calc_length
 
@@ -30,7 +30,7 @@ def create_style(**kwds):
         style_pool[key] = style
         return style
 
-defaultstyle = dict(
+defaultstyle = create_style(
     textcolor='black',
     bgcolor='white',
     fontsize=10
@@ -60,7 +60,8 @@ class Texel:
     All texels need to be derived from Texel. In addition they need to
     be derived from treebase.Element.
     """
-    weights = (0, 0, 0)
+    weights = treebase.Element.weights+(0,) # new weight: number of new lines
+    functions = treebase.Element.functions+(sum,)
 
     def get_style(self, i):
         """Returns the style at index $i$"""
@@ -112,19 +113,15 @@ class Group(Texel, treebase.Group):
 
     def __getstate__(self):
         state = self.__dict__.copy()
-        for name in ('_length', '_depth', 'weights'):
-            if name in state:
-                del state[name]
+        try:
+            del state['weights']
+        except KeyError:
+            pass
         return state
 
     def __setstate__(self, state):
         self.__dict__ = state
-        self._length = sum([len(x) for x in self.childs])
-        weights = self.weights
-        for child in self.childs:
-            weights = add_weights(weights, child.weights)
-        self.weights = weights
-        self._depth = maxdepth(self.childs)+1
+        self.compute_weights()
 
     def get_text(self):
         return u''.join(texel.get_text() for texel in self.childs)
@@ -190,12 +187,11 @@ class Glyph(Texel, treebase.Element):
     """ Baseclass for texels representing a single character (examples:
         newline, tabulator)"""
     style = defaultstyle
+    weights = (0, 1, 0)
+
     def __init__(self, style=None):
         if style is not None:
             self.style = style
-
-    def __len__(self):
-        return 1
 
     def get_style(self, i):
         return self.style
@@ -247,6 +243,11 @@ class Characters(Texel, treebase.Element):
         unicode(text) # check proper encoding
         self.text = text
         self.style = style
+        self.compute_weights()
+
+    def compute_weights(self):
+        self.weights = list(self.weights)
+        self.weights[1] = len(self.text)
 
     def __str__(self):
         return "C(%s)" % repr(self.text)
@@ -254,8 +255,14 @@ class Characters(Texel, treebase.Element):
     def __repr__(self):
         return "C(%s, %s)" % (repr(self.text), repr(self.style))
 
-    def __len__(self):
-        return len(self.text)
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        del state['weights']
+        return state
+
+    def __setstate__(self, state):        
+        self.__dict__ = state
+        self.compute_weights()
 
     def get_text(self):
         return self.text
@@ -362,7 +369,7 @@ SPACE = Characters(' ')
 
 
 class NewLine(Glyph):
-    weights = (1, 0, 0)
+    weights = (0, 1, 1)
     is_endmark = False
     def __repr__(self):
         return 'NL'

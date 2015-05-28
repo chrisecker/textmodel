@@ -480,7 +480,84 @@ class VBox(ChildBox):
                 y += child.height+child.depth
             j1 = j2
 
+
+
+class Row(HBox):
+    pass
+
+
+class _ParagraphBox(IterBox):
+    # The number of paragraphs can be very long. Therefore we store
+    # all paragraphs in a tree structure. This makes the GUI
+    # considerably faster.
+
+    def __init__(self, device):
+        if device is not None:
+            self.device = device
+        self.layout()
+
+    @property
+    def length(self):
+        return self.weights[1]
+
+    def create_group(self, l):
+        return ParagraphStack(l, device=self.device)
+
+    def iter(self, i, x, y):
+        j1 = i
+        for child in self.childs:
+            j2 = j1+child.length
+            if not child.is_dummy:
+                yield j1, j2, x, y, child
+                y += child.height+child.depth
+            j1 = j2
+
+    def __repr__(self):
+        return self.__class__.__name__+repr(list(self.childs))
+
+
+class Paragraph(_ParagraphBox, treebase.Element):
+    # Ein Paragraph enthält eine Textzeile bis zu einem NewLine. Der
+    # Paragraph wird in eine oder mehrere Zeilen (Rows) umgebrochen.
+    #
+    # Zeilen enden immer mit einer NewlineBox.
+    def __init__(self, rows, device=None):
+        length = listtools.calc_length(rows)
+        self.weights = (0, length)
+        self.childs = rows
+        _ParagraphBox.__init__(self, device)
+
+    def get_envelope(self, i1, i2):
+        return 0, self.length
+
+    def takeout(self, i1, i2):
+        if i1 == i2:
+            return [self], []
+        assert i1 == 0
+        assert i2 == self.length
+        return [], [self]
+
+
+
+
+class ParagraphStack(_ParagraphBox, treebase.Group):
+
+    def __init__(self, paragraphs, device=None):
+        treebase.Group.__init__(self, paragraphs)
+        _ParagraphBox.__init__(self, device)
+
+    def get_interval(self, i, i0=0):
+        # Returns the interval of the paragraph which is adressed by
+        # index $i$
+        for j1, j2, child in self.iter_childs():
+            if j1 < i <= j2:
+                if isinstance(child, ParagraphStack):
+                    return child.get_interval(i-j1, i0+j1)
+                return j1+i0, j2+i0
+        return i+i0, i+i0
+
     def get_index(self, x, y):
+        # XXX aus VBox kopiert. Könnte in VBox eigentlich gelöscht werden. 
         # Wir überschreiben die ineffiziente vollständige Suche. Das
         # ist wichtig, da VBox insbesondere als Basisklasse für
         # Paragraph dient und get_index gerade für längere Texte sehr
@@ -493,60 +570,7 @@ class VBox(ChildBox):
                     return i+j1
 
 
-class Row(HBox):
-    pass
-
-
-class Paragraph(VBox, treebase.Element):
-    # Ein Paragraph enthält eine Textzeile bis zu einem NewLine. Der
-    # Paragraph wird in eine oder mehrere Zeilen (Rows) umgebrochen.
-    #
-    # Zeilen enden üblicherweise mit einer NewlineBox. Eine Ausnahme
-    # ist, wenn das allerletzte Zeichen im Text ein \n ist. Da wir
-    # dann trotzdem Platz für die neue Zeile reservieren müssen, muss
-    # eine Zeile angefügt weren, die aus einem leeren Zeichen
-    # (EmptyChar) besteht.
-    def __init__(self, rows, device=None):
-        for row in rows:
-            assert isinstance(row, Row)
-        VBox.__init__(self, rows, device)
-
-    def get_envelope(self, i1, i2):        
-        return 0, len(self)
-
-    def takeout(self, i1, i2):
-        if i1 == i2:
-            return [self], []
-        try:
-            assert i1 == 0
-            assert i2 == len(self)
-        except:
-            print i1, i2
-            raise
-        return [], [self]
-
-    def create_group(self, l):
-        return ParagraphStack(l, device=self.device)
-
-
-
-class ParagraphStack(VBox, treebase.Group):
-
-    def __init__(self, paragraphs, device=None):
-        VBox.__init__(self, paragraphs, device)
-        treebase.Group.__init__(self, paragraphs)
-
-    def get_interval(self, i, i0=0):
-        # Returns the interval of the paragraph which is adressed by
-        # index $i$
-        for j1, j2, child in self.iter_childs():
-            if j1 < i <= j2:
-                if isinstance(child, ParagraphStack):
-                    return child.get_interval(i-j1, i0+j1)
-                return j1+i0, j2+i0
-        return i+i0, i+i0
-
-     ### Methoden für den Updater
+    ### Methoden für den Updater
     def get_envelope(self, i1, i2):  
         # Returns the interval in which paragraph boxes have to be
         # updated if content between $i1$ and $i2$ is changed.
@@ -559,9 +583,6 @@ class ParagraphStack(VBox, treebase.Group):
             j2 = self.get_interval(tmp+1)[1]
         return j1, j2
 
-    ### Methoden für das Group-Protocol
-    def create_group(self, l):
-        return ParagraphStack(l, device=self.device)
 
 
 
@@ -645,6 +666,7 @@ def test_03():
     ])
     assert check_box(box, texel)
     #box.dump_boxes(0, 0, 0)
+    assert (box.height, box.width, box.depth) == (3, 4, 0)
 
     assert str(box.get_info(0, 0, 0)) == "(TB('0123'), 0, 0, 0)"
     assert str(box.get_info(1, 0, 0)) == "(TB('0123'), 1, 1, 0)"
@@ -690,17 +712,6 @@ def test_04():
     assert str(box.get_info(8, 0, 0)) == "(TB('5678'), 3, 3, 1)"
     assert str(box.get_info(9, 0, 0)) == "(NL, 0, 4, 1)"
     assert str(box.get_info(10, 0, 0)) == "(ETB, 0, 0, 2)"
-
-    try:
-        box.replace(0, 4, [box1])
-        assert False
-    except IndexError:
-        pass
-
-    box.replace(0, 5, [])
-    box.replace(0, 5, [p1])
-    box.replace(0, 5, [p1, p2, p1])
-    box.replace(0, 5, [p1, p2, p1])
 
 
 def test_10():
