@@ -13,9 +13,14 @@ debug = 0
 #debug = 1
 
 def undo(info):
-    func = info[0]
-    args = info[1:]    
-    redo = apply(func, args)
+    if callable(info[0]):
+        func = info[0]
+        args = info[1:]    
+        redo = apply(func, args)
+    else:
+        redo = []
+        for child in reversed(info):
+            redo.append(undo(child))
     return redo
 
 

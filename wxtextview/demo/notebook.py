@@ -609,7 +609,7 @@ class WXTextView(_WXTextView):
         infos.append(self._remove(i0, i0+n))
         self.model.insert(i0, mk_textmodel(new))
         infos.append((self._remove, i0, i0+len(new)))
-        self.add_undo(CreateListUndo(infos))
+        self.add_undo(infos) 
         self.adjust_viewport()
 
     def insert(self, i, textmodel):
