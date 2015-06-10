@@ -73,8 +73,11 @@ class Buffer:
             new = mk_textmodel(Figure(obj))
         elif isinstance(obj, unicode):
             new = TextModel(obj, **properties)
+        elif isinstance(obj, str):
+            u = unicode(obj, 'utf-8')
+            new = TextModel(u, **properties)
         else:
-            new = TextModel(unicode(obj), **properties)
+            new = TextModel(str(obj), **properties)
         self.model.insert(self.i, new)
         self.i += len(new)
 
@@ -103,6 +106,7 @@ class TextBuffer:
 
 
 class FakeFile:
+    encoding = 'UTF-8'
     def __init__(self, fun):
         self.fun = fun
 
@@ -140,11 +144,16 @@ class SimpleInterpreter:
             except Exception, e:
                 self.show_traceback(name)
                 self.namespace['ans'] = None
+            if self.expression and self.ok:
+                ans = self.namespace['ans']
+                # Note that we do not output the repr() of ans but ans
+                # itself. This allow us to output drawings.
+                try:
+                    output(ans)
+                except Exception, e:
+                    self.show_traceback(name)
         finally:
             sys.stdout, sys.stderr = bkstdout, bkstderr
-        if self.expression and self.ok:
-            ans = self.namespace['ans']
-            output(ans) # XXX exceptions can occure here
 
     def show_syntaxerror(self, filename):
         # stolen from "idle" by  G. v. Rossum
@@ -632,28 +641,6 @@ class WXTextView(_WXTextView):
             self.add_undo(info)
             i = i+1
         _WXTextView.insert(self, i, textmodel)
-
-
-def get_cells(texel):
-    if isinstance(texel, Cell):
-        return [texel]
-    r = []
-    for i1, i2, child in texel.iter_childs():
-        r.extend(get_cells(child))
-    return r
-
-
-
-def output_plot():
-    import matplotlib
-    import matplotlib.pyplot as plt
-    plt.plot([1,2,3,4])
-    plt.ylabel('some numbers')
-    figure = plt.figure()
-    figure.canvas.draw()
-    w,h = figure.canvas.get_width_height()
-    buf = figure.canvas.tostring_argb()
-    bitmap = wx.BitmapFromBufferRGBA(w, h, buf)
 
 
 def init_testing(redirect=True):
