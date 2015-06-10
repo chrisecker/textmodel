@@ -18,6 +18,8 @@ tables or math formulas.
 
 import sys
 sys.path.insert(0, '..')
+sys.path.insert(0, '../../textmodel')
+
 
 from textmodel import listtools
 from textmodel.texeltree import NewLine, Group, Characters, grouped, \

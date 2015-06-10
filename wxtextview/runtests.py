@@ -9,6 +9,8 @@
 # - Commandline arguments --silent, --redirect
 
 import sys
+sys.path.insert(0, "../textmodel/")
+
 import types
 import traceback
 import StringIO

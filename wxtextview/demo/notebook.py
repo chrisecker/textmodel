@@ -20,6 +20,7 @@
 
 import sys
 sys.path.insert(0, '..')
+sys.path.insert(0, '../../textmodel')
 
 from textmodel import listtools, create_style
 from textmodel.treebase import simple_insert, insert
@@ -604,7 +605,6 @@ class WXTextView(_WXTextView):
         new = cell.execute()
         assert i0>=0
         assert i0+n<=len(self.model)
-        from appkit.undo import CreateListUndo
         infos = []
         infos.append(self._remove(i0, i0+n))
         self.model.insert(i0, mk_textmodel(new))

@@ -2,6 +2,7 @@
 
 import sys
 sys.path.insert(0, '..')
+sys.path.insert(0, '../../textmodel')
 
 from textmodel import TextModel
 from wxtextview import WXTextView
