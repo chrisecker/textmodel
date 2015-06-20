@@ -1,3 +1,11 @@
+Version 0.3.3
+~~~~~~~~~~~~~
+
+- update to textmodel 0.3.3
+- improved notebook demo (output encoding, better undo, resize) 
+- fixed many bugs
+- cleaned up a little
+
 Version 0.3.2
 ~~~~~~~~~~~~~
 

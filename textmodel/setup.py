@@ -8,7 +8,7 @@ with open('README') as file:
     long_description = file.read()
 
 setup(name='textmodel',
-      version='0.3.2',
+      version='0.3.3',
       description = \
           'A data type for storing and manipulating styled text data.',
       long_description = long_description,
