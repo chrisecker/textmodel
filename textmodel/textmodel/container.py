@@ -14,6 +14,7 @@ class Container(Texel, treebase.Element):
         self.style = style
         w_list = zip(*[child.weights for i1, i2, child in self.iter_extended()])
         self.weights = [f(l) for (l, f) in zip(w_list, self.functions)]
+        self.weights[0] = 0 # Containers have depth 0!
 
     def get_content(self):
         raise NotImplemented()
