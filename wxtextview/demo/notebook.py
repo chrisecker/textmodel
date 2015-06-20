@@ -11,8 +11,8 @@
 "(with the help of matplotlib).\n\n" \
 "Try to execute the following cells.\n\n" \
 "Notes:\n" \
-" - Use the tab-key to complete python input. \n" \
-" - To create a new cell, place the cursor below any out cell and start "\
+" - Use the tab-key to complete. \n" \
+" - To create a new cell, place the cursor below any output cell and start "\
 "typing. \n" \
 " - You can copy, paste and delete cells.\n" \
 " - There is undo (ctrl z) and redo (ctrl u).\n"
@@ -440,8 +440,12 @@ class Updater(_Updater):
     def create_parstack(self, texel):
         boxes = self.create_boxes(texel)+(
             self.NewlineBox(device=self.device),)
+        if self._maxw:
+            maxw = max(100, self._maxw-80)
+        else:
+            maxw = 0
         l = create_paragraphs(
-            boxes, maxw = max(20, self._maxw-80),
+            boxes, maxw = maxw,
             Paragraph = self.Paragraph,
             device = self.device)
         return self.ParagraphStack(l, device=self.device)
@@ -502,10 +506,25 @@ class WXTextView(_WXTextView):
                              style=style)
         self.actions[(wx.WXK_TAB, False, False)] = 'complete'
 
+    _resize_pending = False
+    _new_size = None
     def on_size(self, event):
-        w, h = event.Size
-        self.set_maxw(w)
-        _WXTextView.on_size(self, event)
+        # Note that resize involves computing all line breaks and is
+        # therefore a very costly operation. We therefore try to
+        # minimize resizes here.
+        self._new_size = event.Size
+        if self._resize_pending:
+            return
+        self._resize_pending = True
+        wx.CallAfter(self._adjust_size)
+        
+    def _adjust_size(self):
+        self._resize_pending = False
+        maxw = self._new_size[0]
+        if maxw == self._maxw:
+            return
+        self.set_maxw(maxw)
+        self.keep_cursor_on_screen()
 
     def create_updater(self):
         return Updater(
@@ -652,6 +671,10 @@ def init_testing(redirect=True):
     win.SetSizer(box)
     win.SetAutoLayout(True)
 
+    INTERPRETER.namespace.update(dict(
+        __notebook__ = view, 
+        ))
+
     frame.Show()
     return locals()
 
@@ -684,7 +707,7 @@ ax.set_title("A line plot on a polar axis", va='bottom')
 
 # Note that nothing is drawn here
 ---
-fig # Here is the drawing!
+fig # Here comes the drawing!
 ---
 fig, ax = plt.subplots(facecolor='white')
 ax.plot(x, x**2, label=r"$y = \\alpha^2$")
