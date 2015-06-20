@@ -1,6 +1,5 @@
 # -*- coding: latin-1 -*-
 
-# XXX TODO: do we still need dummy-boxes?
 
 from textmodel import listtools
 from textmodel.textmodel import TextModel
@@ -29,8 +28,6 @@ class Box:
     height = 0
     depth = 0
     length = 0
-    is_dummy = False # Dummy boxen are used instead of gaps. They are
-                     # ignored when iterating the childs.
     device = TESTDEVICE                     
     def dump_boxes(self, i, x, y, indent=0):
         print " "*indent, "[%i:%i]" % (i, i+len(self)), x, y, 
@@ -192,7 +189,6 @@ class NewlineBox(_TextBoxBase):
     # genausogut leer bleiben. Wir verwenden Sie trotzdem, da wir hier
     # sehr praktisch die Font-Information für das nachfolgende Zeichen
     # ablegen können.
-    is_dummy = True
     text = '\n'
     width = 0
     length = 1
@@ -455,9 +451,8 @@ class VBox(ChildBox):
         j1 = i
         for child in self.childs:
             j2 = j1+child.length
-            if not child.is_dummy:
-                yield j1, j2, x, y, child
-                y += child.height+child.depth
+            yield j1, j2, x, y, child
+            y += child.height+child.depth
             j1 = j2
 
 
@@ -487,9 +482,8 @@ class _ParagraphBox(IterBox):
         j1 = i
         for child in self.childs:
             j2 = j1+child.length
-            if not child.is_dummy:
-                yield j1, j2, x, y, child
-                y += child.height+child.depth
+            yield j1, j2, x, y, child
+            y += child.height+child.depth
             j1 = j2
 
     def __repr__(self):
