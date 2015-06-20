@@ -35,6 +35,7 @@ def split_box(box, i):
 
 
 def simple_linewrap(boxes, maxw, tabstops=(), device=TESTDEVICE):
+    assert isinstance(maxw, int)
     l = []
     rows = [l]
     w = 0
@@ -46,7 +47,6 @@ def simple_linewrap(boxes, maxw, tabstops=(), device=TESTDEVICE):
         boxes = boxes[1:]
         if not len(box):
             continue
-                
         if w+box.width <= maxw:
             l.append(box)
             w += box.width
