@@ -370,25 +370,19 @@ def test_10():
 
 
 def test_11():
-    # Problem: Wenn man rechts neben eine Zeile klickt springt der
-    # Cursor nicht an die letzte, sondern an die vorletzte Position.
+    # Problem: if the click position is right of the line, the cursor
+    # should jump to the last index position in that line.
     ns = init_testing(redirect=False)
     model = ns['model']
     view = ns['view']
-    view.layout.dump_boxes(0, 0, 0)
+    #view.layout.dump_boxes(0, 0, 0)
     model.remove(0, len(model))
     model.insert(0, TextModel("123\n"))
     assert view.layout.get_index(100, 0) == 3
 
-    # Problem: wenn der Text mit einem NL endet, dann funktioniert
-    # get_index für diese letzte Zeile nicht.
-    view.layout.dump_boxes(0, 0, 0)
-    print view.layout.get_index(0, 1000)
-    assert view.layout.get_index(0, 1000) == len(model)
-            
 
 def test_13():
-    # Exception during delete 10.01.2015
+    # Problem: Exception during delete 10.01.2015
     ns = init_testing(redirect=False)
     model = ns['model']
     view = ns['view']
@@ -410,8 +404,6 @@ def test_14():
     view.add_undo(view.remove(10, 11))
     view.add_undo(view.remove(9, 10))
     assert len(view._undoinfo) == 1
-    print view._undoinfo
-    print repr(view._undoinfo[-1][1].get_text())
 
 def demo_00():
     "simple demo"
@@ -437,7 +429,6 @@ def demo_01():
     filename = treebase.__file__.replace('pyc', 'py')
     rawtext = open(filename).read() 
     model = pycolorize(rawtext)
-    #model = TextModel(rawtext.decode('latin-1'))
     view.set_model(model)
     frame.Show()
     app.MainLoop()

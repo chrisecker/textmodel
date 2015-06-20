@@ -46,10 +46,6 @@ import wx
 
 
 
-class Aborted(Exception):
-    pass
-
-
 def has_classname(obj, classname):
     "returns True if $obj$ is an instance of a class with name $classname$"
     s = "<class '%s'>" % classname

@@ -29,9 +29,8 @@ class Box:
     height = 0
     depth = 0
     length = 0
-    is_dummy = False # Dummy-Boxen werden teilweise antelle von Lücken
-                     # verwendet, was praktisch sein kann. Sie werden
-                     # bei dem Iterieren ausgeblendet.
+    is_dummy = False # Dummy boxen are used instead of gaps. They are
+                     # ignored when iterating the childs.
     device = TESTDEVICE                     
     def dump_boxes(self, i, x, y, indent=0):
         print " "*indent, "[%i:%i]" % (i, i+len(self)), x, y, 
@@ -44,14 +43,14 @@ class Box:
         return i1, i2
 
     def responding_child(self, i, x0, y0):
-        # Sucht das für die Cursorposition i verantwortliche
-        # Kind. Gibt ein Tupel zurück: child, j1, x1, y1 Dabei ist
-        # Child das Kind oder None (wenn es kein passendes Kind gibt),
-        # j1 ist die Indexposition des Kindes relativ zu i, x1 und y1
-        # ist die absolute Position der Kindbox.
+        # Finds the child which is responsible for index position
+        # i. Returns a tuple: child, j1, x1, y1. Child is either the
+        # responsible child or None, j1 is the childs indexposition
+        # relative to i, x1 and y1 are the absolute positions of the
+        # child box.
         if i<0 or i>len(self):
             raise IndexError, i
-        # Defaultverhalten: es gibt kein passendes Kind
+        # Default: signal that there is no responding child
         return None, i, x0, y0
 
     def draw(self, x, y, dc, styler):
@@ -69,8 +68,8 @@ class Box:
             self.device.invert_rect(r.x1, r.y1, r.x2-r.x1, r.y2-r.y1, dc)
 
     def get_rect(self, i, x0, y0):
-        # Gibt das Rect des Glyphs an Position i in absoluten
-        # Koordinaten.
+        # Returns the rectangle occupied by the Glyph at position i in
+        # absolute coordinates.
         child, j, x1, y1 = self.responding_child(i, x0, y0)
         if child is None:
             w, h = self.device.measure('M', defaultstyle)
@@ -80,9 +79,8 @@ class Box:
         return child.get_rect(i-j, x1, y1)
 
     def get_cursorrect(self, i, x0, y0, style):
-        # Gibt die BBox um den Cursor an der Stelle i. Wird von
-        # draw_cursor verwendet, außerdem von TextView um den Scroll
-        # anzupassen.
+        # Returns the BBox around the cursor at index position i. Is
+        # used by draw_cursor.
         child, j, x, y = self.responding_child(i, x0, y0)
         if child is not None:
             return child.get_cursorrect(i-j, x, y, style)
@@ -91,14 +89,14 @@ class Box:
             return Rect(x1, y1, x1+2, y2)
 
     def get_index(self, x, y):
-        # Gibt die Indexposition, die zur Position (x, y) am nächsten
-        # ist.  None bedeutet: Keine passende Indexposition gefunden!
+        # Returns the index which is closest to point (x, y). A return
+        # value of None means: no matching index position found!
         return None
 
     def get_info(self, i, x0, y0):
-        # Gibt das für die Position i verantwortliche BoxObjekt, die
-        # absolute Position im Indexraum und die absolute Position des
-        # zu i gehörigen Rechtecks in der Zeichenfläche zurück.
+        # Returns the box object which is responsible for position i,
+        # the absolute index position and the position of the
+        # surrounding rect. Only used for debugging. 
         if i<0 or i>len(self):
             raise IndexError(i)
 
@@ -108,24 +106,14 @@ class Box:
             return self, i, x, y
         return child.get_info(i-j, x1, y1)
 
-    def find_box(self, i, x0, y0):
-        # Momentan nicht verwendet, könnte aber praktisch sein. Sucht
-        # die Box, die i verwaltet. Gibt die Box, die Position von i
-        # innerhalb der Box und den Ursprung der Box in der
-        # Zeichenfläche zurück.
-        child, j, x1, y1 = self.responding_child(i, x0, y0)
-        if child is None:
-            return self, i, x0, y0
-        return child.find_box(i-j, x1, y1)
-        
-
     def can_leftappend(self):
-        # Wenn zwei benachbarte Texel für das Einfüen infrage kommen,
-        # dann wird normalerweise das rechte Texel bevorzugt. Für
-        # manche Texel macht das allerdings keinen Sinn
-        # (beispielsweise das Wurzelzeichen). Boxen dieser Texeln
-        # können daher False zurückgeben und damit signalisieren, dass
-        # das linke Texel das Einfügen übernehmen sollte.
+        # If we are inserting at an edge between two texels, both
+        # texels could in principle be the target of the
+        # operation. To solve this ambiguity, we usually prefere the
+        # right texels. For some texels, however this doesn't make
+        # sense (e.g. the square root). By returning False, Boxes of
+        # such texels can signal that insert should go into the
+        # other (the left) texel.
         return True
 
 
@@ -197,26 +185,6 @@ class TextBox(_TextBoxBase):
         if device is not None:
             self.device = device
         self.update()
-
-    def split(self, w):
-        # Wird von Paragraph benutzt
-        text = self.text
-        parts = self.measure_parts(text)
-        style = self.style
-        device = self.device
-        for i, part in enumerate(parts):
-            if part > w:
-                j = i
-                b1 = self.__class__(text[:j], style, device)
-                b2 = self.__class__(text[j:], style, device)
-                if b1.width > w:
-                    print "split:", repr(text[:j]), repr(text[j:])
-                    print "parts =", parts
-                    print b1.width
-                    assert False
-                assert b1.width <= w
-                return b1, b2
-        return self, self.__class__('', self.style)
 
 
 class NewlineBox(_TextBoxBase):
@@ -726,8 +694,6 @@ def test_10():
     assert p2.height == 1
     s = ParagraphStack([p1, p2])
     assert s.height == 2    
-    assert str(t1.split(5)) == "(TB('01234'), TB('56789'))"
-
 
 
 def test_08():

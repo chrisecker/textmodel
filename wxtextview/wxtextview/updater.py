@@ -3,7 +3,7 @@
 
 """The updater is responsible for creating and updating the layout. 
 
-The mothods buid, insert, remove and update return a hierarchical
+The methods build, insert, remove and update return a hierarchical
 boxobject (layout).
 
 The Box tree always exceeds the models length by one. The additional
@@ -38,8 +38,9 @@ def create_paragraphs(textboxes, maxw=0, Paragraph=Paragraph, \
                 rows = [Row(l, device)]
             r.append(Paragraph(rows, device))
             l = []
-    assert not l # Die letzte Box muss immer NewLine oder EndBox sein,
-                 # daher gibt es keinen Rest in l
+    assert not l # There is always one final box which is either a
+                 # NewLine or an EndBox. Therefore there is no rest in
+                 # l.
 
     assert listtools.calc_length(r) == listtools.calc_length(textboxes)
     return r
@@ -134,7 +135,6 @@ class Updater(Factory):
         # $stuff$
         grouped = self._grouped
         n = len(element)
-        #print "replaced", i1, i2, element
         assert i2>=i1
         assert i2<=len(element)
         if i2>i1:
