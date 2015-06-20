@@ -1,18 +1,21 @@
 # -*- coding: latin-1 -*-
 
 
-"""
-Demo of Math Typesetting
+"""Demo of Math Typesetting
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-The purpose of this demo is to show how to do some non trivial
-typesetting.
+The purpose of this demo is to show how to do typesetting of nested
+texts.
 
-Usually text is linear, i.e. it consists of characters and one
-character follows the other. This is what simple text editor can
-display. However in real life, text can be nested. This means that
-there are certain text elements which itself contain texts. Think of
-tables or math formulas.
+Very often text is just an array of consecutive characters. This is
+what most text editor can display. However in real life, text can be
+nested such that there are text elements which itself contain
+texts. Think of tables or math formulas.
+
+Defining new and nested elements is possible in the textmodel
+library. And is actualy not too difficult. The data model of the
+square root below is defined in only 7 lines of python code. It took
+42 more lines to define the graphical representation.
 
 """
 
@@ -57,19 +60,9 @@ class Fraction(Container):
 
 
 
-class EmptyBox(Box):
-    length = 1
-    def draw(self, x, y, dc, styler):
-        pass
-
-    def draw_selection(self, i1, i2, x, y, dc):
-        pass
-
-EMPTY_BOX = EmptyBox()
-
-
 class EntryBox(IterBox):
-    # hat am Ende eine Leerstelle: 1235789x
+    # A box which has one empty index position at the end to seperate
+    # the content from the following boxes.
     def __init__(self, boxes, device=None):
         if device is not None:
             self.device = device
@@ -85,22 +78,7 @@ class EntryBox(IterBox):
 
 
 
-def extend_range_seperated(iterbox, i1, i2):
-    # Extend-Range für seperierte Kindfelder. I1 und i2 werden
-    # ausgeweitet, wenn mehr als ein Kind enthalten sind.
-    last = 0
-    for j1, j2, x, y, child in iterbox.iter(0, 0, 0):
-        if not (i1<j2 and j1<i2):
-            continue
-        if i1 < j1 or i2>j2:
-            return min(i1, 0), max(i2, len(iterbox))
-        k1, k2 = child.extend_range(i1-j1, i2-j1)
-        return min(i1, k1+j1), max(i2, k2+j1)
-    return i1, i2
-
-
 class FractionBox(IterBox):
-    # x123456789
     def __init__(self, denomboxes, nomboxes, style=defaultstyle,
                  device=None):
         if device is not None:
@@ -114,7 +92,7 @@ class FractionBox(IterBox):
     def iter(self, i, x, y):
         d = self.denominator
         n = self.nominator
-        j1 = i+1
+        j1 = i+1 # the denominator starts at index 1
         j2 = j1+len(d)
         height = self.height
         width = self.width
@@ -125,8 +103,9 @@ class FractionBox(IterBox):
         yield j1, j2, x+0.5*(width-n.width), y, n
 
     def layout(self):
-        # w und h bestimmen
-        m = self.device.measure("M", self.style)[1]
+        # Determine width and height
+        m = self.device.measure("M", self.style)[1] # We use the capital
+                                                    # M as a reference
         self.m = m
         nom = self.nominator
         den = self.denominator
@@ -143,10 +122,13 @@ class FractionBox(IterBox):
         for i in (0, len(self.denominator), len(self)-1):
             if i1<= i<i2:
                 return 0, len(self)
-        return extend_range_seperated(self, i1, i2)
+        return IterBox.extend_range(self, i1, i2)
 
     def can_leftappend(self):
-         return False
+        # There is one empty index position at index 0, so that
+        # inserting in position 0 is not possible. We therefore
+        # signal, that we can't append to the left side.
+        return False
 
 
 
@@ -161,7 +143,6 @@ class Root(Container):
 
 
 class RootBox(IterBox):
-    # x123456789
     def __init__(self, boxes, device=None):
         if device is not None:
             self.device = device
@@ -195,14 +176,15 @@ class RootBox(IterBox):
         else:
             IterBox.draw_selection(self, i1, i2, x, y, dc)
 
-    def can_leftappend(self):
-        return False
-
     def extend_range(self, i1, i2):
         for i in (0, len(self)-1):
             if i1<= i<i2:
                 return 0, len(self)
-        return extend_range_seperated(self, i1, i2)
+        return IterBox.extend_range(self, i1, i2)
+
+    def can_leftappend(self):
+        return False
+
 
 
 
