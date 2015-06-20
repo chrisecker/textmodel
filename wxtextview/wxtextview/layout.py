@@ -1,6 +1,6 @@
 # -*- coding: latin-1 -*-
 
-
+# XXX TODO: do we still need dummy-boxes?
 
 from textmodel import listtools
 from textmodel.textmodel import TextModel
@@ -267,9 +267,13 @@ class EmptyTextBox(_TextBoxBase):
         return 'ETB'
 
 
+
+
 class IterBox(Box):
-    # Die Kinder brauchen nicht dicht in i zu liegen. Es können
-    # einzelne Indizes frei bleiben.
+    # IterBox provides default implementations for many box
+    # methods. Derived classes need to define an "iter"-method. Note
+    # that childs do not have to ly densely packed in the index
+    # space. Single gaps between childs are allowed.
 
     def dump_boxes(self, i, x, y, indent=0):
         Box.dump_boxes(self, i, x, y, indent)
@@ -305,19 +309,17 @@ class IterBox(Box):
             return None, i, x0, y0
         if i == len(self): # empty last
             return None, i, x0, y0
-        # Es darf maximal eine Indexposition zwischen zwei Kindern
-        # frei bleiben. Damit ist sichergestellt, dass jede Position
-        # verwaltet wird (zumindest wenn es Kinder gibt). Wenn wir an
-        # diese Stelle kommen dann liegt also ein Fehler vor!
+        # Only single index positions between child elements can be
+        # empty. If two or more consecutive postions were empty, this
+        # would mean that then we would have at least one position
+        # without a responsible element.
         print tuple(self.riter(0, x0, y0))
         print j1, j2, i, child, child.can_leftappend()
         raise Exception, (self, i, len(self))
 
     def get_index(self, x, y):
-        # Sucht die zu (x,y) nächstgelegene Indexposition. Kann auch
-        # None zurückgeben. 
 
-        # 1. Durchlauf: nur Kindboxen die (x, y) enthalten
+        # First run: only boxes which directly contain (x, y)
         l = []
         for j1, j2, x1, y1, child in self.riter(0, 0, 0):
             if x1 <= x <= x1+child.width and \
@@ -328,14 +330,13 @@ class IterBox(Box):
                     dist = r.dist(x, y)
                     l.append((dist, -j1-i))
         if l:
-            l.sort() # Achtung: so werden große Indexposition bevorzugt!
+            l.sort() # NOTE: this favors higher index positions!
             assert -l[0][-1] <= len(self)
             return -l[0][-1]
         
-        # 2. Durchlauf: restlicher Kindboxen. ACHTUNG: die
-        # vollständige Suche ist zwar allgemein, aber sehr
-        # ineffizient! Die Methode get_index sollte daher wenn immer
-        # möglich überschrieben werden.
+        # Second run: other boxes. NOTE: the full search is general
+        # but is very inefficient! Derived Boxes there should
+        # implement faster version if possible.
         for j1, j2, x1, y1, child in self.riter(0, 0, 0):
             if x1 <= x <= x1+child.width and \
                     y1 <= y <= y1+child.height+child.depth:
@@ -355,7 +356,7 @@ class IterBox(Box):
             assert -l[0][-1] <= len(self) # XXXX
             return -l[0][-1]
 
-        # Keine Indexposition innerhalb eines Kinds gefunden!
+        # No index position found
         return None
 
     def draw(self, x, y, dc, styler):
@@ -374,8 +375,8 @@ class IterBox(Box):
                     child.draw_selection(i1-j1, i2-j1, x1, y1, dc)
 
     def layout(self):
-        # Default Implementierung. Ist ineffizient und kann
-        # überschrieben werden.
+        # This is a very general and slow implementation. Should be
+        # reimplemented in derived classes.
         w0 = w1 = h0 = h1 = h2 = 0
         for j1, j2, x, y, child in self.iter(0, 0, 0):
             w0 = min(w0, x)
@@ -386,11 +387,26 @@ class IterBox(Box):
         self.width = w1
         self.height = h1
         self.depth = h2-h1
-        # h0 und w0 beschreiben den Überstand nach links bzw. nach
-        # oben. Die Werte können in abgeleiteten Klassen nützlich
-        # sein, um den Ursprung festzulegen. Wir geben sie daher
-        # zurück.
+        # h0 and w0 describe the overlapp to the left and to the right
+        # respectively. They might be useful in derived classes. We
+        # therefore return them.
         return w0, h0
+
+
+def extend_range_seperated(iterbox, i1, i2):
+    # Restrict ranges to child boundaries, e.g. in the fraction it
+    # should not be possible to select a part of the nominator and a
+    # part of the denominator. 
+    last = 0
+    for j1, j2, x, y, child in iterbox.iter(0, 0, 0):
+        if not (i1<j2 and j1<i2):
+            continue
+        if i1 < j1 or i2>j2:
+            return min(i1, 0), max(i2, len(iterbox))
+        k1, k2 = child.extend_range(i1-j1, i2-j1)
+        return min(i1, k1+j1), max(i2, k2+j1)
+    return i1, i2
+
 
 
 
@@ -408,9 +424,7 @@ class ChildBox(IterBox):
 
 
 class HBox(ChildBox):
-    # Richtet seine Kinder in einer horizontalen Reihe aus. Childs ist
-    # eine Liste mit Kindboxen. Boxen mit dem Flag is_dummy werden als
-    # Lücken behandelt.
+    # A box which aligns its child boxes horizontaly. 
 
     def iter(self, i, x, y):
         height = self.height
@@ -435,9 +449,7 @@ class HBox(ChildBox):
 
 
 class VBox(ChildBox):
-    # Stapelt die Kinderboxen übereinander. Childs ist eine Liste mit
-    # Kindboxen. Boxen mit dem Flag is_dummy werden als Lücken
-    # behandelt.
+    # A box which aligns its child boxes vertically. 
 
     def iter(self, i, x, y):
         j1 = i
@@ -485,10 +497,9 @@ class _ParagraphBox(IterBox):
 
 
 class Paragraph(_ParagraphBox, treebase.Element):
-    # Ein Paragraph enthält eine Textzeile bis zu einem NewLine. Der
-    # Paragraph wird in eine oder mehrere Zeilen (Rows) umgebrochen.
-    #
-    # Zeilen enden immer mit einer NewlineBox.
+    # A paragraph holds one line of text which is ended by a
+    # newline. The paragraph is broken into one or several rows.
+
     def __init__(self, rows, device=None):
         length = listtools.calc_length(rows)
         self.weights = (0, length)
@@ -525,11 +536,7 @@ class ParagraphStack(_ParagraphBox, treebase.Group):
         return i+i0, i+i0
 
     def get_index(self, x, y):
-        # XXX aus VBox kopiert. Könnte in VBox eigentlich gelöscht werden. 
-        # Wir überschreiben die ineffiziente vollständige Suche. Das
-        # ist wichtig, da VBox insbesondere als Basisklasse für
-        # Paragraph dient und get_index gerade für längere Texte sehr
-        # leicht ineffizient wird.
+        # This replaces the inefficient default method from IterBox.   
         l = []
         for j1, j2, x1, y1, child in self.riter(0, 0, 0):
             if y1 <= y <= y1+child.height+child.depth:
@@ -537,8 +544,7 @@ class ParagraphStack(_ParagraphBox, treebase.Group):
                 if i is not None:
                     return i+j1
 
-
-    ### Methoden für den Updater
+    ### Methods needed by the updater
     def get_envelope(self, i1, i2):  
         # Returns the interval in which paragraph boxes have to be
         # updated if content between $i1$ and $i2$ is changed.
@@ -556,7 +562,8 @@ class ParagraphStack(_ParagraphBox, treebase.Group):
 
         
 def check_box(box, texel=None):
-    # - muss für alle Indizes infos liefern
+
+    # Box must return infos for all index postions
     for i in range(len(box)+1):
         assert len(box.get_info(i, 0, 0)) == 4
 
@@ -575,8 +582,7 @@ def check_box(box, texel=None):
     if texel is None:
         return True
 
-    # - alle Indizes, die einzeln selektierbar sind müssen auch
-    #   kopierbar sein
+    # All index positions which can be selected must be copyable
     calc_length = listtools.calc_length
     for i in range(len(box)):
         j1, j2 = box.extend_range(i, i+1)
