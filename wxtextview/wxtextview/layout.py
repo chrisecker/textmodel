@@ -667,7 +667,6 @@ def test_04():
     assert check_box(p2, texel2)
     box = ParagraphStack([p1, p2])
     assert check_box(box, texel)
-    box.dump_boxes(0, 0, 0)
 
     assert str(box.get_info(0, 0, 0)) == "(TB('0123'), 0, 0, 0)"
     assert str(box.get_info(1, 0, 0)) == "(TB('0123'), 1, 1, 0)"
@@ -682,7 +681,7 @@ def test_04():
     assert str(box.get_info(10, 0, 0)) == "(ETB, 0, 0, 2)"
 
 
-def test_10():
+def test_05():
     t1 = TextBox("0123456789")
     t2 = TextBox("0123456789")
     p1 = Paragraph([Row([t1, NewlineBox(defaultstyle)])])
@@ -696,8 +695,8 @@ def test_10():
     assert s.height == 2    
 
 
-def test_08():
-    # Problem: get_rect gibt immer 0, 0
+def test_06():
+    # Problem: get_rect always returns 0, 0
     t1 = TextBox("0123456789")
     t2 = TextBox("0123456789")
     p1 = Paragraph([Row([t1, t2, NewlineBox(defaultstyle)])])

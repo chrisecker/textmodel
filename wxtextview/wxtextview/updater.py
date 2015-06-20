@@ -242,7 +242,6 @@ def test_02():
     boxes = factory.create_boxes(texel)
     paragraphs = create_paragraphs(boxes)
     stack = ParagraphStack(paragraphs)
-    #assert stack.childs[-1].has_newline()
     par = stack.childs[-1]
     assert len(par) == 4
     assert len(stack) == 4
@@ -252,8 +251,6 @@ def test_02():
             p.dump_boxes(0, 0, 0)
 
     assert stack.get_info(3, 0, 0)[-2:] == (3, 0)
-    print stack.get_info(4, 0, 0)[-2:]
-    # ??? assert stack.get_info(4, 0, 0)[-2:] == (0, 1)
 
     texel = TextModel("").texel
     boxes = factory.create_boxes(texel)
@@ -294,7 +291,6 @@ def test_04():
     model = TextModel("123\n\n567890 2 4 6 8 0")
     updater = Updater(model, maxw=0)
     layout = updater._layout
-    print repr(layout)
     assert repr(layout) == "ParagraphStack[Paragraph[Row[TB('123'), " \
         "NL]], Paragraph[Row[NL]], Paragraph[Row[TB('567890 2 4 6 8 0'), " \
         "ENDMARK]]]"
