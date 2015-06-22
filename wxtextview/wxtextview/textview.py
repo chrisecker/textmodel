@@ -42,7 +42,7 @@ class TextView(ViewBase, Model):
         self.set_model(self._TextModel(''))
 
     def create_updater(self):
-        # kann überschrieben werden
+        # can be overwritten        
         return Updater(self.model, device=TESTDEVICE, 
                        maxw=self._maxw)
 
