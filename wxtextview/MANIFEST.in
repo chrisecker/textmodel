@@ -3,7 +3,7 @@ include wxtextview/*.py
 include demo/demo1.py
 include demo/demo2.py
 include demo/demo3.py
-include demo/demo-large.py
+include demo/benchmark.py
 include demo/math_demo.py
 include demo/notebook.py
 include LICENSE

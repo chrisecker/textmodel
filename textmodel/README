@@ -1,9 +1,6 @@
 Text Model
 ==========
 
-A data type for storing and manipulating rich text data. It aims to be
-fast and efficient and it is suited even for very large texts. 
-
 Quick example
 -------------
 
@@ -15,19 +12,22 @@ Quick example
     >>> text.insert(11, text2)
     >>> text.set_properties(6, 11, bgcolor='yellow')
     >>> for i in range(1000):
-    ...     text.insert_text(len(text), "Line %i\n" % i)
-    >>> print text.linelength(0)
+    ...     text.append(TextModel("Line %i\n" % i))
+    >>> text.linelength(0) # length of first line
     19
+    >>> text.index2position(100) # row, col of index 100
+    (12, 2)
+
 
 Introduction
 ------------
 
 Word processors are usually believed to be heavy and slow
-applications. However I believe, that it is possible to design a word
-processors which is light weight and which is fast - so fast that it
-even can be implemented in a "slow" scripting language such as
-python. Text model was my prove of concept (even though it is merely a
-text editor and not a full word processor).
+applications. However I think, that it is possible to design a word
+processor which is light weight and which is fast - so fast that it
+even can be implemented in a "slow" scripting language. Text model is
+ment to be a prove of concept (even though it is merely a text editor
+and not a full word processor).
 
 Storing and editing text information is a problem with a long history
 in computer science. Known solutions include the `gap buffer
@@ -58,7 +58,7 @@ character level and it stores the styling in a economic way.
 Text model is an interface to the texel tree, hiding all the
 complexity of the recursive texel data structure. It is termed "text
 model" because in a model-view-controller scenario it would have the
-role of the "model". A matching view component is wxtextview
+role of the "model". A matching view / editor component is
 `wxtextview <https://pypi.python.org/pypi/wxtextview>`_. In
 combination they can be used as text editor.
 
@@ -69,7 +69,7 @@ Speed
 Note that textmodel is not yet optimized. By saying that the texel
 structure is fast, I mean that the time of operations grows only
 slowly with the length of the text. I would not be surprised, if the
-times could be improved by a factor of 2.
+times could be improved by a factor of 2 or more.
 
 The following table shows how the time needed to insert a line grows
 with the length of the text. The text length is measured as number of
@@ -141,7 +141,6 @@ reasons for the high efficiency of the texel tree. It is a tuple of 3
 integer numbers and it facilitates fast navigation in the tree. The
 first entry gives the depth of the texel, which is needed internally,
 the second gives the number of characters in texel and the third gives
-the number of NewLines in the texel.  The **weights[2]** is used
-excessively by methods as nlines, linelength, lineend and
-index2position to efficiently find the newline texels.
+the number of line breaks in the texel. The latter is used excessively
+by methods as nlines, linelength, lineend and index2position.
 
