@@ -1,9 +1,9 @@
 WXTextView
 ==========
 
-Wxtextview is user drawn widget for the wx toolkit. It has the
-functionality of a rich text editor and can handle even very long
-texts without beeing slow.
+Wxtextview is widget for the wx toolkit and is written in python. It
+has the functionality of a rich text editor and can handle even very
+long texts without beeing slow.
 
 There are two demos showing advanced possibilities of WXTextView:
 
@@ -24,8 +24,9 @@ Running the demos:
 ------------------
 
 Just cd to the demo directory and execute the scripts. No installation
-is needed. External dependencies are textmodel (all demos), wxpython
-(all demos) and matplotlib (notebook). The demos were tested on linux,
+is needed. External dependencies are `textmodel
+<https://pypi.python.org/pypi/textmodel>`_ (all demos), wxpython (all
+demos) and matplotlib (notebook). The demos were tested on linux,
 windows and mac platforms.
 
 ::
