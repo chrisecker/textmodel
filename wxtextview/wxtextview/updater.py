@@ -121,7 +121,6 @@ class Updater(Factory):
         self.model = model
         self._maxw = maxw
         Factory.__init__(self, device)
-        self.rebuild()
 
     def _grouped(self, stuff):
         if not stuff:
@@ -149,7 +148,6 @@ class Updater(Factory):
         return self.model.get_xtexel()
         
     def rebuild(self):
-        #print "rebuild"
         texel = self.extended_texel()
         l = self.create_paragraphs(texel, 0, len(texel))
         self._layout = self._grouped(l)
