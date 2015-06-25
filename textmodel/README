@@ -107,7 +107,7 @@ length. This is especially true for the following operations:
 - calculating index positions from (row, col)-tuples and vice versa
 - counting lines
 
-Moreover, pasting and cutting text changes only little on the size of
+Moreover, pasting and cutting text changes only little with the size of
 the text which is cut out or pasted in. Again, there should be a
 logarithmic dependence.
 
@@ -115,7 +115,7 @@ Implementation details
 ----------------------
 
 The texel tree consists of different kinds of texels: group texels,
-character texels, glyphs and containers.
+character texels, glyphs texels and containers texels.
 
 Character texels hold strings of uniformly styled unicode
 text. NewLines are a special case of character texels. Groups hold
