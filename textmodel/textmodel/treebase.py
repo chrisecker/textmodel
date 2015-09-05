@@ -376,7 +376,7 @@ class Group(Element):
                 r2.extend(r)
                 k1.extend(k)
             elif j1 <= i2 <= j2:
-                r, k = child.takeout(max(i1-j2, 0), min(i2-j1, len(child)))
+                r, k = child.takeout(max(i1-j1, 0), min(i2-j1, len(child)))
                 r3.extend(r)
                 k3.extend(k)
             elif i2 <= j1:
