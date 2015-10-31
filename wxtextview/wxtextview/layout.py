@@ -8,6 +8,7 @@ from textmodel import treebase
 from .testdevice import TESTDEVICE
 from rect import Rect
 from math import ceil
+from copy import copy as shallow_copy
 
 
 # Coordinates:
@@ -24,18 +25,33 @@ from math import ceil
 class Box:
     # Box protocol. Boxes are boxes when they implement the box
     # protocol. They do not have to be derived from Box.
+    # 
+    # This class and derived classes are used as mixin to turn a
+    # treebase.Element object into a box object.
+    
     width = 0
     height = 0
     depth = 0
-    length = 0
-    device = TESTDEVICE                     
+    device = TESTDEVICE
+
+    @staticmethod
+    def create_group(l):
+        # Override the default behaviour of treebase.Element
+        # (returning a treebase.Group) which could lead to difficult
+        # to find bugs.
+        raise NotImplementedError()
+
+    def takeout(self, i1, i2):
+        if i1 == i2:
+            return [self], []
+        assert i1 == 0
+        assert i2 == len(self)
+        return [], [self]
+
     def dump_boxes(self, i, x, y, indent=0):
         print " "*indent, "[%i:%i]" % (i, i+len(self)), x, y, 
         print repr(self)[:100]
         
-    def __len__(self):
-        return self.length
-
     def extend_range(self, i1, i2):
         return i1, i2
 
@@ -115,14 +131,14 @@ class Box:
 
 
     
-class _TextBoxBase(Box):
+class _TextBoxBase(Box, treebase.Element):
     def __repr__(self):
         return "TB(%s)" % repr(self.text)
 
-    def update(self):
+    def layout(self):
         self.width, h = self.measure(self.text)
         self.height = int(ceil(h))
-        self.length = len(self.text)
+        self.weights = (self.weights[0], len(self.text))
 
     def measure(self, text):
         return self.device.measure(text, self.style)
@@ -171,7 +187,7 @@ class _TextBoxBase(Box):
                 assert i+1 <= len(self)
                 return i+1
             x1 = x2
-        return self.length
+        return len(self)
 
 
 
@@ -181,7 +197,7 @@ class TextBox(_TextBoxBase):
         self.style = style
         if device is not None:
             self.device = device
-        self.update()
+        self.layout()
 
 
 class NewlineBox(_TextBoxBase):
@@ -191,14 +207,14 @@ class NewlineBox(_TextBoxBase):
     # ablegen können.
     text = '\n'
     width = 0
-    length = 1
+    weights = (0, 1)
     def __init__(self, style=defaultstyle, device=None):        
         self.style = style
         if device is not None:
             self.device = device
-        self.update()
+        self.layout()
 
-    def update(self):
+    def layout(self):
         w, h = self.measure(self.text)
         self.height = int(ceil(h))
 
@@ -215,12 +231,12 @@ class NewlineBox(_TextBoxBase):
 
 class TabulatorBox(_TextBoxBase):
     text = ' ' # XXX for now we treat tabs like spaces
-    length = 1
+    weights = (0, 1) 
     def __init__(self, style=defaultstyle, device=None):        
         self.style = style
         if device is not None:
             self.device = device
-        self.update()
+        self.layout()
 
     def __repr__(self):
         return 'TAB'
@@ -230,17 +246,17 @@ class TabulatorBox(_TextBoxBase):
 class EndBox(_TextBoxBase):
     text = chr(27)
     width = 0
-    length = 1
+    weights = (0, 1)
     def __init__(self, style=defaultstyle, device=None):
         self.style = style
         if device is not None:
             self.device = device
-        self.update()
+        self.layout()
 
     def __repr__(self):
         return 'ENDMARK'
 
-    def update(self):
+    def layout(self):
         w, h = self.measure(self.text)
         self.height = int(ceil(h))
 
@@ -248,14 +264,14 @@ class EndBox(_TextBoxBase):
 class EmptyTextBox(_TextBoxBase):
     text = ""
     width = 0
-    length = 0
+    weights = (0, 0)
     def __init__(self, style=defaultstyle, device=None):
         self.style = style
         if device is not None:
             self.device = device
-        self.update()
+        self.layout()
 
-    def update(self):
+    def layout(self):
         w, h = self.measure('M')
         self.height = int(ceil(h))
 
@@ -273,17 +289,17 @@ class IterBox(Box):
 
     def dump_boxes(self, i, x, y, indent=0):
         Box.dump_boxes(self, i, x, y, indent)
-        for j1, j2, x1, y1, child in self.iter(i, x, y):
+        for j1, j2, x1, y1, child in self.iter_boxes(i, x, y):
             child.dump_boxes(j1, x1, y1, indent+4)
         
-    def iter(self, i, x, y):
+    def iter_boxes(self, i, x, y):
         raise NotImplementedError()
 
-    def riter(self, i, x, y):
-        return reversed(tuple(self.iter(i, x, y)))
+    def riter_boxes(self, i, x, y):
+        return reversed(tuple(self.iter_boxes(i, x, y)))
 
     def extend_range(self, i1, i2):
-        for j1, j2, x1, y1, child in self.iter(0, 0, 0):
+        for j1, j2, x1, y1, child in self.iter_boxes(0, 0, 0):
             if i1 < j2 and j1 < i2:
                 k1, k2 = child.extend_range(i1-j1, i2-j1)
                 i1 = min(i1, k1+j1)
@@ -294,7 +310,7 @@ class IterBox(Box):
         if i<0 or i>len(self):
             raise IndexError, i
         j1 = None # Markierung
-        for j1, j2, x1, y1, child in self.riter(0, x0, y0):
+        for j1, j2, x1, y1, child in self.riter_boxes(0, x0, y0):
             if j1 < i <= j2:
                 return child, j1, x1, y1
             elif j1 == i and child.can_leftappend():
@@ -309,7 +325,7 @@ class IterBox(Box):
         # empty. If two or more consecutive postions were empty, this
         # would mean that then we would have at least one position
         # without a responsible element.
-        print tuple(self.riter(0, x0, y0))
+        print tuple(self.riter_boxes(0, x0, y0))
         print j1, j2, i, child, child.can_leftappend()
         raise Exception, (self, i, len(self))
 
@@ -317,7 +333,7 @@ class IterBox(Box):
 
         # First run: only boxes which directly contain (x, y)
         l = []
-        for j1, j2, x1, y1, child in self.riter(0, 0, 0):
+        for j1, j2, x1, y1, child in self.riter_boxes(0, 0, 0):
             if x1 <= x <= x1+child.width and \
                     y1 <= y <= y1+child.height+child.height:
                 i = child.get_index(x-x1, y-y1)
@@ -333,7 +349,7 @@ class IterBox(Box):
         # Second run: other boxes. NOTE: the full search is general
         # but is very inefficient! Derived Boxes there should
         # implement faster version if possible.
-        for j1, j2, x1, y1, child in self.riter(0, 0, 0):
+        for j1, j2, x1, y1, child in self.riter_boxes(0, 0, 0):
             if x1 <= x <= x1+child.width and \
                     y1 <= y <= y1+child.height+child.depth:
                 pass
@@ -357,14 +373,14 @@ class IterBox(Box):
 
     def draw(self, x, y, dc, styler):
         device = self.device
-        for j1, j2, x1, y1, child in self.iter(0, x, y):
+        for j1, j2, x1, y1, child in self.iter_boxes(0, x, y):
             r = Rect(x1, y1, x1+child.width, y1+child.height)
             if device.intersects(dc, r):
                 child.draw(x1, y1, dc, styler)
 
     def draw_selection(self, i1, i2, x, y, dc):
         device = self.device
-        for j1, j2, x1, y1, child in self.iter(0, x, y):
+        for j1, j2, x1, y1, child in self.iter_boxes(0, x, y):
             if i1 < j2 and j1< i2:
                 r = Rect(x1, y1, x1+child.width, y1+child.height)
                 if device.intersects(dc, r):
@@ -374,7 +390,7 @@ class IterBox(Box):
         # This is a very general and slow implementation. Should be
         # reimplemented in derived classes.
         w0 = w1 = h0 = h1 = h2 = 0
-        for j1, j2, x, y, child in self.iter(0, 0, 0):
+        for j1, j2, x, y, child in self.iter_boxes(0, 0, 0):
             w0 = min(w0, x)
             h0 = min(h0, y)
             w1 = max(w1, x+child.width)
@@ -394,7 +410,7 @@ def extend_range_seperated(iterbox, i1, i2):
     # should not be possible to select a part of the nominator and a
     # part of the denominator. 
     last = 0
-    for j1, j2, x, y, child in iterbox.iter(0, 0, 0):
+    for j1, j2, x, y, child in iterbox.iter_boxes(0, 0, 0):
         if not (i1<j2 and j1<i2):
             continue
         if i1 < j1 or i2>j2:
@@ -407,11 +423,15 @@ def extend_range_seperated(iterbox, i1, i2):
 
 
 class ChildBox(IterBox):
+    has_childs = True
     def __init__(self, childs, device=None):
-        self.childs = tuple(childs)
         if device is not None:
             self.device = device
-        self.length = listtools.calc_length(self.childs)
+        self.set_childs(childs)
+
+    def set_childs(self, childs):
+        self.childs = list(childs)
+        self.compute_weights()
         self.layout()
 
     def __repr__(self):
@@ -419,17 +439,21 @@ class ChildBox(IterBox):
 
 
 
-class HBox(ChildBox):
+
+class HBox(ChildBox, treebase.Group):
     # A box which aligns its child boxes horizontaly. 
 
-    def iter(self, i, x, y):
+    def iter_boxes(self, i, x, y):
         height = self.height
         j1 = i
         for child in self.childs:
-            j2 = j1+child.length
+            j2 = j1+len(child)
             yield j1, j2, x, y+height-child.height, child
             x += child.width
             j1 = j2
+
+    def create_group(self, l):
+        return HBox(l, device=self.device)
 
     def layout(self):
         w = h = d = 0
@@ -444,117 +468,42 @@ class HBox(ChildBox):
 
 
 
-class VBox(ChildBox):
+class VBox(ChildBox, treebase.Group):
     # A box which aligns its child boxes vertically. 
 
-    def iter(self, i, x, y):
+    def iter_boxes(self, i, x, y):
         j1 = i
         for child in self.childs:
-            j2 = j1+child.length
+            j2 = j1+len(child)
             yield j1, j2, x, y, child
             y += child.height+child.depth
             j1 = j2
 
+    def create_group(self, l):
+        return VBox(l, device=self.device)
 
 
 class Row(HBox):
-    pass
+    def create_group(self, l):
+        return VBox(l, device=self.device)
 
 
-class _ParagraphBox(IterBox):
-    # The number of paragraphs can be very long. Therefore we store
-    # all paragraphs in a tree structure. This makes the GUI
-    # considerably faster.
-
-    def __init__(self, device):
-        if device is not None:
-            self.device = device
-        self.layout()
-
-    @property
-    def length(self):
-        return self.weights[1]
+class Paragraph(VBox):
+    # A paragraph consists of one or several rows, which are stacked
+    # on top of each other. It is assumed, that the text consists of
+    # one single page with a constant left margin and uniform row
+    # width. These assumptions correspond to the typical behaviour in
+    # a text editor. If there are different requirements, e.g. in a
+    # word processor, Paragraph could be redefined.
+    #
+    # The number of paragraphs can be very long. Therefore we group
+    # paragraph into VBoxes. This makes the GUI considerably faster.
 
     def create_group(self, l):
-        return ParagraphStack(l, device=self.device)
-
-    def iter(self, i, x, y):
-        j1 = i
-        for child in self.childs:
-            j2 = j1+child.length
-            yield j1, j2, x, y, child
-            y += child.height+child.depth
-            j1 = j2
-
-    def __repr__(self):
-        return self.__class__.__name__+repr(list(self.childs))
-
-
-class Paragraph(_ParagraphBox, treebase.Element):
-    # A paragraph holds one line of text which is ended by a
-    # newline. The paragraph is broken into one or several rows.
-
-    def __init__(self, rows, device=None):
-        length = listtools.calc_length(rows)
-        self.weights = (0, length)
-        self.childs = rows
-        _ParagraphBox.__init__(self, device)
-
-    def get_envelope(self, i1, i2):
-        return 0, self.length
-
-    def takeout(self, i1, i2):
-        if i1 == i2:
-            return [self], []
-        assert i1 == 0
-        assert i2 == self.length
-        return [], [self]
-
-
-
-
-class ParagraphStack(_ParagraphBox, treebase.Group):
-
-    def __init__(self, paragraphs, device=None):
-        treebase.Group.__init__(self, paragraphs)
-        _ParagraphBox.__init__(self, device)
-
-    def get_interval(self, i, i0=0):
-        # Returns the interval of the paragraph which is adressed by
-        # index $i$
-        for j1, j2, child in self.iter_childs():
-            if j1 < i <= j2:
-                if isinstance(child, ParagraphStack):
-                    return child.get_interval(i-j1, i0+j1)
-                return j1+i0, j2+i0
-        return i+i0, i+i0
-
-    def get_index(self, x, y):
-        # This replaces the inefficient default method from IterBox.   
-        l = []
-        for j1, j2, x1, y1, child in self.riter(0, 0, 0):
-            if y1 <= y <= y1+child.height+child.depth:
-                i = child.get_index(x-x1, y-y1)
-                if i is not None:
-                    return i+j1
-
-    ### Methods needed by the updater
-    def get_envelope(self, i1, i2):  
-        # Returns the interval in which paragraph boxes have to be
-        # updated if content between $i1$ and $i2$ is changed.
-        j1 = self.get_interval(i1)[0]
-        tmp = self.get_interval(i2)[1]
-        if tmp == len(self):
-            j2 = len(self)
-        else:
-            assert tmp < len(self)
-            j2 = self.get_interval(tmp+1)[1]
-        return j1, j2
-
-
-
+        return VBox(l, device=self.device)
 
         
+
 def check_box(box, texel=None):
 
     # Box must return infos for all index postions
@@ -650,7 +599,7 @@ def test_03():
 
 
 def test_04():
-    "ParagraphStack"
+    "Row"
     box1, tmp = _create_testobjects("0123")
     box2, tmp = _create_testobjects("5678")
     tmp, texel1 = _create_testobjects("0123\n")
@@ -665,7 +614,8 @@ def test_04():
     ])
     assert check_box(p1, texel1)
     assert check_box(p2, texel2)
-    box = ParagraphStack([p1, p2])
+    box = treebase.grouped([p1, p2])
+    assert isinstance(box, VBox)
     assert check_box(box, texel)
 
     assert str(box.get_info(0, 0, 0)) == "(TB('0123'), 0, 0, 0)"
@@ -680,6 +630,34 @@ def test_04():
     assert str(box.get_info(9, 0, 0)) == "(NL, 0, 4, 1)"
     assert str(box.get_info(10, 0, 0)) == "(ETB, 0, 0, 2)"
 
+    #box.dump_boxes(0, 0, 0)
+
+    box2 = treebase.grouped(box.replace_child(5, 10, []))
+    #box2.dump_boxes(0, 0, 0)
+    assert len(box2) == 5
+
+    xbox, tmp = _create_testobjects("X")
+    p = Paragraph([xbox])
+    box2 = treebase.grouped(box.replace_child(5, 10, [p]))
+    #box2.dump_boxes(0, 0, 0)
+    assert len(box2) == 6
+
+    treebase.nmax = 5
+    box2 = Paragraph([
+        Row([EmptyTextBox()])
+    ])
+
+    l = []
+    for i in range(15):
+        ibox, tmp = _create_testobjects(str(i))
+        r = Row([ibox, NewlineBox()])
+        l.append(Paragraph([r]))
+    for x in l:
+        assert isinstance(x, Paragraph)
+    l = box.replace_child(5, 10, l)
+    box2 = treebase.grouped(l)
+    #box2.dump_boxes(0, 0, 0)
+
 
 def test_05():
     t1 = TextBox("0123456789")
@@ -688,10 +666,10 @@ def test_05():
     row = p1.childs[0]
     assert p1.height == 1
     assert p1.width == 10
-    assert p1.length == 11
-    p2 = Paragraph([Row([t2])])
+    assert len(p1) == 11
+    p2 = VBox([Row([t2])])
     assert p2.height == 1
-    s = ParagraphStack([p1, p2])
+    s = VBox([p1, p2])
     assert s.height == 2    
 
 
