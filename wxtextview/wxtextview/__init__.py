@@ -1,2 +1,2 @@
-from . import wxtextview
-from .wxtextview import WXTextView
+#from . import wxtextview
+#from .wxtextview import WXTextView
