@@ -227,7 +227,7 @@ If element is a container, it must provide the "iter_childs" and
         """Replace the direct childs between $i1$ and $i2$ by $stuff$.
 
         Returns a list of elements. The indices $i1$ and $i2$ must lie
-        at boundaries. Replace_Child can be used to insert, replace_child or
+        at boundaries. Replace_Child can be used to insert, replace or
         remove child elements.
 
         element.replace_child(i1, i1, new) -- insert at index i1
@@ -247,6 +247,7 @@ If element is a container, it must provide the "iter_childs" and
             #out(repr(self)[:100])
             #dump(G(__return__))
             calc_length(__return__) == len(self)-(i2-i1)+calc_length(stuff)
+
         """
         raise NotImplementedError()
 
@@ -518,6 +519,7 @@ def insert(element, i, stuff):
            is_homogeneous(__return__)
 
     """
+    assert 0 <= i <= len(element)
     if element.has_childs:
         k = -1
         for i1, i2, child in element.iter_childs():
