@@ -38,6 +38,13 @@ def set_nmax(i):
     nmax = i
 
 
+def is_group(element):
+    try:
+        return element.is_group
+    except AttributeError:
+        return False
+
+
 def depth(element):
     """Returns the depth of an element.
 
@@ -53,7 +60,7 @@ def depth(element):
        >>> depth(G()) # empty groups are ignored
        0
     """
-    if isinstance(element, Group):
+    if is_group(element):
         return element.get_depth()
     return 0
 
@@ -93,7 +100,7 @@ def is_element_efficient(element):
        Note: this function is very slow and should only be used for
        debugging.
     """
-    if not isinstance(element, Group):
+    if not is_group(element):
         return True
     if not is_homogeneous(element.childs):
         return False
@@ -128,7 +135,7 @@ def is_root_efficient(root):
        Note: this function is very slow and should only be used for
        debugging.
     """
-    if not isinstance(root, Group):
+    if not is_group(root):
         return True
     if len(root.childs) > nmax:
         return False
@@ -166,7 +173,7 @@ def strip(element):
     """Removes unnecessary Group-elements from the root.
     """
     n = len(element)
-    while isinstance(element, Group) and len(element.childs) == 1:
+    while is_group(element) and len(element.childs) == 1:
         element = element.childs[0]
     assert n == len(element)
     return element
@@ -196,7 +203,9 @@ class Element:
     """Baseclass for all tree elements.
 
 If element is a container, it must provide the "iter_childs" and
-"replace_child" methods. Containers are marked by the flag "has_childs"."""
+"replace_child" methods. Containers are marked by the flag
+"has_childs". Groups are marked by the flag "is_group".
+    """
     weights = (0, 0)
     functions = (
         lambda l:max(l)+1, # depth
@@ -205,7 +214,7 @@ If element is a container, it must provide the "iter_childs" and
 
     has_childs = False # if true, childs can be accessed using the
                        # iter_childs method
-
+    is_group = False   # if true, this element behaves as a group
     def get_depth(self):
         """Returns the depth of $self$."""
         return self.weights[0]
@@ -271,6 +280,7 @@ If element is a container, it must provide the "iter_childs" and
             is_list_efficient(__return__[0])
             is_list_efficient(__return__[1])
         """
+        print self, len(self), i1, i2 # XXX
         raise NotImplementedError()
 
     def can_merge(self, other):
@@ -304,6 +314,12 @@ If element is a container, it must provide the "iter_childs" and
 
 
 class Group(Element):
+    """Groups are optional elements which can be added to make the tree
+    more efficient. They have a similar role as brackets in
+    mathematics. Replacing a tree by its childs will not change any
+    meaning.
+    """
+    is_group = True
     has_childs = True
 
     def __init__(self, items):
@@ -600,7 +616,7 @@ def ungroup(element):
            calc_length(__return__) == len(element)
            maxdepth(__return__) == 0
     """
-    if isinstance(element, Group):
+    if is_group(element):
         l = []
         for child in element.childs:
             l.extend(ungroup(child))
@@ -638,21 +654,21 @@ def _grouped(stuff):
 
 def get_rightmost(element):
     """Returns the rightmost subelement of $element$."""
-    if isinstance(element, Group):
+    if is_group(element):
         return get_rightmost(element.childs[-1])
     return element
 
 
 def get_leftmost(element):
     """Returns the leftmost subelement of $element$."""
-    if isinstance(element, Group):
+    if is_group(element):
         return get_leftmost(element.childs[0])
     return element
 
 
 def exchange_rightmost(element, new):
     """Replace the rightmost subelement of $element$ by $new$."""
-    if isinstance(element, Group):
+    if is_group(element):
         l = exchange_rightmost(element.childs[-1], new)
         return element.create_group(element.childs[:-1]+[l])
     return new
@@ -660,7 +676,7 @@ def exchange_rightmost(element, new):
 
 def exchange_leftmost(element, new):
     """Replace the lefttmost subelement of $element$ by $new$."""
-    if isinstance(element, Group):
+    if is_group(element):
         l = exchange_leftmost(element.childs[0], new)
         return element.create_group([l]+element.childs[1:])
     return new
@@ -671,7 +687,7 @@ def remove_leftmost(element):
 
        Note that this function can return an empty group.
     """
-    if isinstance(element, Group):
+    if is_group(element):
         l = remove_leftmost(element.childs[0])
         return element.create_group([l]+element.childs[1:])
     return element.create_group([])
