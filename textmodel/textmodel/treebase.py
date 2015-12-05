@@ -313,7 +313,7 @@ If element is a container, it must provide the "iter_childs" and
 
 
 
-class Group(Element):
+class GroupBase(Element):
     """Groups are optional elements which can be added to make the tree
     more efficient. They have a similar role as brackets in
     mathematics. Replacing a tree by its childs will not change any
@@ -321,11 +321,6 @@ class Group(Element):
     """
     is_group = True
     has_childs = True
-
-    def __init__(self, items):
-        self.childs = filter(len, items)
-        if len(self.childs):            
-            self.compute_weights()
 
     def compute_weights(self):
         w_list = zip(*[child.weights for child in self.childs])
@@ -407,6 +402,13 @@ class Group(Element):
 
     def __repr__(self):
         return 'G(%s)' % repr(list(self.childs))
+
+
+class Group(GroupBase):
+    def __init__(self, items):
+        self.childs = filter(len, items)
+        if len(self.childs):            
+            self.compute_weights()
 G = Group
 
 

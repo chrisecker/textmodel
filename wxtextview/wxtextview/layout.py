@@ -3,8 +3,8 @@
 
 from textmodel import listtools
 from textmodel.textmodel import TextModel
-from textmodel.texeltree import NewLine, Group, Characters, defaultstyle
-from textmodel import treebase
+from textmodel.texeltree import NewLine, Characters, defaultstyle
+from textmodel.treebase import GroupBase, is_group, grouped
 from .testdevice import TESTDEVICE
 from rect import Rect
 from math import ceil
@@ -22,31 +22,19 @@ from copy import copy as shallow_copy
 #     |__________(width, height+depth)
 
 
-class Box:
-    # Box protocol. Boxes are boxes when they implement the box
-    # protocol. They do not have to be derived from Box.
-    # 
-    # This class and derived classes are used as mixin to turn a
-    # treebase.Element object into a box object.
-    
+class Box(GroupBase):
+    # Boxes are the basic building blocks of a layout.
     width = 0
     height = 0
     depth = 0
     device = TESTDEVICE
+    is_group = False # we will use this as base class for groups and
+                     # non groups
+    childs = ()
 
     @staticmethod
     def create_group(l):
-        # Override the default behaviour of treebase.Element
-        # (returning a treebase.Group) which could lead to difficult
-        # to find bugs.
-        raise NotImplementedError()
-
-    def takeout(self, i1, i2):
-        if i1 == i2:
-            return [self], []
-        assert i1 == 0
-        assert i2 == len(self)
-        return [], [self]
+        return SimpleGroupBox(l)
 
     def dump_boxes(self, i, x, y, indent=0):
         print " "*indent, "[%i:%i]" % (i, i+len(self)), x, y, 
@@ -131,7 +119,7 @@ class Box:
 
 
     
-class _TextBoxBase(Box, treebase.Element):
+class _TextBoxBase(Box):
     def __repr__(self):
         return "TB(%s)" % repr(self.text)
 
@@ -439,10 +427,8 @@ class ChildBox(IterBox):
 
 
 
-
-class HBox(ChildBox, treebase.Group):
+class HBox(ChildBox):
     # A box which aligns its child boxes horizontaly. 
-
     def iter_boxes(self, i, x, y):
         height = self.height
         j1 = i
@@ -451,9 +437,6 @@ class HBox(ChildBox, treebase.Group):
             yield j1, j2, x, y+height-child.height, child
             x += child.width
             j1 = j2
-
-    def create_group(self, l):
-        return HBox(l, device=self.device)
 
     def layout(self):
         w = h = d = 0
@@ -466,11 +449,8 @@ class HBox(ChildBox, treebase.Group):
         self.depth = d
 
 
-
-
-class VBox(ChildBox, treebase.Group):
-    # A box which aligns its child boxes vertically. 
-
+class VBox(ChildBox):
+    # A box which aligns its child boxes vertically.
     def iter_boxes(self, i, x, y):
         j1 = i
         for child in self.childs:
@@ -479,13 +459,43 @@ class VBox(ChildBox, treebase.Group):
             y += child.height+child.depth
             j1 = j2
 
+
+
+class SimpleGroupBox(ChildBox):
+    # This Box is used as a dummy group to be able to temporarily
+    # combine boxes. This is needed because treebase requires that all
+    # elements have a corresponding group class.
+    is_group = 1
+    def iter_boxes(self, i, x, y):
+        height = self.height
+        j1 = i
+        for child in self.childs:
+            j2 = j1+len(child)
+            yield j1, j2, x, y, child
+            j1 = j2
+
+    def layout(self):
+        pass # all dimensions are left to 0
+
+
+
+class HGroup(HBox):
+    # A group which aligns its child boxes horizontaly. 
+    is_group = True
     def create_group(self, l):
-        return VBox(l, device=self.device)
+        return HGroup(l, device=self.device)
+
+
+
+class VGroup(VBox):
+    # A group which aligns its child boxes vertically. 
+    is_group = True
+    def create_group(self, l):
+        return VGroup(l, device=self.device)
 
 
 class Row(HBox):
-    def create_group(self, l):
-        return VBox(l, device=self.device)
+    pass
 
 
 class Paragraph(VBox):
@@ -503,6 +513,7 @@ class Paragraph(VBox):
         return VBox(l, device=self.device)
 
         
+
 
 def check_box(box, texel=None):
 
@@ -572,6 +583,19 @@ def test_02():
     assert check_box(box, texel)
 
 def test_03():
+    "grouped"
+    box, tmp = _create_testobjects("01234")
+    from  textmodel.treebase import depth
+    b = grouped([box]*20)
+    #b.dump_boxes(0, 0, 0)
+    assert depth(b) == 2
+    assert len(b) == 20*len(box)
+    b = grouped([box]*10)
+    assert depth(b) == 1
+    b = grouped([box])
+    assert depth(b) == 0
+
+def test_04():
     "Paragraph"
     box1, tmp = _create_testobjects("0123")
     box2, tmp = _create_testobjects("5678")
@@ -598,7 +622,7 @@ def test_03():
     assert str(box.get_info(10, 0, 0)) == "(ETB, 0, 0, 2)"
 
 
-def test_04():
+def test_05():
     "Row"
     box1, tmp = _create_testobjects("0123")
     box2, tmp = _create_testobjects("5678")
@@ -614,7 +638,7 @@ def test_04():
     ])
     assert check_box(p1, texel1)
     assert check_box(p2, texel2)
-    box = treebase.grouped([p1, p2])
+    box = grouped([p1, p2])
     assert isinstance(box, VBox)
     assert check_box(box, texel)
 
@@ -632,16 +656,16 @@ def test_04():
 
     #box.dump_boxes(0, 0, 0)
 
-    box2 = treebase.grouped(box.replace_child(5, 10, []))
+    box2 = grouped(box.replace_child(5, 10, []))
     #box2.dump_boxes(0, 0, 0)
     assert len(box2) == 5
 
     xbox, tmp = _create_testobjects("X")
     p = Paragraph([xbox])
-    box2 = treebase.grouped(box.replace_child(5, 10, [p]))
+    box2 = grouped(box.replace_child(5, 10, [p]))
     #box2.dump_boxes(0, 0, 0)
     assert len(box2) == 6
-
+    from textmodel import treebase
     treebase.nmax = 5
     box2 = Paragraph([
         Row([EmptyTextBox()])
@@ -655,11 +679,37 @@ def test_04():
     for x in l:
         assert isinstance(x, Paragraph)
     l = box.replace_child(5, 10, l)
-    box2 = treebase.grouped(l)
-    #box2.dump_boxes(0, 0, 0)
+    box2 = grouped(l)
+    box2.dump_boxes(0, 0, 0)
+
+def replace(texel, i1, i2, stuff):
+    # Bei Boxen müssen wir nicht nur an der richtigen Indexposition
+    # einfügen, sondern auch in der richtigen Tiefe. Das ist mit
+    # remove, insert nicht möglich.
+    #
+    # IDEE: man könnte z dadurch ermitteln, dass man fordert, dass i1
+    # und i2 an Objektgrenzen leigen. ...
+# oder durch eine bestimmte Elternklasse
+
+    for i1, i2, child in element.iter_childs():
+        if i1 <= i <= i2:
+            new = simple_insert(child, i-i1, stuff)
+            return element.replace_child(i1, i2, new)
+    return element.replace_child(i, i, stuff)
 
 
-def test_05():
+def test_06():
+    "block text"
+    box1, tmp = _create_testobjects("0123")
+    box2, tmp = _create_testobjects("5678")
+    box3, tmp = _create_testobjects("XYZ!")
+    p1 = Paragraph([Row([box1, NewlineBox()])])
+    p2 = Paragraph([Row([box2, NewlineBox()])])
+    block = VGroup([p1, p2])
+    block.dump()
+    block.replace()
+
+def test__06():
     t1 = TextBox("0123456789")
     t2 = TextBox("0123456789")
     p1 = Paragraph([Row([t1, NewlineBox(defaultstyle)])])
@@ -673,7 +723,7 @@ def test_05():
     assert s.height == 2    
 
 
-def test_06():
+def test_07():
     # Problem: get_rect always returns 0, 0
     t1 = TextBox("0123456789")
     t2 = TextBox("0123456789")
