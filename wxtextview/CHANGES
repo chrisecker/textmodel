@@ -1,4 +1,10 @@
+Version 0.3.5
+~~~~~~~~~~~~~
+
+- new editor action which is important for notebook: insert_newline_indented
+
 Version 0.3.4
+~~~~~~~~~~~~~
 
 - small bug fixes
 
