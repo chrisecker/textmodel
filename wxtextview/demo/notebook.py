@@ -505,6 +505,7 @@ class WXTextView(_WXTextView):
         _WXTextView.__init__(self, parent, id=id, pos=pos, size=size,
                              style=style)
         self.actions[(wx.WXK_TAB, False, False)] = 'complete'
+        self.actions[(wx.WXK_RETURN, False, False)] = 'insert_newline_indented'
 
     _resize_pending = False
     _new_size = None

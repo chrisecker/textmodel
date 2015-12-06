@@ -242,6 +242,11 @@ class TextView(ViewBase, Model):
             self.selection = (0, len(model))
         elif action == 'insert_newline':
             self.insert(index, self._TextModel('\n', **style))
+        elif action == 'insert_newline_indented':
+            i = model.linestart(row)
+            s = model.get_text(i, index)
+            l = s[:len(s)-len(s.lstrip())]
+            self.insert(index, self._TextModel('\n'+l, **style))
         elif action == 'backspace':
             del_selection()
             i = self.index
