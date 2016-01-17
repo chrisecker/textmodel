@@ -180,7 +180,7 @@ class WXTextView(wx.ScrolledWindow, TextView):
         dc.Clear()
         styler = DCStyler(dc)
         
-        region = self.GetBuilderegion()
+        region = self.GetUpdateRegion()
         x, y, w, h = region.Box
         dc.SetClippingRegion(x-1, y-1, w+2, h+2)
 
