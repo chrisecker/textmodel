@@ -30,7 +30,7 @@ from textmodel.texeltree import NewLine, Group, Characters, grouped, \
 from textmodel.container import Container
 from textmodel.textmodel import TextModel
 from wxtextview.layout import Box, Row, Rect, TextBox, IterBox, check_box
-from wxtextview.updater import Updater as _Updater
+from wxtextview.simplelayout import Builder as _Builder
 from wxtextview.wxtextview import WXTextView
 from wxtextview.wxdevice import WxDevice
 
@@ -188,7 +188,7 @@ class RootBox(IterBox):
 
 
 
-class Updater(_Updater):
+class Builder(_Builder):
     def Fraction_handler(self, texel, i1, i2):
         denomboxes = self.create_boxes(texel.denominator)
         nomboxes = self.create_boxes(texel.nominator)
@@ -202,8 +202,8 @@ class Updater(_Updater):
 
 
 class WXMathTextView(WXTextView):
-    def create_updater(self):
-        return Updater(
+    def create_builder(self):
+        return Builder(
             self.model,
             device=WxDevice(),
             maxw=self._maxw)
@@ -234,7 +234,7 @@ def init_testing(redirect=True):
 def test_00():
     ns = init_testing(False)
     frac = Fraction(Characters(u'Zähler'), Characters(u'Nenner'))
-    factory = Updater(TextModel()) # not very nice
+    factory = Builder(TextModel()) # not very nice
     box = factory.Fraction_handler(frac, 0, len(frac))[0]
     assert len(box) == len(frac)
     assert check_box(box, frac)
