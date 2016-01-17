@@ -184,8 +184,8 @@ def out(*args): # XXX remove this
     return True
 
 
-def dump(element): # XXX remove this
-    print "Dump:"
+def dump(element, name=''): # XXX remove this
+    print "Dump %s:" % name
     element.dump()
     return True
 
@@ -323,8 +323,9 @@ class GroupBase(Element):
     has_childs = True
 
     def compute_weights(self):
-        w_list = zip(*[child.weights for child in self.childs])
-        self.weights = [f(l) for (l, f) in zip(w_list, self.functions)]
+        if len(self.childs): # for empty groups, we use the default weights
+            w_list = zip(*[child.weights for child in self.childs])
+            self.weights = [f(l) for (l, f) in zip(w_list, self.functions)]
 
     def iter_childs(self):
         i1 = 0
@@ -358,10 +359,12 @@ class GroupBase(Element):
         try:
             assert calc_length(tmp) == len(self)+calc_length(stuff)-(i2-i1)
         except:
-            dump(self)
-            print i1, i2
-            dump(G(stuff))
-            dump(G(tmp))
+            dump(self, "self")
+            print "len(tmp):", len(tmp)
+            print "len(self):", len(self)
+            print "i1, i2:", i1, i2
+            dump_list(stuff)
+            dump_list(tmp)
             raise
         return tmp
 
