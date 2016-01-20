@@ -644,7 +644,6 @@ def grouped(stuff):
        post[stuff]:
            len(__return__) == calc_length(stuff)
     """
-    n = listtools.calc_length(stuff)
     while len(stuff) > nmax:
         stuff = groups(stuff)
     g = stuff[0].create_group(stuff)
