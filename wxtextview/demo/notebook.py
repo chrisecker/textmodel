@@ -28,14 +28,12 @@ from textmodel.texeltree import NewLine, Group, Characters, grouped, \
     defaultstyle, NULL_TEXEL, NL, Glyph, Texel
 from textmodel.container import Container
 from textmodel.textmodel import TextModel
-from wxtextview.layout import Box, VBox, Row, Rect, IterBox, check_box, \
-    NewlineBox, ParagraphStack
+from wxtextview.boxes import Box, VBox, Row, Rect, check_box, NewlineBox
+from wxtextview.simplelayout import ParagraphStack, create_paragraphs
 from wxtextview.testdevice import TESTDEVICE
 from wxtextview.wxdevice import WxDevice
-from wxtextview.updater import create_paragraphs
-from wxtextview.updater import Factory as _Factory
-from wxtextview.updater import Updater as _Updater
 from wxtextview.wxtextview import WXTextView as _WXTextView
+from wxtextview.simplelayout import Builder as _Builder
 
 
 import traceback
@@ -227,7 +225,7 @@ class Cell(Container):
 
 def extend_range_seperated(self, i1, i2):
     # extend_range-function for texel with separated child
-    for j1, j2, x, y, child in self.iter(0, 0, 0):
+    for j1, j2, x, y, child in self.iter_boxes(0, 0, 0):
         if not (i1<j2 and j1<i2):
             continue
         if i1 < j1 or i2>j2:
@@ -256,7 +254,7 @@ promptstyle = create_style(
 
 sepwidth = 20000 # a number which is just larger than the textwidth
 
-class CellBox(IterBox):
+class CellBox(Box):
     def __init__(self, inbox, outbox, number=0, device=None):
         # NOTE: Inbox and outbox should be PargraphStacks
         self.number = number
@@ -267,7 +265,10 @@ class CellBox(IterBox):
         self.length = len(inbox)+len(outbox)+1
         self.layout()
 
-    def iter(self, i, x, y):
+    def __len__(self):
+        return self.length
+
+    def iter_boxes(self, i, x, y):
         input = self.input
         output = self.output
         height = self.height
@@ -282,7 +283,7 @@ class CellBox(IterBox):
     def layout(self):
         # compute w and h
         dh = h = w = 0
-        for j1, j2, x, y, child in self.iter(0, 0, 0):
+        for j1, j2, x, y, child in self.iter_boxes(0, 0, 0):
             w = max(x+child.width, w)
             h = max(y+child.height, h)
             dh = max(y+child.height+child.depth, dh)
@@ -300,7 +301,7 @@ class CellBox(IterBox):
             return 0
         elif y>=self.height-2:
             return len(self)
-        return IterBox.get_index(self, x, y)
+        return Box.get_index(self, x, y)
 
     def extend_range(self, i1, i2):
         for i in (0, len(self.input), len(self)-1):
@@ -309,18 +310,18 @@ class CellBox(IterBox):
         return extend_range_seperated(self, i1, i2)
 
     def draw(self, x, y, dc, styler):
-        a, b = list(self.iter(0, x, y))
+        a, b = list(self.iter_boxes(0, x, y))
         styler.set_style(promptstyle)
         n = self.number or ''
         dc.DrawText("In[%s]:" % n, x, a[3])
         dc.DrawText("Out[%s]:" % n, x, b[3])
-        IterBox.draw(self, x, y, dc, styler)
+        Box.draw(self, x, y, dc, styler)
 
     def draw_selection(self, i1, i2, x, y, dc):
         if i1<=0 and i2>=self.length:
             self.device.invert_rect(x, y, self.width, self.height, dc)
         else:
-            IterBox.draw_selection(self, i1, i2, x, y, dc)
+            Box.draw_selection(self, i1, i2, x, y, dc)
 
     def responding_child(self, i, x0, y0):
         # Die Indexposition n+1 würde normalerweise durch das Kind
@@ -328,7 +329,7 @@ class CellBox(IterBox):
         # darum kümmern.
         if i == len(self):
             return None, i, x0, y0 # None => kein Kind kümert sich darum
-        return IterBox.responding_child(self, i, x0, y0)
+        return Box.responding_child(self, i, x0, y0)
 
     def get_cursorrect(self, i, x0, y0, style):
         child, j, x1, y1 = self.responding_child(i, x0, y0)
@@ -353,7 +354,7 @@ class CellStack(VBox):
         self._maxw = maxw
         VBox.__init__(self, cells, device)
 
-    ### Methods for the Updater
+    ### Methods for the Builder
     def replace(self, i1, i2, new_cells):
         boxes = self.childs
         j1, j2 = self.get_envelope(i1, i2)
@@ -398,21 +399,22 @@ class Figure(Glyph):
         return 'Figure(...)'
 
 
-class FigureBox(IterBox):
+class FigureBox(Box):
     def __init__(self, texel, device=None):
         if device is not None:
             self.device = device
-        self.length = 1
         w, h = texel.size
         image = wx.EmptyImage(w, h)
         image.SetData(texel.data)
         self.bitmap = wx.BitmapFromImage(image, -1)
-
         self.width = w
         self.height = h
         self.depth = 0
 
-    def iter(self, i, x, y):
+    def __len__(self):
+        return 1
+
+    def iter_boxes(self, i, x, y):
         if 0: yield 0,0,0
 
     def draw(self, x, y, dc, styler):
@@ -429,7 +431,7 @@ class FigureBox(IterBox):
 
 
 
-class Updater(_Updater):
+class Builder(_Builder):
 
     def create_cells(self, texel, i1, i2):
         boxes = self.create_boxes(texel, i1, i2)
@@ -526,8 +528,8 @@ class WXTextView(_WXTextView):
         self.set_maxw(maxw)
         self.keep_cursor_on_screen()
 
-    def create_updater(self):
-        return Updater(
+    def create_builder(self):
+        return Builder(
             self.model,
             device=WxDevice(),
             maxw=self._maxw)
@@ -880,7 +882,7 @@ def test_10():
     "Factory"
     ns = init_testing(False)
     cell = Cell(Characters(u'a'), Characters(u'b'))
-    factory = Updater(TextModel(''))
+    factory = Builder(TextModel(''))
     boxes = factory.create_boxes(cell)
     assert len(boxes) == 1
     cellbox = boxes[0]
@@ -912,7 +914,7 @@ def test_11():
     #print model.texel
     view.execute()
 
-    check_box(view.updater._layout, model.texel)
+    check_box(view.builder._layout, model.texel)
     return ns
 
 def test_12():
@@ -966,7 +968,7 @@ def test_14():
 
     view = ns['view']
     view.index = 1
-    layout = view.updater.get_layout()
+    layout = view.builder.get_layout()
     r1 = layout.get_rect(0, 0, 0)
     assert r1.x2-r1.x1 == sepwidth
 
