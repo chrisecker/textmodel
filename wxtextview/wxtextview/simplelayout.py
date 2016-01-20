@@ -18,9 +18,8 @@
 
 
 from .boxes import HBox, VBox, VGroup, TextBox, EmptyTextBox, NewlineBox, EndBox, \
-                   check_box, Box
+                   check_box, Box, grouped, tree_depth, replace, Row
 from textmodel.texeltree import NewLine, Characters, defaultstyle
-from textmodel.treebase import GroupBase, is_group, grouped
 from textmodel import listtools, treebase
 
 from .testdevice import TESTDEVICE
@@ -30,9 +29,6 @@ from .builder import BuilderBase
 from .builder import Factory as _Factory
 
 
-
-class Row(HBox):
-    pass
 
 
 class Paragraph(VBox):
@@ -72,26 +68,6 @@ def get_envelope(tree, i0, i):
     raise IndexError(i)
 
 
-def insert_paragraphs(tree, i, stuff):
-    assert type(stuff) is list
-    assert isinstance(tree, Box)
-
-    if isinstance(tree, Paragraph):
-        if i == 0:
-            return stuff+[tree]
-        elif i == len(tree):
-            return [tree]+stuff
-        raise IndexError(i)
-    #print "tree=", tree
-    assert isinstance(tree, ParagraphStack)
-    #print "stuff=", stuff
-    for i1, i2, child in tree.iter_childs():
-        if i1 <= i <= i2:
-            new = insert_paragraphs(child, i-i1, stuff)
-            return tree.replace_child(i1, i2, new)
-    return tree.replace_child(i, i, stuff)
-            
-
 
 def create_paragraphs(textboxes, maxw=0, Paragraph=Paragraph, \
                       device=TESTDEVICE):
@@ -125,7 +101,8 @@ class Factory(_Factory):
         # creates a list of paragraphs
         textboxes = self.create_boxes(texel, i1, i2)
         assert len(textboxes)
-        assert isinstance(textboxes[-1], EndBox) or isinstance(textboxes[-1], NewlineBox)
+        assert isinstance(textboxes[-1], EndBox) or isinstance(textboxes[-1], \
+                                                               NewlineBox)
         return create_paragraphs(
             textboxes, self._maxw, 
             Paragraph = self.Paragraph,
@@ -144,26 +121,16 @@ class Builder(BuilderBase, Factory):
 
     def _grouped(self, stuff):
         if not stuff:
-            return ParagraphStack(
+            r = ParagraphStack(
                 [], 
                 device=self.device)
+            return r
         return treebase.grouped(stuff)
 
     def _replace_paragraphs(self, i1, i2, stuff):
         # Helper: replaces all paragraphs between $i1$ and $i2$ by
         # $stuff$, where $stuff$ is a list of paragraphs.
-        g = self._grouped
-        tmp = g(self._layout.takeout(i1, i2)[0])
-        #print tmp
-        #assert len(tmp) == len(self._layout)-i2+i1
-
-        tmp = g(insert_paragraphs(tmp, i1, stuff))
-        from textmodel.listtools import calc_length
-        assert len(tmp) == len(self._layout)-i2+i1+calc_length(stuff)
-
-        assert isinstance(tmp, Box)
-        self._layout = tmp
-        assert len(self._layout) == len(self.model)+1
+        self._layout = replace(self._layout, i1, i2, stuff)
 
     def _get_envelope(self, i1, i2):
         # Helper: adjust $i1$ and $i2$ to the beginning / end of a paragraph 
@@ -207,9 +174,10 @@ class Builder(BuilderBase, Factory):
         i1 = i
         i2 = i+n
         if i2<len(self._layout):
-            # When the NL at the paragrpah end is removed. the
-            # paragraph is merged with its right neighbour. We
-            # therefore have to extend the interval.
+            # Removing the NL at the paragraph end meens, that the
+            # paragraph sould be merged with the next paragraph. We
+            # therefore have to extend the interval so that both
+            # paragraphs are rebuild.
             i2 = i2+1
         j1, j2 = self._get_envelope(i1, i2)
         texel = self.extended_texel()
@@ -286,13 +254,13 @@ def test_01():
 
     #box.dump_boxes(0, 0, 0)
 
-    box2 = grouped(box.replace_child(5, 10, []))
+    box2 = replace(box, 5, 10, [])
     #box2.dump_boxes(0, 0, 0)
     assert len(box2) == 5
 
     xbox, tmp = _create_testobjects("X")
     p = Paragraph([xbox])
-    box2 = grouped(box.replace_child(5, 10, [p]))
+    box2 = replace(box, 5, 10, [p])
     #box2.dump_boxes(0, 0, 0)
     assert len(box2) == 6
     from textmodel import treebase
@@ -308,13 +276,8 @@ def test_01():
         l.append(Paragraph([r]))
     for x in l:
         assert isinstance(x, Paragraph)
-    l = box.replace_child(5, 10, l)
-    box2 = grouped(l)
-
+    box2 = replace(box, 5, 10, l)
     #box2.dump_boxes(0, 0, 0) # check that the tree is balenced    
-    from textmodel.treebase import is_root_efficient
-    assert is_root_efficient(box2)
-
     return box2
 
 
@@ -344,7 +307,7 @@ def test_02a():
     assert str(paragraphs) == "[Paragraph[Row[TB('word1'), NL]], Paragraph[Row[TB('word2')," \
                               " NL]], Paragraph[Row[TB('word3'), NL]]]"
 
-def test_02b():
+def xxtest_02b():
     "insert_paragraphs"
     box = test_01()
     paragraphs = _mk_pars("xx yy zz")
@@ -378,27 +341,26 @@ def test_04():
     assert p1.get_rect(10, 0, 0) == Rect(10, 0.0, 11, 1.0)
 
 def test_05():
-    from textmodel.treebase import depth
     t1 = TextBox("0123456789")
     t2 = TextBox("0123456789")
     NL = NewlineBox()
     p1 = Paragraph([Row([t1, NL])])
-    assert depth(p1) == 0
+    assert tree_depth(p1) == 0
     tmp = grouped([p1])
-    assert not is_group(tmp)
+    assert not tmp.is_group
     print tmp
     tmp.dump()
     assert tmp is p1
 
     p2 = Paragraph([Row([t2, NL])])
-    print p2, depth(p2)
-    assert depth(p2) == 0
+    print p2, tree_depth(p2)
+    assert tree_depth(p2) == 0
     
     tmp = grouped([p1, p2])
     tmp.dump()
-    assert is_group(tmp)
-    print depth(tmp)
-    assert depth(tmp) == 1
+    assert tmp.is_group
+    print tree_depth(tmp)
+    assert tree_depth(tmp) == 1
     # ...
 
 
