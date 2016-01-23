@@ -1,7 +1,7 @@
 # -*- coding: latin-1 -*-
 
 
-from textmodel import listtools
+from textmodel import listtools, treebase
 from textmodel.texeltree import defaultstyle
 from textmodel.treebase import grouped as _grouped
 from textmodel.treebase import groups
@@ -9,11 +9,13 @@ from .testdevice import TESTDEVICE
 from .rect import Rect
 from math import ceil
 
-# TODO: das Verhältnis von iter_childs und iter_boxes sollte geklärt
-# werden.
+# TODO: 
 #
-# Eigentlich ist iter_childs entbehrlich.
-#
+# Da wir jetzt die replace_childs-Methde in allen Boxes haben, kann
+# die replace-Funktion verallgemeinert werden. Es wäre jetzt möglich,
+# auch Inhalte von Kontainern zu ersetzen, also nicht nur wie bisher
+# Inhalte von Gruppen. Damit würde der Builder für das Notebook
+# deutlich einfacher.
 
 # Alt:
 # Ich mag es nicht, dass jetzt die ganzen
@@ -68,23 +70,42 @@ class Box:
             child.dump_boxes(j1, x1, y1, indent+4)
 
     def iter_childs(self):
-        # This should yield a tuple (i1, i2, child) for all
-        # childs. Here we assume, that there are no child elements.
-        if 0: # no child elements
-            yield 0, 0, None # we need this yield anyway to mark the
-                             # method as a generator.
+        # Convenience method. 
+        for i1, i2, x, y, child in self.iter_boxes(0, 0, 0):
+            yield i1, i2, child 
+
+    def from_childs(self, childs):
+        # Setting childs will only be implemented for boxes which have
+        # child boxes. For other boxes (e.g. textboxes) we will raise
+        # the not-implemented exception.  Returns a list of boxes,
+        # where each box has the same depth as $self$.
+        print self
+        raise NotImplemented()
 
     def iter_boxes(self, i, x, y):
-        # Default implementation: all childs are at the same
-        # xy-position
+        # This should yield a tuple (i1, i2, x, y, child) for all
+        # childs. Here we assume, that there are no child
+        # boxes. Should be overriden for boxes having childs.
         height = self.height
-        for j1, j2, child in self.iter_childs():
+        if 0:
+            # we need this yield anyway to mark the
+            # method as a generator
             yield j1, j2, x, y+height-child.height, child
 
     def riter_boxes(self, i, x, y):
+        # Convience method.
         return reversed(tuple(self.iter_boxes(i, x, y)))
         
     def extend_range(self, i1, i2):
+        # This method is used to enlarge the selection range. This is
+        # necessary for some more complex boxes. E.g. for fractions,
+        # the user should not be allowed to select half of the
+        # denominator and half of the nominator. When he tries, the
+        # selection will be extended to include the whole
+        # fraction. This is the default implementation. It lets the
+        # children decide whether the seleciton should be
+        # extended. Must to be overriden if a different behaviour is
+        # needed.
         for j1, j2, x1, y1, child in self.iter_boxes(0, 0, 0):
             if i1 < j2 and j1 < i2:
                 k1, k2 = child.extend_range(i1-j1, i2-j1)
@@ -400,31 +421,27 @@ def extend_range_seperated(box, i1, i2):
 
 
 class ChildBox(Box):
-    # Baseclass man boxes which are used to layout their content in a
+    # Baseclass many boxes which are used to layout their content in a
     # certain way (e.g. HBox, VBox, HGroup, ...). It is assumed, that
-    # boxes are dense, i.e. there is no gap between child boxes.
+    # boxes are dense, i.e. there is no gap between child
+    # boxes. Further it is necessary that childboxes can be grouped.
     
     def __init__(self, childs, device=None):
         if device is not None:
             self.device = device
-        self.set_childs(childs)
+        self.childs = childs
+        self.layout()
 
     def __len__(self):
         return self.length
 
-    def set_childs(self, childs):
-        self.childs = list(childs)
-        self.layout()
+    def from_childs(self, childs):
+        while len(childs)>treebase.nmax:
+            childs = groups(childs)
+        return [self.__class__(childs, self.device)]
 
     def __repr__(self):
         return self.__class__.__name__+repr(list(self.childs))
-
-    def iter_childs(self):
-        j1 = 0
-        for child in self.childs:
-            j2 = j1+len(child)
-            yield j1, j2, child
-            j1 = j2
 
     def layout(self):
         # This is a very general and slow implementation. Should be
@@ -527,39 +544,18 @@ def grouped(stuff):
     return _grouped(stuff)
     
 
-def _replace(box, i1, i2, stuff):                                 
-    # Helper
-    #print "replace", i1, i2, repr(box)[:40]
-    try:
-        assert box.is_group
-    except:
-        print i1, i2, box
-        raise
+def replace(box, i1, i2, stuff):
+    if i1<=0 and i2>=len(box):
+        return stuff
     l = []
     for j1, j2, child in box.iter_childs():
-        if i1 < j2 and j1 < i2: # intersection
-            if i1 <= j1 and i2>=j2:
-                l.extend(stuff)
-            else:
-                l.extend(groups(_replace(child, i1-j1, i2-j1, stuff)))
+        if i1 < j2 and j1 < i2: # overlapp
+            l.extend(replace(child, i1-j1, i2-j1, stuff))
             stuff = []
         else:
             l.append(child)
-    return l
-
-
-def replace(box, i1, i2, stuff):
-    # Recursively remove all (child-)boxes in the range $i1$..$i2$ and
-    # insert $stuff$ at index $i$. Removing childs (or parts of
-    # childs) is only allowed for group-boxes.
-    if i1 < 0: 
-        raise IndexError(i1)
-    if i2 > len(box): 
-        raise IndexError(i2)
-    #print _replace(box, i1, i2, stuff)
-    if i1 == 0 and i2>=len(box):
-        return grouped(stuff)
-    return grouped(_replace(box, i1, i2, stuff))
+    l.extend(stuff)
+    return box.from_childs(l)
 
 
 def tree_depth(box):
@@ -669,14 +665,15 @@ def test_04():
         l.append(box)
     b = grouped(l)
     #b.dump_boxes(0, 0, 0)
-    b2 = replace(b, 1, 12, [])
+    b2 = grouped(replace(b, 1, 12, []))
     assert get_text(b2) == '0111213141516171819'
 
-    b2 = replace(b, 4, 7, [])
+    b2 = grouped(replace(b, 4, 7, []))
     assert get_text(b2) == '012378910111213141516171819'
 
-    b2 = replace(b, 20, 24, [TextBox('X'), TextBox('Y')])
+    b2 = grouped(replace(b, 20, 24, [TextBox('X'), TextBox('Y')]))
     #b2.dump_boxes(0, 0, 0)
+    #print get_text(b2)
     assert get_text(b2) == '01234567891011121314XY171819'
 
 

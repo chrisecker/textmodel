@@ -20,6 +20,7 @@
 from .boxes import HBox, VBox, VGroup, TextBox, EmptyTextBox, NewlineBox, EndBox, \
                    check_box, Box, grouped, tree_depth, replace, Row
 from textmodel.texeltree import NewLine, Characters, defaultstyle
+from textmodel.treebase import groups
 from textmodel import listtools, treebase
 
 from .testdevice import TESTDEVICE
@@ -93,6 +94,8 @@ def create_paragraphs(textboxes, maxw=0, Paragraph=Paragraph, \
                  # l.
 
     assert listtools.calc_length(r) == listtools.calc_length(textboxes)
+    while len(r)>treebase.nmax:
+        r = groups(r)
     return r
 
 
@@ -119,7 +122,7 @@ class Builder(BuilderBase, Factory):
         self._maxw = maxw
         Factory.__init__(self, device)
 
-    def _grouped(self, stuff):
+    def _grouped(self, stuff): # XXX REMOVE ??
         if not stuff:
             r = ParagraphStack(
                 [], 
@@ -127,12 +130,12 @@ class Builder(BuilderBase, Factory):
             return r
         return treebase.grouped(stuff)
 
-    def _replace_paragraphs(self, i1, i2, stuff):
+    def replace_paragraphs(self, i1, i2, stuff):
         # Helper: replaces all paragraphs between $i1$ and $i2$ by
         # $stuff$, where $stuff$ is a list of paragraphs.
-        self._layout = replace(self._layout, i1, i2, stuff)
+        self._layout = grouped(replace(self._layout, i1, i2, stuff))
 
-    def _get_envelope(self, i1, i2):
+    def get_envelope(self, i1, i2):
         # Helper: adjust $i1$ and $i2$ to the beginning / end of a paragraph 
         k1, k2 = get_envelope(self._layout, 0, i1)
         j1, j2 = get_envelope(self._layout, 0, i2)
@@ -156,18 +159,18 @@ class Builder(BuilderBase, Factory):
     ### Signal handlers
     def properties_changed(self, i1, i2):
         #print "properties changed", i1, i2
-        j1, j2 = self._get_envelope(i1, i2)
+        j1, j2 = self.get_envelope(i1, i2)
         texel = self.extended_texel()
         new = self.create_paragraphs(texel, j1, j2)
-        self._replace_paragraphs(j1, j2, new)
+        self.replace_paragraphs(j1, j2, new)
 
     def inserted(self, i, n):
-        j1, j2 = self._get_envelope(i, i+1) # +1 is needed when we
+        j1, j2 = self.get_envelope(i, i+1) # +1 is needed when we
                                             # insert between two
                                             # paragraphs
         texel = self.extended_texel()
         new = self.create_paragraphs(texel, j1, j2+n)
-        self._replace_paragraphs(j1, j2, new)
+        self.replace_paragraphs(j1, j2, new)
 
     def removed(self, i, n):
         #print "removed", i, n
@@ -179,10 +182,10 @@ class Builder(BuilderBase, Factory):
             # therefore have to extend the interval so that both
             # paragraphs are rebuild.
             i2 = i2+1
-        j1, j2 = self._get_envelope(i1, i2)
+        j1, j2 = self.get_envelope(i1, i2)
         texel = self.extended_texel()
         new = self.create_paragraphs(texel, j1, j2-n)
-        self._replace_paragraphs(j1, j2, new)
+        self.replace_paragraphs(j1, j2, new)
 
 
 
