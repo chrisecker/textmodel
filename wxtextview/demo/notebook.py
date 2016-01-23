@@ -28,7 +28,8 @@ from textmodel.texeltree import NewLine, Group, Characters, grouped, \
     defaultstyle, NULL_TEXEL, NL, Glyph, Texel
 from textmodel.container import Container
 from textmodel.textmodel import TextModel
-from wxtextview.boxes import Box, VBox, Row, Rect, check_box, NewlineBox
+from wxtextview.boxes import Box, VBox, Row, Rect, check_box, NewlineBox, \
+    extend_range_seperated
 from wxtextview.simplelayout import ParagraphStack, create_paragraphs
 from wxtextview.testdevice import TESTDEVICE
 from wxtextview.wxdevice import WxDevice
@@ -221,18 +222,6 @@ class Cell(Container):
         number = INTERPRETER.counter
         return self.__class__(self.input, buf.model.texel, number)
 
-
-
-def extend_range_seperated(self, i1, i2):
-    # extend_range-function for texel with separated child
-    for j1, j2, x, y, child in self.iter_boxes(0, 0, 0):
-        if not (i1<j2 and j1<i2):
-            continue
-        if i1 < j1 or i2>j2:
-            return min(i1, 0), max(i2, len(self))
-        k1, k2 = child.extend_range(i1-j1, i2-j1)
-        return min(i1, k1+j1), max(i2, k2+j1)
-    return i1, i2
 
 
 def common(s1, s2):

@@ -383,7 +383,7 @@ class EmptyTextBox(_TextBoxBase):
 
 
 
-def extend_range_seperated(box, i1, i2): # XXX REMOVE ?
+def extend_range_seperated(box, i1, i2):
     # Restrict ranges to child boundaries, e.g. in the fraction it
     # should not be possible to select a part of the nominator and a
     # part of the denominator. 
