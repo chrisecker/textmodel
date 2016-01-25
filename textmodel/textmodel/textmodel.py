@@ -324,7 +324,6 @@ def pycolorize(rawtext, coding='latin-1'):
     instream = cStringIO.StringIO(rawtext).readline
 
     import token, keyword
-    KEYWORD = token.NT_OFFSET + 1
     TEXT = token.NT_OFFSET + 2
     def tokeneater(toktype, toktext, (srow,scol), (erow,ecol), line):
         i1 = model.position2index(srow-1, scol)
