@@ -88,14 +88,14 @@ def dump_range(texel, i1, i2, i0=0, indent=0):
         s += " "+repr(texel.text)
     print " "*indent+"%i:%i %s" % (i0, i0+len(texel), s)
     if texel.has_childs:
-        complete = True
+        skip = False
         for j1, j2, child in iter_extended(texel):
             if i1 < j2 and j1 < i2: # intersection
                 dump_range(child, i1-j1, i2-j1, i0+j1, indent+4)
-            else:
-                complete = False
-        if not complete:
-            print " "*indent+'...'
+                skip = False
+            elif not skip:
+                print " "*indent+'...'
+                skip = True # skip output of more '...'
 
 
 _split = re.compile(r"([\t\n])", re.MULTILINE).split
@@ -209,7 +209,15 @@ class TextModel(Model):
             raise IndexError(row)
 
     def lineend(self, row):
-        """Returns the index where line number *row* ends."""
+        """Returns the index where line number *row* ends. The NewLine-marker
+           ist not included.  
+
+           >>> TextModel("").lineend(0) 
+           0 
+
+           >>> TextModel("x").lineend(0)
+           1
+        """
         try:
             return _find_weight(self.get_xtexel(), row+1, 2)-1
         except NotFound:
