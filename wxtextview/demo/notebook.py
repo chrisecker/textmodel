@@ -223,6 +223,23 @@ class Cell(Container):
         number = INTERPRETER.counter
         return self.__class__(self.input, buf.model.texel, number)
 
+    def colorize(self, i1, i2):
+        # colorize 
+        if i1>len(self.input)+1:
+            return self
+        text = self.input.get_text()
+        from textmodel.textmodel import pycolorize
+        try:
+            colorized = pycolorize(text).texel
+        except Exception, e:
+            return self
+        assert len(colorized) == len(self.input)
+        r = grouped(self.replace_child(1, len(self.input)+1, [colorized]))
+        assert len(r) == len(self)
+        return r
+
+
+
 
 def common(s1, s2):
     # find the common part of two strings
@@ -568,6 +585,10 @@ class Builder(_Builder):
     ### Handlers
     def Cell_handler(self, texel, i1, i2):
         assert i2<=len(texel)
+        
+        if 1:
+            texel = texel.colorize(i1, i2)
+
         if i1<=0:
             # create a cell
             assert i2-i1 == len(texel.input)+len(texel.output)+3

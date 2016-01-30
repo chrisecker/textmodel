@@ -329,6 +329,7 @@ class TextModel(Model):
 def pycolorize(rawtext, coding='latin-1'):
     # used for benchmarking
     import cStringIO
+    rawtext += '\n'
     instream = cStringIO.StringIO(rawtext).readline
 
     import token, keyword
@@ -351,7 +352,7 @@ def pycolorize(rawtext, coding='latin-1'):
 
     from tokenize import tokenize
     tokenize(instream, tokeneater)
-    return model
+    return model.copy(0, len(model)-1)
 
 
 
