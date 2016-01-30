@@ -25,38 +25,33 @@ class Factory:
         return self.device
 
     ### Factory methods
-    def create_boxes(self, texel, i1=None, i2=None):
-        if i1 is None:
-            assert i2 is None
-            i1 = 0 
-            i2 = len(texel)
-        else:
-            assert i1 <= i2
-            i1 = max(0, i1)
-            i2 = min(len(texel), i2)
+    def create_all(self, texel):
+        # Convenience method
+        return self.create_boxes(texel, 0, len(texel))
+
+    def create_boxes(self, texel, i1, i2):
+        assert i1>=0
+        assert i2<=len(texel)
+        assert i1<=i2
         if i1 == i2:
-            return ()
+            return () # XXX Why is this needed?
         name = texel.__class__.__name__+'_handler'
         handler = getattr(self, name)
-        boxes = handler(texel, i1, i2)
-        for box in boxes: # XXX REMOVE THIS
-            assert isinstance(box, Box)
-        if not i2-i1 == listtools.calc_length(boxes):
-            print i1, i2, texel
-            k1 = 0
-            for box in boxes:
-                k2 = k1+len(box)
-                print k1, k2, 
-                box.dump_boxes(k1, 0, 0)
-                k1 = k2
-        assert i2-i1 == listtools.calc_length(boxes)
-        return tuple(boxes)
-
+        #print "calling handler", name, i1, i2
+        l = handler(texel, i1, i2)
+        try:
+            assert listtools.calc_length(l) == i2-i1
+        except:
+            print "handler=", handler
+            raise
+        return tuple(l)
+        
     def Group_handler(self, texel, i1, i2):
         r = []
         for j1, j2, child in texel.iter_childs():
-            if i1 < j2 and j1 < i2: # Test for overlap
-                r.extend(self.create_boxes(child, i1-j1, i2-j1))
+            if i1 < j2 and j1 < i2: # overlapp
+                r.extend(self.create_boxes(
+                    child, max(0, i1-j1), min(i2, j2)-j1))
         return r
 
     def Characters_handler(self, texel, i1, i2):
@@ -109,9 +104,9 @@ class BuilderBase:
 
 def test_01():
     factory = Factory()
-    boxes = factory.create_boxes(TextModel("123").texel)
+    boxes = factory.create_all(TextModel("123").texel)
     assert listtools.calc_length(boxes) == 3
-    boxes = factory.create_boxes(TextModel("123\n567").get_xtexel())
+    boxes = factory.create_all(TextModel("123\n567").get_xtexel())
     assert listtools.calc_length(boxes) == 8
     paragraphs = create_paragraphs(boxes)
     assert len(paragraphs) == 2
@@ -123,21 +118,21 @@ def test_02():
     "ParagraphStack"
     factory = Factory()
     texel = TextModel("123\n567\n").texel
-    boxes = factory.create_boxes(texel)
+    boxes = factory.create_all(texel)
     assert listtools.calc_length(boxes) == 8
     paragraphs = create_paragraphs(boxes)
     stack = ParagraphStack(paragraphs)
     assert check_box(stack, texel)
 
     texel = TextModel("123\n\n5\n67\n").texel
-    boxes = factory.create_boxes(texel)
+    boxes = factory.create_all(texel)
     assert listtools.calc_length(boxes) == 10
     paragraphs = create_paragraphs(boxes)
     stack = ParagraphStack(paragraphs)
     assert check_box(stack, texel)
 
     texel = TextModel("123\n").texel
-    boxes = factory.create_boxes(texel)
+    boxes = factory.create_all(texel)
     paragraphs = create_paragraphs(boxes)
     stack = ParagraphStack(paragraphs)
     par = stack.childs[-1]
@@ -151,7 +146,7 @@ def test_02():
     assert stack.get_info(3, 0, 0)[-2:] == (3, 0)
 
     texel = TextModel("").texel
-    boxes = factory.create_boxes(texel)
+    boxes = factory.create_all(texel)
     paragraphs = create_paragraphs(boxes)
     stack = ParagraphStack(paragraphs)
     
@@ -160,7 +155,7 @@ def test_03():
     "Factory"
     factory = Factory()
     texel = TextModel("123\n\n567890 2 4 6 8 0\n").texel
-    boxes = factory.create_boxes(texel)
+    boxes = factory.create_all(texel)
     assert str(boxes) == "(TB('123'), NL, NL, TB('567890 2 4 6 8 0'), NL)"
     paragraphs = create_paragraphs(boxes)
     stack = ParagraphStack(paragraphs)
@@ -178,9 +173,9 @@ def test_03():
 
     texel = TextModel("123\t\t567890 2 4 6 8 0\n").texel
     
-    boxes = factory.create_boxes(texel)
+    boxes = factory.create_all(texel)
 
-    factory.create_boxes(texel)
+    factory.create_all(texel)
     paragraphs = create_paragraphs(boxes)
 
 def test_04():

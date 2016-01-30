@@ -18,7 +18,8 @@
 
 
 from .boxes import HBox, VBox, VGroup, TextBox, EmptyTextBox, NewlineBox, EndBox, \
-                   check_box, Box, grouped, tree_depth, replace, Row
+                   check_box, Box, tree_depth, replace_boxes, Row
+from .boxes import grouped as _grouped
 from textmodel.texeltree import NewLine, Characters, defaultstyle
 from textmodel.treebase import groups
 from textmodel import listtools, treebase
@@ -28,7 +29,6 @@ from .linewrap import simple_linewrap
 from .rect import Rect
 from .builder import BuilderBase
 from .builder import Factory as _Factory
-
 
 
 
@@ -44,12 +44,8 @@ class Paragraph(VBox):
     # paragraph into VGroups. This makes the GUI considerably faster.
 
     def create_group(self, l):
-        return ParagraphStack(l, device=self.device)
+        return VGroup(l, device=self.device)
 
-
-class ParagraphStack(VGroup):
-    def create_group(self, l):
-        return ParagraphStack(l, device=self.device)
 
 
 
@@ -72,10 +68,17 @@ def get_envelope(tree, i0, i):
 
 def create_paragraphs(textboxes, maxw=0, Paragraph=Paragraph, \
                       device=TESTDEVICE):
-    #print textboxes
-    if len(textboxes):        
-        assert isinstance(textboxes[-1], NewlineBox) or \
-            isinstance(textboxes[-1], EndBox)
+    try:
+        if len(textboxes):        
+            assert isinstance(textboxes[-1], NewlineBox) or \
+                isinstance(textboxes[-1], EndBox)
+    except:
+        i1 = 0
+        for box in textboxes:
+            i2 = i1+len(box)
+            print i1, i2, repr(box)[:50]
+            i1 = i2
+        raise
     r = []
     l = []
     for box in textboxes:
@@ -113,27 +116,28 @@ class Factory(_Factory):
         )
 
 
+
 class Builder(BuilderBase, Factory):
     Paragraph = Paragraph
-    ParagraphStack = ParagraphStack
 
     def __init__(self, model, device=TESTDEVICE, maxw=0):
         self.model = model
         self._maxw = maxw
         Factory.__init__(self, device)
 
-    def _grouped(self, stuff): # XXX REMOVE ??
+    def grouped(self, stuff):
+        # We need to create a new version of grouped, again. This time
+        # it must be aware of VGroup. Since it must be able to pass
+        # device, this time it is a method and not a function.
         if not stuff:
-            r = ParagraphStack(
-                [], 
-                device=self.device)
+            r = VGroup([], device=self.device)
             return r
         return treebase.grouped(stuff)
 
     def replace_paragraphs(self, i1, i2, stuff):
         # Helper: replaces all paragraphs between $i1$ and $i2$ by
         # $stuff$, where $stuff$ is a list of paragraphs.
-        self._layout = grouped(replace(self._layout, i1, i2, stuff))
+        self._layout = self.grouped(replace_boxes(self._layout, i1, i2, stuff))
 
     def get_envelope(self, i1, i2):
         # Helper: adjust $i1$ and $i2$ to the beginning / end of a paragraph 
@@ -153,7 +157,7 @@ class Builder(BuilderBase, Factory):
     def rebuild(self):
         texel = self.extended_texel()
         l = self.create_paragraphs(texel, 0, len(texel))
-        self._layout = self._grouped(l)
+        self._layout = self.grouped(l)
         assert isinstance(self._layout, Box)
 
     ### Signal handlers
@@ -239,7 +243,7 @@ def test_01():
     ])
     assert check_box(p1, texel1)
     assert check_box(p2, texel2)
-    box = grouped([p1, p2])
+    box = _grouped([p1, p2])
     assert isinstance(box, VBox)
     assert check_box(box, texel)
 
@@ -257,13 +261,13 @@ def test_01():
 
     #box.dump_boxes(0, 0, 0)
 
-    box2 = replace(box, 5, 10, [])
-    #box2.dump_boxes(0, 0, 0)
+    box2 = _grouped(replace_boxes(box, 5, 10, []))
+    box2.dump_boxes(0, 0, 0)
     assert len(box2) == 5
 
     xbox, tmp = _create_testobjects("X")
     p = Paragraph([xbox])
-    box2 = replace(box, 5, 10, [p])
+    box2 = _grouped(replace_boxes(box, 5, 10, [p]))
     #box2.dump_boxes(0, 0, 0)
     assert len(box2) == 6
     from textmodel import treebase
@@ -279,7 +283,7 @@ def test_01():
         l.append(Paragraph([r]))
     for x in l:
         assert isinstance(x, Paragraph)
-    box2 = replace(box, 5, 10, l)
+    box2 = _grouped(replace_boxes(box, 5, 10, l))
     #box2.dump_boxes(0, 0, 0) # check that the tree is balenced    
     return box2
 
@@ -314,7 +318,7 @@ def xxtest_02b():
     "insert_paragraphs"
     box = test_01()
     paragraphs = _mk_pars("xx yy zz")
-    box = grouped(insert_paragraphs(box, 5, paragraphs))
+    box = _grouped(insert_paragraphs(box, 5, paragraphs))
     box.dump_boxes(0, 0, 0)
     assert get_envelope(box, 0, 1) == (0, 5)
     print get_envelope(box, 0, 6)
@@ -349,7 +353,7 @@ def test_05():
     NL = NewlineBox()
     p1 = Paragraph([Row([t1, NL])])
     assert tree_depth(p1) == 0
-    tmp = grouped([p1])
+    tmp = _grouped([p1])
     assert not tmp.is_group
     print tmp
     tmp.dump()
@@ -359,7 +363,7 @@ def test_05():
     print p2, tree_depth(p2)
     assert tree_depth(p2) == 0
     
-    tmp = grouped([p1, p2])
+    tmp = _grouped([p1, p2])
     tmp.dump()
     assert tmp.is_group
     print tree_depth(tmp)
