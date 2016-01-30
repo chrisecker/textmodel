@@ -79,8 +79,14 @@ class Box:
         # child boxes. For other boxes (e.g. textboxes) we will raise
         # the not-implemented exception.  Returns a list of boxes,
         # where each box has the same depth as $self$.
-        print self
-        raise NotImplemented()
+        try:
+            assert len(childs) == 0
+        except:
+            print "box:"
+            self.dump_boxes(0, 0, 0)
+            print "childs=", childs
+            raise
+        return [self]
 
     def iter_boxes(self, i, x, y):
         # This should yield a tuple (i1, i2, x, y, child) for all
@@ -544,18 +550,29 @@ def grouped(stuff):
     return _grouped(stuff)
     
 
-def replace(box, i1, i2, stuff):
+def replace_boxes(box, i1, i2, stuff):
+    # Recursively replace everything between $i1$ and $i2$ by
+    # $stuff$. Insertion is done at the depth of the first box which
+    # starts at $i1$.
+    if box.is_group:
+        l = []
+        for j1, j2, child in box.iter_childs():
+            if i1 <= j2 and j1 <= i2: # overlapping or neighbouring
+                tmp = replace_boxes(child, max(0, i1-j1), min(j2, i2)-j1, stuff)
+                l.extend(tmp)
+                stuff = []
+            else:
+                l.append(child)
+        l.extend(stuff)
+        return box.from_childs(l)
+    if i1 == i2:
+        if i1 == 0:
+            return list(stuff)+[box]
+        elif i1 == len(box):
+            return [box]+list(stuff)
     if i1<=0 and i2>=len(box):
         return stuff
-    l = []
-    for j1, j2, child in box.iter_childs():
-        if i1 < j2 and j1 < i2: # overlapp
-            l.extend(replace(child, i1-j1, i2-j1, stuff))
-            stuff = []
-        else:
-            l.append(child)
-    l.extend(stuff)
-    return box.from_childs(l)
+    raise IndexError((i1, i2)) # i is inside a non-group->not allowed!
 
 
 def tree_depth(box):
@@ -569,12 +586,19 @@ def tree_depth(box):
     
 
 def get_text(box): 
-    # For debugging
+    # Extract text from boxes (for debugging).
     if isinstance(box, _TextBoxBase):
         return box.text
     l = []
-    for child in box.childs:
+    last = 0
+    for i1, i2, child in box.iter_childs():
+        if i1>last:
+            l.append('.'*(i1-last))
         l.append(get_text(child))
+        last = i2
+    i1 = len(box)
+    if i1>last:
+        l.append('.'*(i1-last))
     return u''.join(l)
 
 
@@ -658,23 +682,46 @@ def test_03():
     assert tree_depth(b) == 0
 
 def test_04():
-    "replace"
-    l = []
-    for i in range(20):        
-        box, tmp = _create_testobjects(str(i))
-        l.append(box)
-    b = grouped(l)
-    #b.dump_boxes(0, 0, 0)
-    b2 = grouped(replace(b, 1, 12, []))
-    assert get_text(b2) == '0111213141516171819'
+    "replace_boxes"
 
-    b2 = grouped(replace(b, 4, 7, []))
-    assert get_text(b2) == '012378910111213141516171819'
+    def get_alltext(l):
+        return ''.join(get_text(box) for box in l)
 
-    b2 = grouped(replace(b, 20, 24, [TextBox('X'), TextBox('Y')]))
-    #b2.dump_boxes(0, 0, 0)
-    #print get_text(b2)
-    assert get_text(b2) == '01234567891011121314XY171819'
+    t1 = TextBox('0123456789')
+    t2 = TextBox('abcdefghij')
+    t3 = TextBox('xyz')
+    assert str(replace_boxes(t1, 0, 10, [t2])) == "[TB('abcdefghij')]"
+    l = replace_boxes(t1, 0, 0, [t2])
+    assert get_alltext(l) == 'abcdefghij0123456789'
+
+    l = replace_boxes(t1, 10, 10, [t2])
+    assert get_alltext(l) == '0123456789abcdefghij'
+
+    g = VGroup([t1, t2])
+    assert get_text(g) == '0123456789abcdefghij'
+
+    l = replace_boxes(g, 0, 20, [t3])
+    assert get_alltext(l) == 'xyz'
+    
+    l = replace_boxes(g, 0, 10, [t3])
+    assert get_alltext(l) == 'xyzabcdefghij'
+
+    l = replace_boxes(g, 10, 20, [t3])
+    assert get_alltext(l) == '0123456789xyz'
+
+    l = replace_boxes(g, 10, 10, [t3])
+    assert get_alltext(l) == '0123456789xyzabcdefghij'
+
+    l = replace_boxes(g, 20, 20, [t3])
+    assert get_alltext(l) == '0123456789abcdefghijxyz'
+
+    l = replace_boxes(g, 0, 0, [t3])
+    assert get_alltext(l) == 'xyz0123456789abcdefghij'
+
+    g2 = VGroup([])
+    assert get_text(g2) == ''
+    l = replace_boxes(g2, 0, 0, [t3])
+    assert get_alltext(l) == 'xyz'
 
 
 
