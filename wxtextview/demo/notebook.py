@@ -29,7 +29,7 @@ from textmodel.treebase import simple_insert, insert
 from textmodel.texeltree import NewLine, Group, Characters, grouped, \
     defaultstyle, NULL_TEXEL, NL, Glyph, Texel
 from textmodel.container import Container
-from textmodel.textmodel import TextModel
+from textmodel.textmodel import TextModel, dump_range
 from wxtextview.boxes import Box, VGroup, VBox, Row, Rect, check_box, NewlineBox, \
     TextBox, extend_range_seperated, replace_boxes, get_text
 from wxtextview.simplelayout import create_paragraphs, Paragraph
@@ -45,6 +45,8 @@ import string
 import wx
 
 
+
+defaultstyle['temp'] = False 
 
 
 def has_classname(obj, classname):
@@ -223,10 +225,10 @@ class Cell(Container):
         number = INTERPRETER.counter
         return self.__class__(self.input, buf.model.texel, number)
 
-    def colorize(self, i1, i2):
-        # colorize 
-        if i1>len(self.input)+1:
+    def colorize(self):
+        if 0:
             return self
+        # colorize 
         text = self.input.get_text()
         from textmodel.textmodel import pycolorize
         try:
@@ -370,49 +372,24 @@ class CellBox(Box):
 
 
 
-def inside_cell(box, i1, i2):
+def get_update_range(box, i1, i2):
+    # extend range hast to be called before
+    if i2<=0 or i1>=len(box):
+        return i1, i2
     if isinstance(box, CellBox):
-        #box.dump_boxes(0, 0,0)
-        if i1 == i2 == len(box):
-            return False
-        if 0 < i1 <= i2 <= len(box):
-            return True
+        (j1, j2, inbox), (k1, k2, outbox) = box.iter_childs()
+        if k1<=i1<=i2<=k1:    
+            return k1, k2
+        if j1<=i1<=i2<=j1:
+            return j1, j2
+        return min(i1, 0), max(i2, len(box))
     for j1, j2, child in box.iter_childs():
-        if i1 < j2 and j1 < i2: #  intersection
-            return inside_cell(child, max(0, i1-j1), min(i2, j2)-j1)
-    return False
-
-
-def get_envelope(box, i1, i2): # --> cell_range
-    # Computes the smallest interval, which contains all cells
-    # intersecting $i1$..$i2$.
-    n = len(box)
-    if isinstance(box, CellBox):
-        assert i2>=i1
-        if i2<=0 or i1>=n:
-            return i1, i2
-        return min(0, i1), max(n, i2)
-    assert box.is_group
-    for j1, j2, child in box.iter_childs():
-        if i1 < j2 and j1 < i2: #  intersection
-            k1, k2 = get_envelope(child, i1-j1, i2-j1)
-            i1 = k1+j1
-            i2 = k2+j1
-    return i1, i2
-
-
-def paragraph_range(box, i1, i2):
-    # Computes the smallest interval, which contains all paragraphs
-    # intersecting or touching $i1$..$i2$.
-    n = len(box)
-    if isinstance(box, Paragraph):
-        return min(0, i1), max(n, i2)
-    for j1, j2, child in box.iter_childs():
-        if i1 <= j2 and j1 <= i2: #  intersection
-            k1, k2 = paragraph_range(child, i1-j1, i2-j1)
+        if i1 < j2 and j1 < i2: # overlap
+            k1, k2 = get_update_range(child, i1-j1, i2-j1)
             i1 = min(i1, k1+j1)
             i2 = max(i2, k2+j1)
     return i1, i2
+            
 
 
 class NotFound(Exception): pass
@@ -426,6 +403,16 @@ def find_cell(texel, i, i0=0):
                 return find_cell(child, i-j1, i0+j1)
     raise NotFound()
 
+
+def find_cellbox(box, i, i0=0):
+    if not (0<=i<=len(box)):
+        return i0, None
+    if isinstance(box, CellBox):
+        return i0, box
+    for j1, j2, child in reversed(box.iter_childs()):
+        if j1<=i<=j2:
+            return get_cellbox(i-j1, i0+j1)
+    return i1, None
 
 
 class Figure(Glyph):
@@ -512,18 +499,6 @@ def update_paragraphs(box, i1, i2, n, builder, i0=0):
 
 class Builder(_Builder):
 
-    def create_cells(self, texel, i1, i2):
-        boxes = self.create_boxes(texel, i1, i2)
-        for box in boxes:
-            try:
-                assert isinstance(box, CellBox)
-            except:
-                print box
-                print i1, i2
-                texel.dump()
-                raise
-        return boxes
-
     def create_paragraphs(self, texel, i1, i2, add_newline=False):
         boxes = self.create_boxes(texel, i1, i2)
         if add_newline:
@@ -548,89 +523,65 @@ class Builder(_Builder):
         boxes = self.create_all(model.texel)
         self._layout = VGroup(boxes, device=self.device)
 
+    _supress_fontify = False
     def rebuild_part(self, i1, i2, n):
         # $n$ is the size change. Positive $n$ means inserting, negativ
         # means removal. The new size is i1..i2+n.
         layout = self._layout
         model = self.model
         texel = model.texel
-        #assert len(layout) == len(model)-n XXX WRONG. model should be shorter by 1 
-        #print "inside_cell(layout, i1, i2)", inside_cell(layout, i1, i2)
-        if inside_cell(layout, i1, i2):
-            l = update_paragraphs(layout, i1, i2, n, self)
-            try:
-                assert listtools.calc_length(l) == len(model)
-            except:
-                print "rebuild_part", i1, i2, "n=", n
-                print "l=", repr(l)[:60]
-                
-        else:            
-            j1, j2 = get_envelope(layout, i1, i2)
-            new = self.create_cells(texel, j1, j2+n)
-            assert listtools.calc_length(new) == j2-j1+n
-            l = replace_boxes(layout, j1, j2, new)
-            try:
-                assert listtools.calc_length(l) == len(model)
-            except:
-                print "rebuild_part", i1, i2, "n=", n
-                print "extended to", j1, j2
-                print "layout=", repr(layout)[:60]
-                print "new=", repr(new)[:60]
-                print "l=", repr(l)[:60]
-                raise
+
+        # Did we insert temp text? If yes, fontify should be supressed
+        if n>0: 
+            self._supress_fontify = is_temp(self.model, i1)
+        else:
+            self._supress_fontify = False
+
+        # Store the function arguments for later use
+        self._rebuild_data = i1, i2, n
+
+        #print "rebuild_part: i1, i2=", i1, i2, "n=", n
+        #dump_range(texel, i1, i2)
+
+        j1, j2 = layout.extend_range(i1, i2)
+        k1, k2 = get_update_range(layout, j1, j2)
+        #print "k1, k2=", k1, k2
+
+        stuff = self.create_boxes(texel, k1, k2+n)
+        l = replace_boxes(layout, k1, k2, stuff)
         self._layout = self.grouped(l)
-        #assert len(self._layout) == len(self.model)
         return self._layout
         
     ### Handlers
     def Cell_handler(self, texel, i1, i2):
         assert i2<=len(texel)
+        #print "Cell handler: (i1, i2)=", (i1, i2)
+        #dump_range(texel, 0, len(texel))
         
-        if 1:
-            texel = texel.colorize(i1, i2)
-
-        if i1<=0:
-            # create a cell
-            assert i2-i1 == len(texel.input)+len(texel.output)+3
-            inbox = self.create_parstack(texel.input, add_newline=True)
-            assert len(inbox) == len(texel.input)+1
-
+        (j1, j2, inp), (k1, k2, outp) = texel.iter_childs()
+        if i1 < j2 and j1 < i2: 
+            if self._supress_fontify:
+                cell = texel
+                #j, cell = find_cell(texel)
+            else:
+                cell = texel.colorize()
+            inbox = self.create_parstack(cell.input, add_newline=True)
+        if i1 < k2 and k1 < i2: 
             outbox = self.create_parstack(texel.output, add_newline=True)
-            assert len(outbox) == len(texel.output)+1
-            cell = CellBox(inbox, outbox, number=texel.number,
-                           device=self.device)
-            assert len(cell) <= i2-i1
-            return [cell]
-        else:
-            # create the cells interior
-            l = []
-            for j1, j2, child in reversed(tuple(texel.iter_childs())):
-                if j1 <= i1 <= i2 <= j2+1:
-                    try:
-                        assert j1<=i1<=i2<=j2+1 # must be fully
-                                                # contained, the +1
-                                                # respects the empty
-                                                # position which is
-                                                # translated to a
-                                                # newline
-                    except:
-                        print "cell handler has bad range", i1, i2, "for child", repr(child)[:20] 
-                        print "(i1, i2)", (i1, i2)
-                        print "(j1, j2)", (j1, j2)
-                        raise
-                    l.extend(self.create_boxes(
-                        child, max(0, i1-j1), min(j2, i2)-j1))
-                    if i2 > j2:
-                        l.append(self.NewlineBox(device=self.device))
 
-            try:
-                assert listtools.calc_length(l) == i2-i1
-            except:
-                print i1, i2
-                print "length of new interior:", listtools.calc_length(l), "but should be:", i2-i1
-                print "new interior=", l
-                raise
-            return tuple(l)
+        if j1<=i1<=i2<=k1:
+            #print "in inbox: (i1,i2)=", (i1, i2), "(j1, j2)=", (j1, j2)
+            assert j1 == i1 and i2 == j2+1
+            return [inbox]
+
+        if k1<=i1<=i2<=k2+1:
+            assert k1 == i1 and i2 == k2+1
+            return [outbox]
+
+        assert i1 == 0 and i2 == k2+1
+        cell = CellBox(inbox, outbox, number=texel.number,
+                       device=self.device)
+        return [cell]
 
     def Plot_handler(self, texel, i1, i2):
         return [PlotBox(device=self.device)]
@@ -648,6 +599,9 @@ class Builder(_Builder):
     def removed(self, i, n):
         return self.rebuild_part(i, i+n, -n)
 
+
+def is_temp(model, i):
+    return model.get_style(i)['temp']
 
 
 class WXTextView(_WXTextView):
@@ -686,7 +640,7 @@ class WXTextView(_WXTextView):
 
     def print_temp(self, text):
         new = TextModel(text)
-        new.set_properties(0, len(new), textcolor='blue')
+        new.set_properties(0, len(new), textcolor='blue', temp=True)
         i = self.index
         self.model.insert(i, new)
         j1, j2 = self.temp_range
@@ -1007,22 +961,10 @@ def test_05():
 
     (j1, j2, inp), (k1, k2, outp) = cell1.iter_childs()
     assert (j1, j2) == (1, 23) # input box
-    assert get_envelope(cell1, 0, 0) == (0, 0)
-    n = len(cell1)
-    assert get_envelope(cell1, n, n) == (n, n)
-    assert get_envelope(cell1, 0, 1) == (0, n)
-    assert get_envelope(cell1, 1, 1) == (0, n)
-    assert get_envelope(cell1, n-2, n-1) == (0, n)
 
     cell2 = CellBox(Row([t3, NL]), empty)
 
     g = VGroup([cell1, cell2])
-    assert get_envelope(g, n, n) == (n, n)
-    assert get_envelope(g, 0, 1) == (0, n)
-    assert get_envelope(g, n-2, n-1) == (0, n)
-    assert get_envelope(g, n, n+1) == (n, len(g))
-    assert get_envelope(g, n+1, n+1) == (n, len(g))
-    assert get_envelope(g, n-1, n+1) == (0, len(g))
 
 
 def test_06():
@@ -1069,7 +1011,7 @@ def test_10():
 
 
 def test_11():
-    ns = init_testing(redirect=False) #True)
+    ns = init_testing(redirect=True)
     model = ns['model']
     model.remove(0, len(model))
     tmp = TextModel(u'for a in range(16):\n    print a')
@@ -1090,7 +1032,7 @@ def test_11():
     check_box(view.builder._layout, model.texel)
 
     #view.layout.dump_boxes(0, 0, 0)
-    assert inside_cell(view.layout, 68, 68)
+    #assert inside_cell(view.layout, 68, 68)
 
     model.insert_text(68, u'x')
     assert model.get_text()[65:71] == '14\nx15'
@@ -1133,7 +1075,7 @@ def test_12():
 
 
 def test_13():
-    ns = init_testing(False)
+    ns = init_testing(True)
     model = ns['model']
     model.remove(0, len(model))
     tmp = TextModel(u'''import matplotlib.pyplot as plt
@@ -1209,10 +1151,10 @@ def demo_01():
     ns['app'].MainLoop()
 
 def demo_02():
-    ns = init_testing(False) #True)
+    ns = init_testing(True)
     model = ns['model']
     model.remove(0, len(model))
-    tmp = TextModel(__doc__)
+    tmp = TextModel('"""\n'+__doc__+'"""')
     cell = Cell(tmp.texel, NULL_TEXEL)
     model.insert(len(model), mk_textmodel(cell))
 

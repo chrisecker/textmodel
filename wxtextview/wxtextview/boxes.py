@@ -554,6 +554,7 @@ def replace_boxes(box, i1, i2, stuff):
     # Recursively replace everything between $i1$ and $i2$ by
     # $stuff$. Insertion is done at the depth of the first box which
     # starts at $i1$.
+    #print "replace_boxes: (i1, i2)=", (i1, i2), "box=", repr(box)[:20]
     if box.is_group:
         l = []
         for j1, j2, child in box.iter_childs():
@@ -572,7 +573,17 @@ def replace_boxes(box, i1, i2, stuff):
             return [box]+list(stuff)
     if i1<=0 and i2>=len(box):
         return stuff
-    raise IndexError((i1, i2)) # i is inside a non-group->not allowed!
+
+    l = []
+    for j1, j2, child in box.iter_childs():
+        if i1 <= j2 and j1 <= i2: # overlapping or neighbouring
+            tmp = replace_boxes(child, max(0, i1-j1), min(j2, i2)-j1, stuff)
+            l.extend(tmp)
+            stuff = []
+        else:
+            l.append(child)
+    l.extend(stuff)
+    return box.from_childs(l)
 
 
 def tree_depth(box):

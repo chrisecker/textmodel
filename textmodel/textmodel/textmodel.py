@@ -329,29 +329,40 @@ class TextModel(Model):
 def pycolorize(rawtext, coding='latin-1'):
     # used for benchmarking
     import cStringIO
-    rawtext += '\n'
+    rawtext+='\n'
     instream = cStringIO.StringIO(rawtext).readline
 
-    import token, keyword
-    TEXT = token.NT_OFFSET + 2
+    import token, tokenize, keyword
+    _KEYWORD = token.NT_OFFSET + 1
+    _TEXT    = token.NT_OFFSET + 2
+
+    _colors = {
+        token.NUMBER:       '#0080C0',
+        token.OP:           '#0000C0',
+        token.STRING:       '#004080',
+        tokenize.COMMENT:   '#008000',
+        token.NAME:         '#000000',
+        token.ERRORTOKEN:   '#FF8080',
+        _KEYWORD:           '#C00000',
+        #_TEXT:              '#000000',
+    }
     def tokeneater(toktype, toktext, (srow,scol), (erow,ecol), line):
         i1 = model.position2index(srow-1, scol)
         i2 = model.position2index(erow-1, ecol)
-        if toktype == token.STRING:
-            color = 'grey'
+        if token.LPAR <= toktype and toktype <= token.OP:
+            toktype = token.OP
         elif toktype == token.NAME and keyword.iskeyword(toktext):
-            color = 'red'
-        elif toktype == TEXT:
-            color = 'green'
-        else:
+            toktype = _KEYWORD
+        try:
+            color = _colors[toktype]
+        except:
             return
         model.set_properties(i1, i2, textcolor=color)
 
     text = rawtext.decode(coding)
     model = TextModel(text)
 
-    from tokenize import tokenize
-    tokenize(instream, tokeneater)
+    tokenize.tokenize(instream, tokeneater)
     return model.copy(0, len(model)-1)
 
 
