@@ -531,14 +531,14 @@ class Builder(_Builder):
         model = self.model
         texel = model.texel
 
-        # Did we insert temp text? If yes, fontify should be supressed
-        if n>0: 
-            self._supress_fontify = is_temp(self.model, i1)
-        else:
-            self._supress_fontify = False
+        # Did we insert temp text? If yes, temp should be excluded
+        # from fontification.
 
-        # Store the function arguments for later use
-        self._rebuild_data = i1, i2, n
+        if n>0: 
+            self._has_temp = is_temp(self.model, i1)
+            self._temp_range = i1, i1+n
+        else:
+            self._has_temp = False
 
         #print "rebuild_part: i1, i2=", i1, i2, "n=", n
         #dump_range(texel, i1, i2)
@@ -560,9 +560,15 @@ class Builder(_Builder):
         
         (j1, j2, inp), (k1, k2, outp) = texel.iter_childs()
         if i1 < j2 and j1 < i2: 
-            if self._supress_fontify:
-                cell = texel
-                #j, cell = find_cell(texel)
+            if self._has_temp:
+                t1, t2 = self._temp_range
+                i0, tmp = find_cell(self.model.texel, t1)
+                assert tmp is texel
+                from textmodel.texeltree import insert, grouped
+                _rest, _temp = texel.takeout(t1-i0, t2-i0)
+                cell = grouped(_rest).colorize()                                
+                cell = grouped(insert(cell, t1-i0, _temp))
+                
             else:
                 cell = texel.colorize()
             inbox = self.create_parstack(cell.input, add_newline=True)
