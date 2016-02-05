@@ -198,8 +198,7 @@ def mk_textmodel(texel):
 
 
 class Cell(Container):
-    # Eine Zelle enthält drei Trennzeichen (x) nach dem folgenden
-    # Schema: x1234567890x1234567890x
+
     def __init__(self, input, output, number = 0, **kwargs):
         assert isinstance(input, Texel)
         assert isinstance(output, Texel)
@@ -347,9 +346,9 @@ class CellBox(Box):
             Box.draw_selection(self, i1, i2, x, y, dc)
 
     def responding_child(self, i, x0, y0):
-        # Die Indexposition n+1 würde normalerweise durch das Kind
-        # verwaltet. Wir geben daher hier bekannt, dass wir uns selber
-        # darum kümmern.
+        # Index position n+1 usually is managed by a child object. We
+        # want the next object to be responsible, so we have to change
+        # the return behaviour.
         if i == len(self):
             return None, i, x0, y0 # None => kein Kind kümert sich darum
         return Box.responding_child(self, i, x0, y0)
@@ -373,7 +372,10 @@ class CellBox(Box):
 
 
 def get_update_range(box, i1, i2):
-    # extend range hast to be called before
+    # Extend i1, i2 to the index range to be updated. E.g. a change in
+    # an input field will lead to an update of the whole input
+    # field. It is assumed, that extend range has been called before.
+
     if i2<=0 or i1>=len(box):
         return i1, i2
     if isinstance(box, CellBox):
@@ -403,16 +405,6 @@ def find_cell(texel, i, i0=0):
                 return find_cell(child, i-j1, i0+j1)
     raise NotFound()
 
-
-def find_cellbox(box, i, i0=0):
-    if not (0<=i<=len(box)):
-        return i0, None
-    if isinstance(box, CellBox):
-        return i0, box
-    for j1, j2, child in reversed(box.iter_childs()):
-        if j1<=i<=j2:
-            return get_cellbox(i-j1, i0+j1)
-    return i1, None
 
 
 class Figure(Glyph):
@@ -464,7 +456,6 @@ class FigureBox(Box):
 def update_paragraphs(box, i1, i2, n, builder, i0=0):
     # Recursively updates all paragraphs in the range i1..i2+n. The box tree is grown by n. 
 
-    #print "update_paragraphs", i0+i1, i0+i2, "n=", n, "box=", repr(box)[:40]
     assert i1>=0
     assert i2<=len(box)
     assert i1<=i2
@@ -498,6 +489,8 @@ def update_paragraphs(box, i1, i2, n, builder, i0=0):
 
 
 class Builder(_Builder):
+    _has_temp = False # indicates whether the change we are updating
+                      # to was caused by print_temp
 
     def create_paragraphs(self, texel, i1, i2, add_newline=False):
         boxes = self.create_boxes(texel, i1, i2)
@@ -523,7 +516,6 @@ class Builder(_Builder):
         boxes = self.create_all(model.texel)
         self._layout = VGroup(boxes, device=self.device)
 
-    _supress_fontify = False
     def rebuild_part(self, i1, i2, n):
         # $n$ is the size change. Positive $n$ means inserting, negativ
         # means removal. The new size is i1..i2+n.
@@ -622,8 +614,8 @@ class WXTextView(_WXTextView):
     _new_size = None
     def on_size(self, event):
         # Note that resize involves computing all line breaks and is
-        # therefore a very costly operation. We therefore try to
-        # minimize resizes here.
+        # therefore a very costly operation. We therefore try to avoid
+        # unnecessary resize events.
         self._new_size = event.Size
         if self._resize_pending:
             return
@@ -770,6 +762,7 @@ class WXTextView(_WXTextView):
         _WXTextView.insert(self, i, textmodel)
 
 
+
 def init_testing(redirect=True):
     app = wx.App(redirect=redirect)
     model = TextModel('')
@@ -805,6 +798,19 @@ xlabel('x')
 ylabel('y')
 title('title')
 output(f)
+---
+xkcd()
+fig = plt.figure(facecolor='white')
+x = np.linspace(0, 10)
+y1 = x * np.sin(x)
+y2 = x * np.cos(x)
+
+plt.fill(x, y1, 'red', alpha=0.4)
+plt.fill(x, y2, 'blue', alpha=0.4)
+plt.xlabel('x axis yo!')
+plt.ylabel("I don't even know")
+output(fig)
+xkcd(False)
 ---
 fig = plt.figure(facecolor='white')
 r = np.arange(0, 3.0, 0.01)

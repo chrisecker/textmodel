@@ -9,26 +9,6 @@ from .testdevice import TESTDEVICE
 from .rect import Rect
 from math import ceil
 
-# TODO: 
-#
-# Da wir jetzt die replace_childs-Methde in allen Boxes haben, kann
-# die replace-Funktion verallgemeinert werden. Es wäre jetzt möglich,
-# auch Inhalte von Kontainern zu ersetzen, also nicht nur wie bisher
-# Inhalte von Gruppen. Damit würde der Builder für das Notebook
-# deutlich einfacher.
-
-# Alt:
-# Ich mag es nicht, dass jetzt die ganzen
-# child-Default-Implementierungen in Box drinnen sind und dann in
-# TextBox wieder überschrieben werden müssen.
-#
-# Vielleicht sollte die Klassen so aufgebuat werden:
-#
-# Box -- Protokoll
-# TextBox(Box)
-# ChildBox(Box)
-# 
-# Aber: so ist das viel kompakter!
 
 
 # Coordinates:
@@ -331,10 +311,6 @@ class TextBox(_TextBoxBase):
 
 
 class NewlineBox(_TextBoxBase):
-    # Die NewlineBox ist eigentlich unnötig, die Position könnte
-    # genausogut leer bleiben. Wir verwenden Sie trotzdem, da wir hier
-    # sehr praktisch die Font-Information für das nachfolgende Zeichen
-    # ablegen können.
     text = '\n'
     width = 0
     weights = (0, 1)
@@ -352,10 +328,9 @@ class NewlineBox(_TextBoxBase):
         return 'NL'
 
     def get_index(self, x, y):
-        # Die TextBox würde den Index 1 zurückgeben, wenn x>0 ist. Das
-        # macht aber keinen Sinn, da nach einem NL eine neue Zeile
-        # angefangen wird. Die letzte Position einer Zeile ist gerade
-        # der Index des NL-Zeichens, also 0.
+        # The _TextBoxBase would return index 1 for x>0 which does not
+        # make sense for newlines. The last position of a line is the
+        # index of the NL-Glyph, i.e. o.
         return 0
     
 
