@@ -29,8 +29,8 @@ from textmodel.texeltree import NewLine, Group, Characters, grouped, \
     defaultstyle
 from textmodel.container import Container
 from textmodel.textmodel import TextModel
-from wxtextview.layout import Box, Row, Rect, TextBox, IterBox, check_box
-from wxtextview.updater import Updater as _Updater
+from wxtextview.boxes import Box, Row, Rect, TextBox, check_box
+from wxtextview.simplelayout import Builder as _Builder
 from wxtextview.wxtextview import WXTextView
 from wxtextview.wxdevice import WxDevice
 
@@ -60,25 +60,27 @@ class Fraction(Container):
 
 
 
-class EntryBox(IterBox):
+class EntryBox(Box):
     # A box which has one empty index position at the end to seperate
     # the content from the following boxes.
     def __init__(self, boxes, device=None):
         if device is not None:
             self.device = device
-        self.content = Row(boxes, device=device)
-        self.length = self.content.length+1
-        self.height = self.content.height
-        self.depth = self.content.depth
-        self.width = self.content.width
+        content = self.content = Row(boxes, device=device)
+        self.length = content.length+1
+        self.height = content.height
+        self.depth = content.depth
+        self.width = content.width
 
-    def iter(self, i, x, y):
-        content = self.content
-        yield i, i+len(content), x, y, content
+    def __len__(self):
+        return self.length
+
+    def iter_childs(self):
+        yield 0, self.length-1, self.content
 
 
 
-class FractionBox(IterBox):
+class FractionBox(Box):
     def __init__(self, denomboxes, nomboxes, style=defaultstyle,
                  device=None):
         if device is not None:
@@ -89,7 +91,15 @@ class FractionBox(IterBox):
         self.length = len(self.denominator)+len(self.nominator)+1
         self.layout()
 
-    def iter(self, i, x, y):
+    def __len__(self):
+        return self.length
+
+    def iter_childs(self): # XXX not needed!
+        d = self.denominator
+        yield 1, len(d), d
+        yield 1+len(d), self.length, n
+
+    def iter_boxes(self, i, x, y):
         d = self.denominator
         n = self.nominator
         j1 = i+1 # the denominator starts at index 1
@@ -114,7 +124,7 @@ class FractionBox(IterBox):
         self.width = max(nom.width, den.width)
 
     def draw(self, x, y, dc, styler):
-        IterBox.draw(self, x, y, dc, styler)
+        Box.draw(self, x, y, dc, styler)
         h = self.denominator.height+self.denominator.depth
         dc.DrawLine(x, y+h, x+self.width, y+h)
 
@@ -122,7 +132,7 @@ class FractionBox(IterBox):
         for i in (0, len(self.denominator), len(self)-1):
             if i1<= i<i2:
                 return 0, len(self)
-        return IterBox.extend_range(self, i1, i2)
+        return Box.extend_range(self, i1, i2)
 
     def can_leftappend(self):
         # There is one empty index position at index 0, so that
@@ -142,22 +152,24 @@ class Root(Container):
 
 
 
-class RootBox(IterBox):
+class RootBox(Box):
     def __init__(self, boxes, device=None):
         if device is not None:
             self.device = device
         content = self.content = EntryBox(boxes, device)
-        self.length = len(content)+1
         self.width = content.width+12
         self.height = content.height+5
         self.depth = content.depth
+        self.length = len(content)+1
 
-    def iter(self, i, x, y):
-        content = self.content
-        yield i+1, i+len(content), x+8, y+5, content
+    def __len__(self):
+        return self.length
+
+    def iter_boxes(self, i, x, y):
+        yield i+1, i+len(self.content), x+8, y+5, self.content
 
     def draw(self, x, y, dc, styler):
-        IterBox.draw(self, x, y, dc, styler)
+        Box.draw(self, x, y, dc, styler)
         w = self.width
         h = self.height
         w1 = 5
@@ -174,13 +186,13 @@ class RootBox(IterBox):
         if i1<=0 or i2>=len(self):
             self.device.invert_rect(x, y, self.width, self.height, dc)
         else:
-            IterBox.draw_selection(self, i1, i2, x, y, dc)
+            Box.draw_selection(self, i1, i2, x, y, dc)
 
     def extend_range(self, i1, i2):
         for i in (0, len(self)-1):
             if i1<= i<i2:
                 return 0, len(self)
-        return IterBox.extend_range(self, i1, i2)
+        return Box.extend_range(self, i1, i2)
 
     def can_leftappend(self):
         return False
@@ -188,7 +200,7 @@ class RootBox(IterBox):
 
 
 
-class Updater(_Updater):
+class Builder(_Builder):
     def Fraction_handler(self, texel, i1, i2):
         denomboxes = self.create_boxes(texel.denominator)
         nomboxes = self.create_boxes(texel.nominator)
@@ -202,8 +214,8 @@ class Updater(_Updater):
 
 
 class WXMathTextView(WXTextView):
-    def create_updater(self):
-        return Updater(
+    def create_builder(self):
+        return Builder(
             self.model,
             device=WxDevice(),
             maxw=self._maxw)
@@ -234,7 +246,7 @@ def init_testing(redirect=True):
 def test_00():
     ns = init_testing(False)
     frac = Fraction(Characters(u'Zähler'), Characters(u'Nenner'))
-    factory = Updater(TextModel()) # not very nice
+    factory = Builder(TextModel()) # not very nice
     box = factory.Fraction_handler(frac, 0, len(frac))[0]
     assert len(box) == len(frac)
     assert check_box(box, frac)
@@ -349,8 +361,11 @@ def test_06():
     "Fraction"
 
     box1 = FractionBox([TextBox(u'Zähler')], [TextBox(u'Nenner')])
+    box1.dump_boxes(0, 0, 0)
     box2 = FractionBox([TextBox(u'Zähler1')], [box1])
-    assert box2.depth == box1.height+box1.depth-box1.m/2.
+    print box2.depth
+    print box1.height+box1.depth-box1.m/2.0
+    #assert box2.depth == box1.height+box1.depth-box1.m/2.0 # XXX Formel geändert
 
     # Jetzt mit echten Abmessungen
     ns = init_testing(False)

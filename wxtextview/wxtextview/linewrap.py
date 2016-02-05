@@ -1,7 +1,7 @@
 # -*- coding: latin-1 -*-
 
 from .testdevice import TESTDEVICE
-from .layout import Row, TabulatorBox, TextBox, EmptyTextBox, NewlineBox
+from .boxes import TabulatorBox, TextBox, EmptyTextBox, NewlineBox, Row
 
 
 def find_bestbreak(box, w):

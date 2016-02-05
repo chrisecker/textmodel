@@ -4,12 +4,13 @@
 import wx
 import cPickle
 
-import layout
 from textmodel import TextModel
 from textmodel.texeltree import defaultstyle
 from .textview import TextView
 from .wxdevice import WxDevice
-from .updater import Updater
+from .testdevice import TESTDEVICE
+from .simplelayout import Builder
+
 from math import ceil
 
 defaultstyle.update(dict(underline=False, facename='', weight='normal'))
@@ -92,10 +93,10 @@ class WXTextView(wx.ScrolledWindow, TextView):
             (18, True, False) : 'redo',  
             (127, True, False) : 'del_word_left',   
             (1, True, False) : 'select_all',
-            }
+            }        
         
-    def create_updater(self):
-        return Updater(
+    def create_builder(self):
+        return Builder(
             self.model, 
             device=WxDevice(), 
             maxw=self._maxw)
@@ -168,7 +169,7 @@ class WXTextView(wx.ScrolledWindow, TextView):
 
         pdc = wx.PaintDC(self)
         pdc.SetAxisOrientation(True, False)
-        if self.updater.get_device().buffering:
+        if self.builder.get_device().buffering:
             dc = wx.BufferedDC(pdc)
             if not dc.IsOk():
                 return
@@ -283,11 +284,11 @@ def init_testing(redirect=True):
     win = wx.Panel(frame, -1)
     view = WXTextView(win, -1, style=wx.SUNKEN_BORDER)
     view.model = model
+    assert view.layout is not None
     box = wx.BoxSizer(wx.VERTICAL)
     box.Add(view, 1, wx.ALL|wx.GROW, 1)
     win.SetSizer(box)
     win.SetAutoLayout(True)
-
     frame.Show()    
     return locals()
 
@@ -305,7 +306,10 @@ def test_03():
     ns = init_testing(redirect=False)
     model = ns['model']
     view = ns['view']
+    assert view.layout is not None
+
     model.set_properties(10, 20, fontsize=15)
+    assert view.layout is not None
 
     n = len(model)
     text = '\n12345\n'
@@ -318,7 +322,7 @@ def test_03():
 
 def test_04():
     "insert/remove"
-    ns = init_testing()
+    ns = init_testing(False)
     model = ns['model']
     view = ns['view']
     text = model.get_text()
@@ -358,8 +362,8 @@ def test_10():
     model.remove(0, len(model))
     model.insert(0, TextModel("123\n"))
 
-    updater = view.updater
-    updater.set_maxw(100)
+    builder = view.builder
+    builder.set_maxw(100)
     layout = view.layout
     assert layout.get_info(4, 0, 0)
     x, y =  layout.get_info(3, 0, 0)[-2:]

@@ -5,8 +5,6 @@ from textmodel.viewbase import ViewBase, overridable_property
 from textmodel.modelbase import Model
 from textmodel.textmodel import dump_range
 from textmodel import TextModel
-from .updater import Updater
-from .testdevice import TESTDEVICE
 
 
 debug = 0
@@ -40,20 +38,20 @@ class TextView(ViewBase, Model):
         self._undoinfo = []
         self._redoinfo = []
         self.set_model(self._TextModel(''))
+        assert self.layout is not None
 
-    def create_updater(self):
-        # can be overwritten        
-        return Updater(self.model, device=TESTDEVICE, 
-                       maxw=self._maxw)
+    def create_builder(self):
+        pass
 
     def set_model(self, model):
         ViewBase.set_model(self, model)
-        self.updater = self.create_updater()
+        self.builder = self.create_builder()
         self.rebuild()
 
     def rebuild(self):
-        self.updater.rebuild()
-        self.layout = self.updater.get_layout()
+        self.builder.rebuild()
+        self.layout = self.builder.get_layout()
+        assert self.layout is not None
 
     def join_undo(self, info2, info1):
         # we are joining similar undo entries
@@ -133,8 +131,8 @@ class TextView(ViewBase, Model):
         if maxw == self._maxw:
             return
         self._maxw = maxw
-        self.updater.set_maxw(maxw)
-        self.layout = self.updater.get_layout()
+        self.builder.set_maxw(maxw)
+        self.layout = self.builder.get_layout()
         self.Refresh()
         self.notify_views('maxw_changed')
 
@@ -338,11 +336,13 @@ class TextView(ViewBase, Model):
 
     ### Signals issued by model
     def properties_changed(self, model, i1, i2):
-        self.layout = self.updater.properties_changed(i1, i2)
+        self.builder.properties_changed(i1, i2)
+        self.layout = self.builder.get_layout()
         self.refresh()
 
     def inserted(self, model, i, n):
-        self.layout = self.updater.inserted(i, n)
+        self.builder.inserted(i, n)
+        self.layout = self.builder.get_layout()
         if debug:
             self.check()
         if i>= self.index:
@@ -357,7 +357,8 @@ class TextView(ViewBase, Model):
         self.refresh()
 
     def removed(self, model, i, text):
-        self.layout = self.updater.removed(i, len(text))
+        self.builder.removed(i, len(text))
+        self.layout = self.builder.get_layout()
         n = len(text)
         i1 = i
         i2 = i+n

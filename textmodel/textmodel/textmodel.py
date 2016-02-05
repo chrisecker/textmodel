@@ -88,14 +88,14 @@ def dump_range(texel, i1, i2, i0=0, indent=0):
         s += " "+repr(texel.text)
     print " "*indent+"%i:%i %s" % (i0, i0+len(texel), s)
     if texel.has_childs:
-        complete = True
+        skip = False
         for j1, j2, child in iter_extended(texel):
             if i1 < j2 and j1 < i2: # intersection
                 dump_range(child, i1-j1, i2-j1, i0+j1, indent+4)
-            else:
-                complete = False
-        if not complete:
-            print " "*indent+'...'
+                skip = False
+            elif not skip:
+                print " "*indent+'...'
+                skip = True # skip output of more '...'
 
 
 _split = re.compile(r"([\t\n])", re.MULTILINE).split
@@ -209,7 +209,15 @@ class TextModel(Model):
             raise IndexError(row)
 
     def lineend(self, row):
-        """Returns the index where line number *row* ends."""
+        """Returns the index where line number *row* ends. The NewLine-marker
+           ist not included.  
+
+           >>> TextModel("").lineend(0) 
+           0 
+
+           >>> TextModel("x").lineend(0)
+           1
+        """
         try:
             return _find_weight(self.get_xtexel(), row+1, 2)-1
         except NotFound:
@@ -321,30 +329,41 @@ class TextModel(Model):
 def pycolorize(rawtext, coding='latin-1'):
     # used for benchmarking
     import cStringIO
+    rawtext+='\n'
     instream = cStringIO.StringIO(rawtext).readline
 
-    import token, keyword
-    KEYWORD = token.NT_OFFSET + 1
-    TEXT = token.NT_OFFSET + 2
+    import token, tokenize, keyword
+    _KEYWORD = token.NT_OFFSET + 1
+    _TEXT    = token.NT_OFFSET + 2
+
+    _colors = {
+        token.NUMBER:       '#0080C0',
+        token.OP:           '#0000C0',
+        token.STRING:       '#004080',
+        tokenize.COMMENT:   '#008000',
+        token.NAME:         '#000000',
+        token.ERRORTOKEN:   '#FF8080',
+        _KEYWORD:           '#C00000',
+        #_TEXT:              '#000000',
+    }
     def tokeneater(toktype, toktext, (srow,scol), (erow,ecol), line):
         i1 = model.position2index(srow-1, scol)
         i2 = model.position2index(erow-1, ecol)
-        if toktype == token.STRING:
-            color = 'grey'
+        if token.LPAR <= toktype and toktype <= token.OP:
+            toktype = token.OP
         elif toktype == token.NAME and keyword.iskeyword(toktext):
-            color = 'red'
-        elif toktype == TEXT:
-            color = 'green'
-        else:
+            toktype = _KEYWORD
+        try:
+            color = _colors[toktype]
+        except:
             return
         model.set_properties(i1, i2, textcolor=color)
 
     text = rawtext.decode(coding)
     model = TextModel(text)
 
-    from tokenize import tokenize
-    tokenize(instream, tokeneater)
-    return model
+    tokenize.tokenize(instream, tokeneater)
+    return model.copy(0, len(model)-1)
 
 
 
