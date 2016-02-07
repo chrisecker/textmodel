@@ -8,7 +8,7 @@ with open('README') as file:
     long_description = file.read()
 
 setup(name='wxtextview',
-      version='0.3.5',
+      version='0.3.6',
       description = \
           'A styled text widget for wxpython.',
       long_description = long_description,

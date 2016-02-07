@@ -5,7 +5,8 @@ Wxtextview is widget for the wx toolkit and is written completely in
 python. It has the functionality of a rich text editor and can handle
 even very long texts without beeing slow. All layout and editor logic
 is implemented in python. Only basic drawing commands are used from
-the wx, so that it is easy to adapt it to other GUI-toolkits.
+the wx toolkit. It is therefore easy to adapt it to other
+GUI-toolkits.
 
 There are two demos showing advanced possibilities of WXTextView:
 
