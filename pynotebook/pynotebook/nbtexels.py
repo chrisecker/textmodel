@@ -34,6 +34,9 @@ class Cell(Container):
     def get_empties(self):
         return NL, NL, NL
 
+    def get_emptychars(self):
+        return '\n\n\n'
+
     def get_content(self):
         return self.input, self.output
 
