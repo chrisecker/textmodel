@@ -49,7 +49,11 @@ def output(obj, iserr=False):
 
 def __transform__(obj, iserr):
     if has_classname(obj, "matplotlib.figure.Figure"):
-        return nbtexels.Figure(obj)
+        obj.canvas.draw()
+        data = obj.canvas.tostring_rgb()
+        size = obj.canvas.get_width_height()
+        return nbtexels.BitmapRGB(data, size)
+        
     return obj
         """
         code = compile(source, "init", 'exec')

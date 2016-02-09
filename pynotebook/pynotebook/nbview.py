@@ -171,16 +171,12 @@ def get_update_range(box, i1, i2):
             
 
 
-class FigureBox(Box):
-    def __init__(self, texel, device=None):
+class BitmapBox(Box):
+    def __init__(self, bitmap, device=None):
         if device is not None:
             self.device = device
-        w, h = texel.size
-        image = wx.EmptyImage(w, h)
-        image.SetData(texel.data)
-        self.bitmap = wx.BitmapFromImage(image, -1)
-        self.width = w
-        self.height = h
+        self.bitmap = bitmap
+        self.width, self.height = bitmap.Size
         self.depth = 0
 
     def __len__(self):
@@ -306,8 +302,17 @@ class Builder(_Builder):
     def Plot_handler(self, texel, i1, i2):
         return [PlotBox(device=self.device)]
 
-    def Figure_handler(self, texel, i1, i2):
-        return [FigureBox(texel, device=self.device)]
+    def BitmapRGB_handler(self, texel, i1, i2):
+        w, h = texel.size
+        bitmap = wx.BitmapFromBuffer(w, h, texel.data)
+        return [BitmapBox(bitmap, device=self.device)]
+
+    def BitmapRGBA_handler(self, texel, i1, i2):
+        w, h = texel.size
+        im = wx.ImageFromData(w, h, texel.data)
+        im.SetAlphaBuffer(texel.alpha)
+        bitmap = wx.BitmapFromImage(im)
+        return [BitmapBox(bitmap, device=self.device)]
 
     ### Signals
     def properties_changed(self, i1, i2):

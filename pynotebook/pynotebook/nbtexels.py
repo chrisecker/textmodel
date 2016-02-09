@@ -60,18 +60,24 @@ def find_cell(texel, i, i0=0):
 
 
 
-class Figure(Glyph):
-    def __init__(self, figure):
-        figure.canvas.draw()
-        self.data = figure.canvas.tostring_rgb()
-        w, h = figure.canvas.get_width_height()
-        buf = figure.canvas.tostring_argb()
-        image = wx.EmptyImage(w, h)
-        image.SetData(self.data)
-        self.size = w, h
+class BitmapRGB(Glyph):
+    def __init__(self, data, size):
+        self.data = data
+        self.size = size
 
     def __repr__(self):
-        return 'Figure(...)'
+        return 'BitmapRGB(...)'
+
+
+
+class BitmapRGBA(Glyph):
+    def __init__(self, data, alpha, size):
+        self.data = data
+        self.alpha = alpha
+        self.size = size
+
+    def __repr__(self):
+        return 'BitmapRGB(...)'
 
 
 
