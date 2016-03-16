@@ -1,10 +1,10 @@
 # -*- coding: latin-1 -*-
 
 
-from textmodel import listtools, treebase
-from textmodel.texeltree import defaultstyle
-from textmodel.treebase import grouped as _grouped
-from textmodel.treebase import groups
+from ..textmodel import listtools, treebase
+from ..textmodel.texeltree import defaultstyle
+from ..textmodel.treebase import grouped as _grouped
+from ..textmodel.treebase import groups
 from .testdevice import TESTDEVICE
 from .rect import Rect
 from math import ceil
@@ -629,7 +629,7 @@ def check_box(box, texel=None):
     
 
 def _create_testobjects(s):
-    from textmodel.textmodel import TextModel
+    from ..textmodel.textmodel import TextModel
     texel = TextModel(s).texel    
     box = TextBox(s)
     return box, texel

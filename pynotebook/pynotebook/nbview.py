@@ -2,18 +2,18 @@
 
 # Am 07.2.16 von wxtextview/demo/notebook.py übertragen 
 
-from textmodel import create_style
-from textmodel.treebase import insert
-from textmodel.texeltree import Characters, grouped, \
+from .textmodel import create_style
+from .textmodel.treebase import insert
+from .textmodel.texeltree import Characters, grouped, \
     defaultstyle, NULL_TEXEL
-from textmodel.textmodel import TextModel, dump_range
-from wxtextview.boxes import Box, VGroup, VBox, Row, Rect, check_box, NewlineBox, \
+from .textmodel.textmodel import TextModel, dump_range
+from .wxtextview.boxes import Box, VGroup, VBox, Row, Rect, check_box, NewlineBox, \
     TextBox, extend_range_seperated, replace_boxes, get_text
-from wxtextview.simplelayout import create_paragraphs, Paragraph
-from wxtextview.wxdevice import WxDevice
-from wxtextview.testdevice import TESTDEVICE
-from wxtextview.wxtextview import WXTextView as _WXTextView
-from wxtextview.simplelayout import Builder as _Builder
+from .wxtextview.simplelayout import create_paragraphs, Paragraph
+from .wxtextview.wxdevice import WxDevice
+from .wxtextview.testdevice import TESTDEVICE
+from .wxtextview.wxtextview import WXTextView as _WXTextView
+from .wxtextview.simplelayout import Builder as _Builder
 
 from .nbtexels import Cell, find_cell, mk_textmodel, NotFound
 from .clients import ClientPool
@@ -788,13 +788,13 @@ def test_15():
 
     
 def demo_00():
-    from wxtextview import testing
+    from .wxtextview import testing
     ns = test_11()
     testing.pyshell(ns)
     ns['app'].MainLoop()
 
 def demo_01():
-    from wxtextview import testing
+    from .wxtextview import testing
     ns = test_13()
     testing.pyshell(ns)
     ns['app'].MainLoop()

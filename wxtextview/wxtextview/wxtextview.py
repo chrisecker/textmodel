@@ -4,8 +4,8 @@
 import wx
 import cPickle
 
-from textmodel import TextModel
-from textmodel.texeltree import defaultstyle
+from ..textmodel import TextModel
+from ..textmodel.texeltree import defaultstyle
 from .textview import TextView
 from .wxdevice import WxDevice
 from .testdevice import TESTDEVICE
@@ -428,8 +428,8 @@ def demo_01():
     win.SetSizer(box)
     win.SetAutoLayout(True)
 
-    from textmodel.textmodel import pycolorize
-    from textmodel import treebase
+    from ..textmodel.textmodel import pycolorize
+    from ..textmodel import treebase
     filename = treebase.__file__.replace('pyc', 'py')
     rawtext = open(filename).read() 
     model = pycolorize(rawtext)
@@ -485,5 +485,5 @@ def benchmark_00():
     
     
 if __name__ == '__main__':
-    from textmodel import alltests
+    from ..textmodel import alltests
     alltests.dotests()

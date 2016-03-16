@@ -1,8 +1,8 @@
 # -*- coding: latin-1 -*-
 
 
-from textmodel.textmodel import TextModel
-from textmodel.texeltree import NULL_TEXEL
+from .textmodel.textmodel import TextModel
+from .textmodel.texeltree import NULL_TEXEL
 
 from .nbtexels import Cell, mk_textmodel
 

@@ -1,9 +1,9 @@
 # -*- coding: latin-1 -*-
 
 
-from textmodel.container import Container
-from textmodel.textmodel import TextModel, dump_range
-from textmodel.texeltree import Texel, Glyph, NL
+from .textmodel.container import Container
+from .textmodel.textmodel import TextModel, dump_range
+from .textmodel.texeltree import Texel, Glyph, NL
 
 import wx
 

@@ -157,7 +157,7 @@ def __transform__(obj, iserr):
         # XXX The pycolorize function was only ment for benchmarking
         # the textmodel. Here, we should use an optimized variant
         # instead.
-        from textmodel.textmodel import pycolorize
+        from .textmodel.textmodel import pycolorize
         try:
             colorized = pycolorize(text).texel
         except Exception, e:

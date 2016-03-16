@@ -2,8 +2,6 @@
 
 
 import sys
-sys.path.insert(0, '../../textmodel')
-sys.path.insert(0, '../../wxtextview')
 sys.path.insert(0, '..')
 
 from pynotebook.nbview import TextModel, WXTextView, Cell
@@ -49,7 +47,7 @@ def demo_00():
     frame.Show()
 
     if 0:
-        from wxtextview import testing
+        from pynotebook.wxtextview import testing
         testing.pyshell(locals())
     app.MainLoop()
 

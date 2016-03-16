@@ -4,8 +4,8 @@
 # into a single channel, aka a "stream".
 
 
-from textmodel import TextModel
-from textmodel.texeltree import Texel
+from .textmodel import TextModel
+from .textmodel.texeltree import Texel
 
 
 class StreamBase:

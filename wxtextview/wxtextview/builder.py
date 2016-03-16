@@ -2,10 +2,10 @@
 
 
 
-from textmodel import listtools
-from textmodel import treebase
-from textmodel.textmodel import TextModel
-from textmodel.texeltree import NewLine, Group, Characters, defaultstyle
+from ..textmodel import listtools
+from ..textmodel import treebase
+from ..textmodel.textmodel import TextModel
+from ..textmodel.texeltree import NewLine, Group, Characters, defaultstyle
 from .testdevice import TESTDEVICE
 from .boxes import TextBox, NewlineBox, TabulatorBox, EmptyTextBox, \
     EndBox, check_box, Box

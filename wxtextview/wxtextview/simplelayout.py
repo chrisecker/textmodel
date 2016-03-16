@@ -20,9 +20,9 @@
 from .boxes import HBox, VBox, VGroup, TextBox, EmptyTextBox, NewlineBox, EndBox, \
                    check_box, Box, tree_depth, replace_boxes, Row
 from .boxes import grouped as _grouped
-from textmodel.texeltree import NewLine, Characters, defaultstyle
-from textmodel.treebase import groups
-from textmodel import listtools, treebase
+from ..textmodel.texeltree import NewLine, Characters, defaultstyle
+from ..textmodel.treebase import groups
+from ..textmodel import listtools, treebase
 
 from .testdevice import TESTDEVICE
 from .linewrap import simple_linewrap
@@ -194,7 +194,7 @@ class Builder(BuilderBase, Factory):
 
 
 def _create_testobjects(s):
-    from textmodel.textmodel import TextModel
+    from ..textmodel.textmodel import TextModel
     texel = TextModel(s).texel    
     box = TextBox(s)
     return box, texel
@@ -270,7 +270,7 @@ def test_01():
     box2 = _grouped(replace_boxes(box, 5, 10, [p]))
     #box2.dump_boxes(0, 0, 0)
     assert len(box2) == 6
-    from textmodel import treebase
+    from ..textmodel import treebase
     treebase.nmax = 5
     box2 = Paragraph([
         Row([EmptyTextBox()])

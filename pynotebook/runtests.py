@@ -9,8 +9,6 @@
 # - Commandline arguments --silent, --redirect
 
 import sys
-sys.path.insert(0, "../textmodel/")
-sys.path.insert(0, "../wxtextview/")
 sys.path.insert(0, ".")
 
 import types
@@ -149,7 +147,6 @@ for name in sys.argv:
         sys.argv.remove(name)
         
 
-import textmodel
 name = sys.argv[1]
 print name
 if name.lower().endswith('.py'):

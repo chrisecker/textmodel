@@ -1,10 +1,10 @@
 # -*- coding: latin-1 -*-
 
 
-from textmodel.viewbase import ViewBase, overridable_property
-from textmodel.modelbase import Model
-from textmodel.textmodel import dump_range
-from textmodel import TextModel
+from ..textmodel.viewbase import ViewBase, overridable_property
+from ..textmodel.modelbase import Model
+from ..textmodel.textmodel import dump_range
+from ..textmodel import TextModel
 
 
 debug = 0
@@ -331,7 +331,7 @@ class TextView(ViewBase, Model):
         raise NotImplemented()
 
     def check(self):
-        from textmodel.treebase import is_root_efficient
+        from ..textmodel.treebase import is_root_efficient
         assert is_root_efficient(self.layout)
 
     ### Signals issued by model
