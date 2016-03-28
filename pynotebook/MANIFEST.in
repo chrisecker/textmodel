@@ -1,0 +1,7 @@
+recursive-include pynotebook *.py
+include demo/plot_demo.py
+include demo/custom_output.py
+include demo/rnotebook.py
+include LICENSE
+include CHANGES
+

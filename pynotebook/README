@@ -1,0 +1,25 @@
+pynotebook
+==========
+
+
+Introduction
+------------
+
+Pynotebook is a command shell for interactive computing following the
+notebook concept. The notebook concept originally appeared with the
+program Mathematica and became famous for python with the iPython
+project. Unlike iPython, pynotebook does not need a webbrowser and is
+very light weight.
+
+Pynotebook has the following features: 
+
+- command completion (tab-key)
+- syntax highlighting
+- small size 
+- no external dependencies (except wx)
+
+It can be easily embedded in projects and works well with matplotlib.
+
+As a demo application, there is a simple notebook interface to the r
+language, which uses rpy2 for interfacing gnu r and pygments for
+colorization.
