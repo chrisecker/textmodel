@@ -6,20 +6,37 @@ Introduction
 ------------
 
 Pynotebook is a command shell for interactive computing following the
-notebook concept. The notebook concept originally appeared with the
-program Mathematica and became famous for python with the iPython
-project. Unlike iPython, pynotebook does not need a webbrowser and is
-very light weight.
+"notebook" concept. Notebooks originally appeared with the program
+Mathematica and became famous for python with the iPython/Jupyter
+project. Unlike iPython, pynotebook does not need a webbrowser, c
+extensions or anything except python and wx. It is a python module,
+runs out of the box and therefore is easy to embed and distribute.
 
-Pynotebook has the following features: 
+Most notable features of pynotebook are:
 
-- command completion (tab-key)
 - syntax highlighting
-- small size 
-- no external dependencies (except wx)
+- command completion (tab-key)
+- matplotlib plotting
+- saving/loading of notebooks
+- BSD-license
 
-It can be easily embedded in projects and works well with matplotlib.
 
-As a demo application, there is a simple notebook interface to the r
-language, which uses rpy2 for interfacing gnu r and pygments for
-colorization.
+There are a couple of demo applications: 
+- a plotting demo
+- a notebook interface to gnu r
+
+The later demonstrates how to completely modify the notebook. It uses
+rpy2 for interfacing gnu r and pygments for colorization.
+
+Basic usage
+-----------
+
+::
+
+    >>> from pynotebook.nbview import WXTextView
+    >>> import wx
+    >>> app = wx.App()
+    >>> frame = wx.Frame(None)
+    >>> view = WXTextView(frame)
+    >>> frame.Show()
+    >>> app.MainLoop()
