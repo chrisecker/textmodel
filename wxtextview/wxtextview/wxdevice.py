@@ -6,6 +6,10 @@ import wx
 def invert_rect_INV(self, x, y, w, h, dc):
     dc.SetLogicalFunction(wx.INVERT)
     dc.SetBrush(wx.BLACK_BRUSH)
+    dc.SetPen(wx.TRANSPARENT_PEN)
+    # Alternative which gives a light blue selection: 
+    #   dc.SetLogicalFunction(wx.XOR)
+    #   dc.SetBrush(wx.RED_BRUSH)
     dc.DrawRectangle(x, y, w, h)
 
 
