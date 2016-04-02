@@ -353,7 +353,9 @@ class WXTextView(_WXTextView):
 
     def init_clients(self):
         self._clients = ClientPool()        
-        self._clients.register(PythonClient())        
+        client = PythonClient()
+        client.namespace['__shell__'] = self
+        self._clients.register(client)        
 
     _resize_pending = False
     _new_size = None
