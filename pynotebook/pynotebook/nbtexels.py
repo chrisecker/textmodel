@@ -17,9 +17,10 @@ def mk_textmodel(texel):
 
 
 class Cell(Container):
-    # XXX currently there is only one cell type. In future we should
-    # also have text cells or cells for different scripting
-    # languages. We should have a generla ScriptCell.
+    pass
+
+
+class ScriptingCell(Cell):
 
     client_name = 'direct python'
 
@@ -29,7 +30,7 @@ class Cell(Container):
         self.input = input
         self.output = output
         self.number = number
-        Container.__init__(self, **kwargs)
+        Cell.__init__(self, **kwargs)
 
     def get_empties(self):
         return NL, NL, NL

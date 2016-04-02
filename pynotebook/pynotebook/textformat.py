@@ -4,13 +4,13 @@
 from .textmodel.textmodel import TextModel
 from .textmodel.texeltree import NULL_TEXEL
 
-from .nbtexels import Cell, mk_textmodel
+from .nbtexels import ScriptingCell, mk_textmodel
 
 import re
 
 
 def get_cells(texel):
-    if isinstance(texel, Cell):
+    if isinstance(texel, ScriptingCell):
         return [texel]
     r = []
     for i1, i2, child in texel.iter_childs():
@@ -33,7 +33,7 @@ def totext(model):
 rx_out = re.compile('\[Out\s*(\w*)\]\:$').match
 rx_in = re.compile('\[In\s*(\w*)\]\:$').match
 
-def fromtext(s, Cell):
+def fromtext(s, ScriptingCell):
     model = TextModel()
     cells = []
     l = []
@@ -43,7 +43,7 @@ def fromtext(s, Cell):
         return texel
 
     def append_cell():
-        cells.append(Cell(intexel, outtexel))
+        cells.append(ScriptingCell(intexel, outtexel))
 
 
     intexel = outtexel = NULL_TEXEL

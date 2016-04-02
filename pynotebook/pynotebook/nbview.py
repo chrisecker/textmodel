@@ -15,7 +15,7 @@ from .wxtextview.testdevice import TESTDEVICE
 from .wxtextview.wxtextview import WXTextView as _WXTextView
 from .wxtextview.simplelayout import Builder as _Builder
 
-from .nbtexels import Cell, find_cell, mk_textmodel, NotFound
+from .nbtexels import ScriptingCell, find_cell, mk_textmodel, NotFound
 from .clients import ClientPool
 from .pyclient import PythonClient
 from .nbstream import Stream
@@ -44,7 +44,7 @@ class ParagraphStack(VGroup):
 
 
 
-class CellBox(Box):
+class ScriptingCellBox(Box):
     def __init__(self, inbox, outbox, number=0, device=None):
         # NOTE: Inbox and outbox should be PargraphStacks
         self.number = number
@@ -118,7 +118,7 @@ class CellBox(Box):
 
     def draw_selection(self, i1, i2, x, y, dc):
         if i1<=0 and i2>=self.length:
-            self.device.invert_rect(x, y, self.width, self.height, dc)
+            self.device.invert_rect(x, y, sepwidth, self.height, dc)
         else:
             Box.draw_selection(self, i1, i2, x, y, dc)
 
@@ -155,7 +155,7 @@ def get_update_range(box, i1, i2):
 
     if i2<=0 or i1>=len(box):
         return i1, i2
-    if isinstance(box, CellBox):
+    if isinstance(box, ScriptingCellBox):
         (j1, j2, inbox), (k1, k2, outbox) = box.iter_childs()
         if k1<=i1<=i2<=k1:    
             return k1, k2
@@ -261,9 +261,9 @@ class Builder(_Builder):
         return self._layout
         
     ### Handlers
-    def Cell_handler(self, texel, i1, i2):
+    def ScriptingCell_handler(self, texel, i1, i2):
         assert i2<=len(texel)
-        #print "Cell handler: (i1, i2)=", (i1, i2)
+        #print "ScriptingCell handler: (i1, i2)=", (i1, i2)
         #dump_range(texel, 0, len(texel))
         
         (j1, j2, inp), (k1, k2, outp) = texel.iter_childs()
@@ -295,8 +295,8 @@ class Builder(_Builder):
             return [outbox]
 
         assert i1 == 0 and i2 == k2+1
-        cell = CellBox(inbox, outbox, number=texel.number,
-                       device=self.device)
+        cell = ScriptingCellBox(inbox, outbox, number=texel.number,
+                                device=self.device)
         return [cell]
 
     def Plot_handler(self, texel, i1, i2):
@@ -342,7 +342,7 @@ def common(s1, s2):
 
 class WXTextView(_WXTextView):
     temp_range = (0, 0)
-    Cell = Cell
+    ScriptingCell = ScriptingCell
     def __init__(self, parent, id=-1,
                  pos=wx.DefaultPosition, size=wx.DefaultSize, style=0):
         self.init_clients()
@@ -472,7 +472,7 @@ class WXTextView(_WXTextView):
         client = self._clients.get_matching(cell)
         stream = Stream()
         client.execute(cell.input, stream.output)
-        new = self.Cell(cell.input, stream.model.texel, client.counter)
+        new = self.ScriptingCell(cell.input, stream.model.texel, client.counter)
 
         assert i0>=0
         assert i0+n<=len(self.model)
@@ -497,7 +497,7 @@ class WXTextView(_WXTextView):
         except NotFound:
             hascell = False
         if needscell and not hascell:
-            cell = self.Cell(NULL_TEXEL, NULL_TEXEL)
+            cell = self.ScriptingCell(NULL_TEXEL, NULL_TEXEL)
             self.model.insert(i, mk_textmodel(cell))
             info = self._remove, i, i+len(cell)
             self.add_undo(info)
@@ -526,7 +526,7 @@ def init_testing(redirect=True):
 def test_00():
     "cell"
     ns = init_testing(False)
-    cell = Cell(Characters(u'1234567890'), Characters(u'abcdefghij'))
+    cell = ScriptingCell(Characters(u'1234567890'), Characters(u'abcdefghij'))
     assert len(cell.input) == 10
     assert len(cell.output) == 10
     assert len(cell) == 23
@@ -539,16 +539,16 @@ def test_02():
     "execute"
     return # XXX skip this for now
     ns = init_testing(False)
-    cell = Cell(Characters(u'1+2'), Characters(u''))
+    cell = ScriptingCell(Characters(u'1+2'), Characters(u''))
     cell = cell.execute()
     assert cell.output.get_text() == '3'
 
-    cell = Cell(Characters(u'for a in range(2):\n    print a'),
-                Characters(u''))
+    cell = ScriptingCell(Characters(u'for a in range(2):\n    print a'),
+                         Characters(u''))
     cell = cell.execute()
     assert cell.output.get_text() == u'0\n1\n'
 
-    cell = Cell(Characters(u'asdsad'), Characters(u''))
+    cell = ScriptingCell(Characters(u'asdsad'), Characters(u''))
     cell = cell.execute()
     #print repr(cell.output.get_text())
     assert cell.output.get_text() == u'  File "In[3]", line 1, ' \
@@ -558,8 +558,8 @@ def test_03():
     "find_cell"
     tmp1 = TextModel(u'for a in range(3):\n    print a')
     tmp2 = TextModel(u'for a in range(10):\n    print a')
-    cell1 = Cell(tmp1.texel, Characters(u''))
-    cell2 = Cell(tmp2.texel, Characters(u''))
+    cell1 = ScriptingCell(tmp1.texel, Characters(u''))
+    cell2 = ScriptingCell(tmp2.texel, Characters(u''))
 
     model = TextModel('')
     model.insert(len(model), mk_textmodel(cell1))
@@ -576,7 +576,7 @@ def test_04():
     "copy cells"
     model = TextModel('')
     tmp = TextModel(u'for a in range(5):\n    print a')
-    cell = Cell(tmp.texel, Characters(u''))
+    cell = ScriptingCell(tmp.texel, Characters(u''))
     model.insert(len(model), mk_textmodel(cell))
     tmp = model.copy(0, len(model))
     model.insert(0, tmp)
@@ -584,12 +584,12 @@ def test_04():
 def test_05():
     "CellBox"
     empty = VGroup([])
-    cell1 = CellBox(empty, empty)
+    cell1 = ScriptingCellBox(empty, empty)
     check_box(cell1.input)
     check_box(cell1)
     #cell1.dump_boxes(0, 0, 0)
 
-    cell2 = CellBox(empty, empty)
+    cell2 = ScriptingCellBox(empty, empty)
     check_box(cell2)
     stack = VGroup([cell1, cell2])
     check_box(stack)
@@ -602,14 +602,14 @@ def test_05():
     t3 = TextBox("xyz")
     NL = NewlineBox()
     p1 = Paragraph([Row([t1, NL])])
-    cell1 = CellBox(
+    cell1 = ScriptingCellBox(
         VGroup([Paragraph([Row([t1, NL])]), Paragraph([Row([t2, NL])]),]), 
         Paragraph([Row([t3, NL])]))
 
     (j1, j2, inp), (k1, k2, outp) = cell1.iter_childs()
     assert (j1, j2) == (1, 23) # input box
 
-    cell2 = CellBox(Row([t3, NL]), empty)
+    cell2 = ScriptingCellBox(Row([t3, NL]), empty)
 
     g = VGroup([cell1, cell2])
 
@@ -643,7 +643,7 @@ output(figure)
 def test_10():
     "Factory"
     ns = init_testing(False)
-    cell = Cell(Characters(u'a'), Characters(u'b'))
+    cell = ScriptingCell(Characters(u'a'), Characters(u'b'))
     factory = Builder(TextModel(''))
     factory._clients.register(PythonClient())
     boxes = factory.create_all(cell)
@@ -663,7 +663,7 @@ def test_11():
     model = ns['model']
     model.remove(0, len(model))
     tmp = TextModel(u'for a in range(16):\n    print a')
-    cell = Cell(tmp.texel, Characters(u''))
+    cell = ScriptingCell(tmp.texel, Characters(u''))
     model.insert(len(model), mk_textmodel(cell))
 
     assert model.index2position(0) == (0, 0)
@@ -712,7 +712,7 @@ def test_12():
     model = ns['model']
     model.remove(0, len(model))
     tmp = TextModel(u'for a in range(5):\n    print a')
-    cell = Cell(tmp.texel, NULL_TEXEL)
+    cell = ScriptingCell(tmp.texel, NULL_TEXEL)
     model.insert(len(model), mk_textmodel(cell))
 
     assert find_cell(model.texel, 1) == (0, cell)
@@ -735,7 +735,7 @@ plot = figure.add_subplot ( 111 )
 plt.plot([1,2,3,4])
 plt.ylabel('some numbers')
 output(figure)''')
-    cell = Cell(tmp.texel, NULL_TEXEL)
+    cell = ScriptingCell(tmp.texel, NULL_TEXEL)
     model.insert(len(model), mk_textmodel(cell))
 
     assert find_cell(model.texel, 1) == (0, cell)
@@ -751,7 +751,7 @@ def test_14():
     model = ns['model']
     model.remove(0, len(model))
     tmp = TextModel(u'for a in range(5):\n    print a')
-    cell = Cell(tmp.texel, NULL_TEXEL)
+    cell = ScriptingCell(tmp.texel, NULL_TEXEL)
     model.insert(len(model), mk_textmodel(cell))
 
     assert find_cell(model.texel, 1) == (0, cell)
@@ -772,7 +772,7 @@ def test_15():
     ns = init_testing(False)
     model = ns['model']
     tmp = TextModel(u'for a in range(5):\n    print a')
-    cell = Cell(tmp.texel, NULL_TEXEL)
+    cell = ScriptingCell(tmp.texel, NULL_TEXEL)
     model.insert(len(model), mk_textmodel(cell))
     view = ns['view']
     assert view.get_word(12) == 'ra'

@@ -4,7 +4,7 @@
 import sys
 sys.path.insert(0, '..')
 
-from pynotebook.nbview import TextModel, WXTextView, Cell
+from pynotebook.nbview import TextModel, WXTextView, ScriptingCell
 from pynotebook.textformat import fromtext
 import wx
 
@@ -33,7 +33,7 @@ bmp
 
 def demo_00():
     app = wx.App(redirect=False)
-    model = fromtext(examples, Cell=Cell)
+    model = fromtext(examples, ScriptingCell=ScriptingCell)
 
     frame = wx.Frame(None)
     win = wx.Panel(frame, -1)
