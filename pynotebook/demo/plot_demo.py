@@ -10,7 +10,20 @@ import wx
 
 
 
-examples = r"""[In 0]:
+examples = r"""[Text]:
+Matplotlib Demo
+
+The notebook consists of cells: scripting cells and text cells. Scripting cells can be executed by moving the cursor in the cell and pressing shift + return. They have a input field (marked by "In") and an output field (marked - you guessed it - "Out"). Output usually consists of text printed to stdout or stderr by the python interpreter. This demo shows how to output graphics created by matplotlib.
+
+Try to execute the following cells.
+
+Notes:
+ - Use the tab-key to complete. 
+ - To create a new cell, place the cursor below any output cell and start typing. 
+ - You can copy, paste and delete cells.
+ - There is undo (ctrl-z) and redo (ctrl-u).
+
+[In 0]:
 import matplotlib
 matplotlib.use('Agg')
 from pylab import *
@@ -33,7 +46,7 @@ ax.set_title("A line plot on a polar axis", va='bottom')
 output(fig)
 
 [In 0]:
-fig # ... and again, this time without "output"!
+fig # ... and again, this time without an explicit call to "output"!
 [In 0]:
 from numpy import cos
 alpha = 0.7
@@ -62,8 +75,11 @@ output(fig)
 
 def demo_00():
     app = wx.App(redirect=False)
-    model = fromtext(examples, ScriptingCell=ScriptingCell)
-
+    model = fromtext(examples)
+    # Apply some formating (just to show we can)
+    model.set_properties(0, 16, fontsize=16, underline=True)
+    model.set_properties(0, 667, textcolor="#4D4D4D")
+    model.set_properties(459, 464, underline=True)
     frame = wx.Frame(None)
     win = wx.Panel(frame, -1)
     view = WXTextView(win, -1, style=wx.SUNKEN_BORDER)
@@ -72,12 +88,18 @@ def demo_00():
     box.Add(view, 1, wx.ALL|wx.GROW, 1)
     win.SetSizer(box)
     win.SetAutoLayout(True)
-
     frame.Show()
 
     if 0:
         from pynotebook.wxtextview import testing
         testing.pyshell(locals())
+
+    if 0:
+        import celleinspector
+        inspector = cellinspector.Inspector(frame)
+        inspector.model = view
+        inspector.Show()
+
     app.MainLoop()
 
 

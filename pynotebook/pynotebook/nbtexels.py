@@ -3,7 +3,7 @@
 
 from .textmodel.container import Container
 from .textmodel.textmodel import TextModel, dump_range
-from .textmodel.texeltree import Texel, Glyph, NL
+from .textmodel.texeltree import Texel, Glyph, Characters, NL
 
 import wx
 
@@ -18,6 +18,23 @@ def mk_textmodel(texel):
 
 class Cell(Container):
     pass
+
+
+class TextCell(Cell):
+    def __init__(self, text, **kwargs):
+        assert isinstance(text, Texel)
+        self.text = text
+        Cell.__init__(self, **kwargs)
+
+    def get_empties(self):
+        return NL, NL
+
+    def get_emptychars(self):
+        return '\n\n'
+
+    def get_content(self):
+        return self.text,
+
 
 
 class ScriptingCell(Cell):
@@ -82,3 +99,12 @@ class BitmapRGBA(Glyph):
 
 
 
+def test_00():
+    "TextCell"
+    cell = TextCell(Characters('0123456789'))
+    model = TextModel()
+    cellmodel = mk_textmodel(cell)
+    model.insert(0, cellmodel)
+    model.texel.dump()
+    model.insert_text(4, "xyz")
+    model.texel.dump()

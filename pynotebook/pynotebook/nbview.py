@@ -44,6 +44,99 @@ class ParagraphStack(VGroup):
 
 
 
+class TextCellBox(Box):
+    def __init__(self, textbox, device=None):
+        # NOTE: textbox should be a PargraphStack
+        if device is not None:
+            self.device=device
+        self.text = textbox
+        self.layout()
+
+    def from_childs(self, childs):
+        box = self.__class__(childs[0], self.device)
+        return [box]
+
+    def __len__(self):
+        return self.length
+
+    def create_group(self, l):
+        return VGroup(l, device=self.device)
+
+    def iter_boxes(self, i, x, y):
+        text = self.text
+        height = self.height
+        j1 = i+1
+        j2 = j1+len(text)
+        yield j1, j2, x+80, y, text
+
+    def layout(self):
+        # compute w and h
+        for j1, j2, x, y, child in self.iter_boxes(0, 0, 0):
+            w = x+child.width
+            h = y+child.height
+            dh = y+child.height+child.depth
+        self.width = w
+        self.height = h
+        self.depth = dh-h
+        self.length = j2
+
+    def __repr__(self):
+        return self.__class__.__name__+'(%s)' % \
+            (repr(self.text),)
+
+    def xxget_index(self, x, y):
+        if y<3:
+            return 0
+        elif y>=self.height-2:
+            return len(self)
+        return Box.get_index(self, x, y)
+
+    def extend_range(self, i1, i2):
+        if i1<=0 or i2>=len(self):
+            return 0, len(self)
+        return extend_range_seperated(self, i1, i2) # XXX STIMMT DAS?
+
+    def xxdraw(self, x, y, dc, styler):
+        a, b = list(self.iter_boxes(0, x, y))
+        styler.set_style(promptstyle)
+        n = self.number or ''
+        dc.DrawText("In[%s]:" % n, x, a[3])
+        dc.DrawText("Out[%s]:" % n, x, b[3])
+        Box.draw(self, x, y, dc, styler)
+
+    def draw_selection(self, i1, i2, x, y, dc):
+        if i1<=0 and i2>=self.length:
+            self.device.invert_rect(x, y, sepwidth, self.height, dc)
+        else:
+            Box.draw_selection(self, i1, i2, x, y, dc)
+
+    def responding_child(self, i, x0, y0): # XXX wird gebraucht um Cursor zu zeichen
+
+        # Index position n+1 usually is managed by a child object. We
+        # want the next object to be responsible, so we have to change
+        # the return behaviour.
+        if i == len(self):
+            return None, i, x0, y0 # None => kein Kind kümert sich darum
+        return Box.responding_child(self, i, x0, y0)
+
+    def get_cursorrect(self, i, x0, y0, style):
+        child, j, x1, y1 = self.responding_child(i, x0, y0)
+        if child is not None:
+            return child.get_cursorrect(i-j, x1, y1, style)
+        return self.get_rect(i, x0, y0)
+
+    def get_rect(self, i, x0, y0):
+        child, j, x1, y1 = self.responding_child(i, x0, y0)
+        if child is not None:
+            return child.get_rect(i-j, x1, y1)
+        if i == 0:
+            return Rect(x0, y0, sepwidth, y0+2)
+        assert i == len(self)
+        h = self.height
+        return Rect(x0, y0+h, sepwidth, y0+h+2)
+
+
+
 class ScriptingCellBox(Box):
     def __init__(self, inbox, outbox, number=0, device=None):
         # NOTE: Inbox and outbox should be PargraphStacks
@@ -162,6 +255,9 @@ def get_update_range(box, i1, i2):
         if j1<=i1<=i2<=j1:
             return j1, j2
         return min(i1, 0), max(i2, len(box))
+    if isinstance(box, TextCellBox):
+        return min(i1, 0), max(i2, len(box))
+
     for j1, j2, child in box.iter_childs():
         if i1 < j2 and j1 < i2: # overlap
             k1, k2 = get_update_range(child, i1-j1, i2-j1)
@@ -261,6 +357,13 @@ class Builder(_Builder):
         return self._layout
         
     ### Handlers
+    def TextCell_handler(self, texel, i1, i2):
+        textbox = self.create_parstack(texel.text, add_newline=True)
+        cell = TextCellBox(textbox, device=self.device)
+        assert len(cell) == len(texel)
+        return [cell]
+
+
     def ScriptingCell_handler(self, texel, i1, i2):
         assert i2<=len(texel)
         #print "ScriptingCell handler: (i1, i2)=", (i1, i2)
@@ -470,6 +573,9 @@ class WXTextView(_WXTextView):
 
     def execute(self):
         i0, cell = self.find_cell()
+        if not isinstance(cell, ScriptingCell):
+            self.index = i0+len(cell)
+            return
         n = len(cell)
         client = self._clients.get_matching(cell)
         stream = Stream()
