@@ -77,7 +77,7 @@ def demo_00():
     app = wx.App(redirect=False)
     model = fromtext(examples)
     # Apply some formating (just to show we can)
-    model.set_properties(0, 16, fontsize=16, underline=True)
+    model.set_properties(0, 16, fontsize=16, weight='bold', underline=True)
     model.set_properties(0, 667, textcolor="#4D4D4D")
     model.set_properties(459, 464, underline=True)
     frame = wx.Frame(None)
