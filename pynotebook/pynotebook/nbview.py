@@ -443,7 +443,7 @@ def common(s1, s2):
 
 
 
-class WXTextView(_WXTextView):
+class NBView(_WXTextView):
     temp_range = (0, 0)
     ScriptingCell = ScriptingCell
     def __init__(self, parent, id=-1,
@@ -620,7 +620,7 @@ def init_testing(redirect=True):
 
     frame = wx.Frame(None)
     win = wx.Panel(frame, -1)
-    view = WXTextView(win, -1, style=wx.SUNKEN_BORDER)
+    view = NBView(win, -1, style=wx.SUNKEN_BORDER)
     view.model = model
     box = wx.BoxSizer(wx.VERTICAL)
     box.Add(view, 1, wx.ALL|wx.GROW, 1)

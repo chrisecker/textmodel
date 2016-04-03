@@ -4,7 +4,7 @@
 import sys
 sys.path.insert(0, '..')
 
-from pynotebook.nbview import TextModel, WXTextView, ScriptingCell
+from pynotebook.nbview import TextModel, NBView, ScriptingCell
 from pynotebook.textformat import fromtext
 import wx
 
@@ -82,7 +82,7 @@ def demo_00():
     model.set_properties(459, 464, underline=True)
     frame = wx.Frame(None)
     win = wx.Panel(frame, -1)
-    view = WXTextView(win, -1, style=wx.SUNKEN_BORDER)
+    view = NBView(win, -1, style=wx.SUNKEN_BORDER)
     view.model = model
     box = wx.BoxSizer(wx.VERTICAL)
     box.Add(view, 1, wx.ALL|wx.GROW, 1)

@@ -127,14 +127,14 @@ class Inspector(wx.Frame, ViewBase):
 
 
 def demo_00():
-    from pynotebook.nbview import TextModel, WXTextView
+    from pynotebook.nbview import TextModel, NBView
     from pynotebook.nbtexels import TextCell, mk_textmodel
 
     app = wx.App(redirect=False)
 
     frame = wx.Frame(None)
     win = wx.Panel(frame, -1)
-    view = WXTextView(win, -1, style=wx.SUNKEN_BORDER)
+    view = NBView(win, -1, style=wx.SUNKEN_BORDER)
     box = wx.BoxSizer(wx.VERTICAL)
     box.Add(view, 1, wx.ALL|wx.GROW, 1)
     win.SetSizer(box)

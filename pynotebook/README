@@ -33,10 +33,10 @@ Basic usage
 
 ::
 
-    >>> from pynotebook.nbview import WXTextView
+    >>> from pynotebook.nbview import NBView
     >>> import wx
     >>> app = wx.App()
     >>> frame = wx.Frame(None)
-    >>> view = WXTextView(frame)
+    >>> view = NBView(frame)
     >>> frame.Show()
     >>> app.MainLoop()

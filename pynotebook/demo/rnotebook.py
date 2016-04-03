@@ -13,7 +13,7 @@ from pynotebook.clients import Client
 from pynotebook.pyclient import FakeFile
 from pynotebook.nbstream import StreamRecorder
 from pynotebook.nbtexels import ScriptingCell as _ScriptingCell
-from pynotebook.nbview import TextModel, WXTextView
+from pynotebook.nbview import TextModel, NBView
 from pynotebook.textformat import fromtext
 from pynotebook.textmodel import TextModel
 
@@ -144,7 +144,7 @@ def demo_00():
 
     frame = wx.Frame(None)
     win = wx.Panel(frame, -1)
-    view = WXTextView(win, -1, style=wx.SUNKEN_BORDER)
+    view = NBView(win, -1, style=wx.SUNKEN_BORDER)
     view.ScriptingCell = ScriptingCell
     view._clients.register(RClient())
     view.model = model
