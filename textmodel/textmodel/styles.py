@@ -54,24 +54,37 @@ def updated_style(style, properties):
     return create_style(**new)
 
 
+def get_style(texel, i):
+    if i < 0 or i >= length(texel):
+        raise IndexError(i)
+    if provides_childs(texel):
+        for i1,i2, child in iter_childs(texel):
+            if i1 <= i < i2:
+                return get_style(child, i-i1)
+    return texel.style
+
 def get_styles(texel, i1, i2):
+    assert i1 >= 0
+    assert i2 <= length(texel)
+    if i1 == i2:
+        return []
     if provides_childs(texel):
         styles = []
         for child in texel.childs:
             n = length(child)
-            if i1 < n and i2 >= 0:
-                new = get_styles(child, i1, i2)
-                if len(new) and len(styles):
+            if i1 < n and i2 > 0:
+                new = get_styles(child, i1, min(i2, n))
+                if len(new) and len(styles): # XXX REMOVE 0
                     head = new[0]
                     tail = styles[-1]
                     if head[1] is tail[1]:
                         styles = styles[:-1]+[(tail[0]+head[0], head[1])]+new[1:]
                         continue
                 styles = styles+new
-            i1 -= n
-            i2 -= n
+            i1 = max(0, i1-n)
+            i2 = max(0, i2-n)
         return styles
-    return [(length(texel), texel.style)]
+    return [(i2-i1, texel.style)]
         
 def merge_append(l, texel): # XXX remove this
     # besser: combine(l1,l2)
@@ -160,6 +173,11 @@ def set_styles(texel, i, iterator):
         assert False
 
 
+def set_properties(texel, i1, i2, **properties):
+    l1 = get_styles(texel, i1, i2)
+    l2 = [(n, updated_style(s, properties)) for n, s in l1]
+    return set_styles(texel, i1, StyleIterator(iter(l2)))
+
 
 def iter_d0(texel):
     l = [[texel]]
@@ -215,15 +233,33 @@ class TestContainer(Container):
 
 
 def test_00():
+    "get_style"
+    s10 = dict(size=10)
+    s12 = dict(size=12)
+    g = G([T("01", s10), 
+           T("23", s12), 
+           T("4567890", s10)])
+
+    #texeltree.dump(g)
+    assert get_style(g, 0) is s10
+    assert get_style(g, 2) is s12
+    assert get_style(g, 4) is s10
+
+def test_01():
     "get_styles"
     s10 = dict(size=10)
     s14 = dict(size=14)
     t = G([T("01234", s10), T("5678", s14)])
-    assert str(heal(t, 5)) == "G([T('01234'), T('5678')])"
+    #texeltree.dump(t)
+    assert get_styles(t, 0, 2) == [(2, s10)]
+    assert get_styles(t, 1, 3) == [(2, s10)]
+    assert get_styles(t, 2, 5) == [(3, s10)]
     assert get_styles(t, 0, 9) == [(5, s10), (4, s14)]
+    assert get_styles(t, 2, 4) == [(2, s10)]
+    assert get_styles(t, 5, 7) == [(2, s14)]
 
 
-def test_01():
+def test_02():
     "iter_d0"
     t1 = T("012345678")
     t2 = T("ABC")
@@ -267,6 +303,22 @@ def test_10():
     iterator = StyleIterator(iter([(10, s12)]))
     n = grouped(set_styles(g, 2, iterator))
     assert get_texts(n) == ['01', '23456789']
+
+
+def test_11():
+    "set_properties"
+    s10 = dict(size=10)
+    s12 = dict(size=12)
+    t = T("0123456789", s10)
+    g = grouped(set_properties(t, 2, 4, size=12))
+    #texeltree.dump(g)
+    #print get_styles(g, 0, 10)
+    assert get_styles(g, 0, 10) == [(2, s10), (2, s12), (6, s10)]
+
+
+
+
+
 
 if __name__ == '__main__':
     import alltests

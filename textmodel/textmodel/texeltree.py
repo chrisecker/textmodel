@@ -541,7 +541,7 @@ def get_text(texel):
     if texel.is_glyph or texel.is_text:
         return texel.text
     assert texel.is_group or texel.is_container
-    return u''.join([get_text(x) for x in element.childs])
+    return u''.join([get_text(x) for x in texel.childs])
 
 
 # ---- Debug Tools ---
@@ -663,7 +663,7 @@ def out(*args):
 def dump(texel, i=0):
     print (" "*i)+str(texel.__class__.__name__), texel.weights,
     if texel.is_text:
-        print repr(texel.text)
+        print repr(texel.text), texel.style
     else:
         print
     if texel.is_group or texel.is_container:
