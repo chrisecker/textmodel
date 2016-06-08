@@ -3,7 +3,10 @@
 from . import texeltree
 from .texeltree import G, T, Container, Glyph, length, _join, heal, provides_childs, \
     iter_childs, grouped, get_rightmost, get_leftmost, exchange_rightmost, remove_leftmost, \
-    can_merge, merge, join
+    can_merge, merge, join, is_root_efficient, is_homogeneous, calc_length
+
+
+debug = 1
 
 
 class StyleIterator:
@@ -26,10 +29,13 @@ class StyleIterator:
             self.finished = True
 
 
+
+style_pool = {}
+
+
 def hash_style(style):
     return tuple(sorted(style.items()))
 
-style_pool = {}
 
 def style_add((n1, style1), (n2, style2)):
     # used as argument for listjoin: listjoin(a, b, style_add)
@@ -63,9 +69,14 @@ def get_style(texel, i):
                 return get_style(child, i-i1)
     return texel.style
 
+
 def get_styles(texel, i1, i2):
-    assert i1 >= 0
-    assert i2 <= length(texel)
+    """
+    pre:
+        0 <= i1 <= i2 <= length(texel)
+    post:
+        style_length(__return__) == i2-i1
+    """
     if i1 == i2:
         return []
     if provides_childs(texel):
@@ -85,23 +96,16 @@ def get_styles(texel, i1, i2):
             i2 = max(0, i2-n)
         return styles
     return [(i2-i1, texel.style)]
-        
-def merge_append(l, texel): # XXX remove this
-    # besser: combine(l1,l2)
-
-    if not l:
-        return [texel]
-    last = l[-1]
-    a = get_rightmost(last) 
-    b = get_leftmost(texel)
-    if can_merge(a, b):
-        l.pop()
-        l.append(exchange_rightmost(last, merge(a, b)))
-        return l
-    return join(l, [textel])
 
 
 def _merge_join(l1, l2):
+    """
+    pre:
+       is_homogeneous(l1)
+       is_homogeneous(l2)
+    post:
+       calc_length(l1)+calc_length(l2) == calc_length(__return__)
+    """
     l1 = filter(length, l1) # strip off empty elements
     l2 = filter(length, l2) #
     if not l1:
@@ -121,7 +125,7 @@ def _merge_join(l1, l2):
     
 
 def merge_join(*args):
-    # like join(...) but also heal the arguments
+    """Like join(...) but also heal the arguments"""
     return reduce(_merge_join, args)
 
 
@@ -174,12 +178,14 @@ def set_styles(texel, i, iterator):
 
 
 def set_properties(texel, i1, i2, **properties):
+    """Sets text properties in $i1$...$i2$."""
     l1 = get_styles(texel, i1, i2)
     l2 = [(n, updated_style(s, properties)) for n, s in l1]
     return set_styles(texel, i1, StyleIterator(iter(l2)))
 
 
 def iter_d0(texel):
+    """Iterate through all depth-zero elements. """
     l = [[texel]]
     i1 = 0
     while l:
@@ -198,6 +204,7 @@ def iter_d0(texel):
 
 
 def iter_leaves(texel):
+    """Iterate through all leaf-elements """
     l = [[texel]]
     i1 = 0
     while l:
@@ -215,6 +222,15 @@ def iter_leaves(texel):
                     break
 
 
+# -- debug --
+
+def style_length(styles):
+    n = 0
+    for i, s in styles:
+        n += i
+    return n
+
+
 def get_texts(texel):
     # for debugging
     if provides_childs(texel):
@@ -230,6 +246,12 @@ def get_texts(texel):
 class TestContainer(Container):
     def __init__(self, childs):
         self.childs = childs
+
+
+
+if debug: # enable contract checking
+     import contract
+     contract.checkmod(__name__)
 
 
 def test_00():
