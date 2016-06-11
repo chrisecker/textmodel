@@ -5,13 +5,13 @@
 # Wir brauchen genau 4 Elemente in dem Texelbaum:
 # - Gruppen
 # - Container
-# - Glyphs
+# - Singles
 # - Text
 #
-# Text sind allgmein Sequenzen von Glyphs (Arrays). Container
+# Text sind allgmein Sequenzen von Singles (Arrays). Container
 # sind die Basis für Tabellen und Formeln. Die 4 Grundelemente lassen
 # sich unterteilen in Child-Elemente (Gruppen, Container) und
-# Blattelemente (Glyphs und Text).
+# Blattelemente (Singles und Text).
 #
 # Anders als in biserigen Entwürfen gibt es keine leeren
 # Indexpositionen. Das bedeutet für den Container, dass er ganz anders
@@ -27,12 +27,14 @@
 #
 # 
 
+from copy import copy as shallow_copy
+
 
 debug = 1
 nmax = 15
 
 def set_nmax(n):
-    """Sets $nmax$ to the value $i$.
+    """Sets *nmax* to the value *i*.
 
        The value nmax determines the number of childs per group (which
        should be between nmax/2 and nmax for efficient trees).
@@ -43,17 +45,21 @@ def set_nmax(n):
 EMPTYSTYLE = {}
 
 class Texel:
-    is_glyph = 0
+    is_single = 0
     is_container = 0
     is_group = 0
     is_text = 0
     weights = (0, 0, 0) # depth, length, lineno
 
 
-class Glyph(Texel):
-    is_glyph = 1
+class Single(Texel):
+    is_single = 1
     weights = (0, 1, 0)
     style = EMPTYSTYLE
+
+    def __init__(self, style=None):
+        if style:
+            self.style = style
 
     def set_style(self, style):
         clone = shallow_copy(self)
@@ -119,7 +125,7 @@ class Container(_TexelWithChilds):
         return r
         
 
-class NewLine(Glyph):
+class NewLine(Single):
     weights = (0, 1, 1)
     style = EMPTYSTYLE
     parstyle = EMPTYSTYLE
@@ -138,7 +144,7 @@ class EndMark(NewLine):
     pass
 
 
-class Tabulator(Glyph):
+class Tabulator(Single):
     text = u'\t'
 
     def __repr__(self):
@@ -171,7 +177,7 @@ def depth(texel):
 
 
 def length(texel):
-    """Returns the length of $texel$ in index units."""
+    """Returns the length of *texel* in index units."""
     return texel.weights[1]
 
 
@@ -190,44 +196,59 @@ def iter_childs(texel):
         i1 = i2    
 
 
-def replace_childs(texel, i1, i2, stuff):
-    """Replace all child texels in $i1$...$i2$ by the elements in list
-$stuff$."""
-    assert texel.is_group or texel.is_container
-    assert 0 <= i1 <= i2 <= length(texel)
-    stuff = filter(length, stuff) 
-    r1 = []
-    r2 = []
-    for j1, j2, item in iter_childs(texel):
-        if j2 <= i1:
-            r1.append(item)
-        elif j1 >= i2:
-            r2.append(item)
-        elif i1 <= j1 <= j2 <= i2:
-            # Item is beeing replaced
-            pass
+def iter_d0(texel): # not needed, but might be useful in future
+    """Iterate through all depth-zero elements. """
+    l = [[texel]]
+    i1 = 0
+    while l:
+        ll = l[-1]
+        elem = ll[0]
+        del ll[0]
+        if elem.is_group:
+            l.append(list(elem.childs))
         else:
-            # Item overlaps i1, i2. This is not allowed!
-            raise IndexError((i1, i2))
-        j1 = j2
-    if texel.is_container:
-        return texel.set_childs(r1+stuff+r2)        
-    return groups(join(r1, stuff, r2))
+            i2 = i1+length(elem)
+            yield i1, i2, elem
+            while l and not l[-1]:
+                l.pop()
+
+
+def iter_leaves(texel): # not needed, but might be useful in future
+    """Iterate through all leaf-elements """
+    l = [[texel]]
+    i1 = 0
+    while l:
+        ll = l[-1]
+        elem = ll[0]
+        del ll[0]
+        if elem.is_group or elem.is_container:
+            l.append(list(elem.childs))
+        else:
+            i2 = i1+length(elem)
+            yield i1, i2, elem
+            while l and not l[-1]:
+                l.pop()
 
 
 def groups(l):
-    """Transform the list of texels $l$ into a list of groups.
+    """Transform the list of texels *l* into a list of groups.
 
-       If texels have depth d, groups will have depth d+1.
+       If texels have depth d, groups will have depth d+1. All
+       returned groups are efficient.
 
        pre:
            is_elementlist(l)
-           is_homogeneous(l)
+           is_list_efficient(l)
+           is_clean(l)
+           len(l) >= nmax/2 # XXX
 
        post[l]:
            is_homogeneous(__return__)
            calc_length(l) == calc_length(__return__)
            #out("groups check: ok")
+           #is_list_efficient(__return__) # XXX
+           depth(__return__[0]) == depth(l[0])+1
+
     """
     r = []
     N = len(l)
@@ -250,6 +271,16 @@ def groups(l):
 
 
 def _join(l1, l2):
+    """
+    pre:
+       is_homogeneous(l1)
+       is_homogeneous(l2)
+       is_clean(l1)
+       is_clean(l2)
+    post:
+       is_clean(__return__)
+       calc_length(l1)+calc_length(l2) == calc_length(__return__)
+    """
     l1 = filter(length, l1) # strip off empty elements
     l2 = filter(length, l2) #
     if not l1:
@@ -275,55 +306,110 @@ def join(*args):
 
        pre:
            forall(args, is_elementlist)
-           forall(args, is_homogeneous)
-
+           forall(args, is_list_efficient)
        post[args]:
            is_homogeneous(__return__)
+           is_clean(__return__)
            sum([calc_length(x) for x in args]) == calc_length(__return__)
            #out("join check: ok")
     """
     return reduce(_join, args)
 
 
-def insert(element, i, stuff):
-    """Inserts the list $stuff$ at position $i$.
+def _fuse(l1, l2):
+    """
+    pre:
+       is_homogeneous(l1)
+       is_homogeneous(l2)
+       is_clean(l1)
+       is_clean(l2)
+    post:
+       is_clean(__return__)
+       is_homogeneous(l2)
+       calc_length(l1)+calc_length(l2) == calc_length(__return__)
+    """
+    l1 = filter(length, l1) # strip off empty elements
+    l2 = filter(length, l2) #
+    if not l1:
+        return l2
+    if not l2:
+        return l1
+    t1 = l1[-1]
+    t2 = l2[0]
+    left = get_rightmost(t1)
+    right = get_leftmost(t2)
+    if can_merge(left, right):
+        new = merge(left, right)
+        l1.pop()
+        l1.append(exchange_rightmost(t1, new))
+        return join(l1, remove_leftmost(t2), l2[1:])
+    return _join(l1, l2)
+    
 
-       Returns a list of elements. Unlike simple_insert, stuff can
-       contain elements with depth>0.  Note that insert can increase
-       the elements depth. The returned list is always homogeneous.
+def fuse(*args):
+    """Like join(...) but also merge the arguments if possible.
+
+       The returned list is homogeneous.
 
        pre:
-           isinstance(element, Texel)
-           is_elementlist(stuff)
-           is_homogeneous(stuff)
+           forall(args, is_elementlist)
+           forall(args, is_homogeneous)
 
-       post[element, stuff]:
-           calc_length(__return__) == length(element)+calc_length(stuff)
+       post[args]:
            is_homogeneous(__return__)
+           is_clean(__return__)
+           sum([calc_length(x) for x in args]) == calc_length(__return__)
+           #out("join check: ok")
     """
-    if not 0 <= i <= length(element):
+    return reduce(_fuse, args)
+
+
+def insert(texel, i, stuff):
+    """Inserts the list *stuff* at position *i*.
+
+       *Texel* must be root-efficient, *stuff* must be
+       list-efficient. Note that insert can increase the texels
+       depth. The returned list is always list efficient.
+
+       pre:
+           isinstance(texel, Texel)
+           is_elementlist(stuff)
+           is_list_efficient(stuff)
+
+       post:
+           calc_length(__return__) == length(texel)+calc_length(stuff)
+           is_list_efficient(__return__)
+           is_clean(__return__)
+
+    """
+    if not 0 <= i <= length(texel):
         raise IndexError(i)
-    if element.is_group or element.is_container:
+    if texel.is_group or texel.is_container:
         k = -1
-        for i1, i2, child in iter_childs(element):
+        for i1, i2, child in iter_childs(texel):
             k += 1
             if i1 <= i <= i2:
-                new = insert(child, i-i1, stuff)
-                # XXX this can change the number of childs and is
-                # therefore not correct for containers!                  
-                # XXX and this can change the depth!
-                return replace_childs(element, i1, i2, new)
-    return join(copy(element, 0, i), stuff, copy(element, i, length(element)))
+                l = insert(child, i-i1, stuff)
+                r1 = texel.childs[:k]
+                r2 = texel.childs[k+1:]
+                if texel.is_container:
+                    return texel.set_childs(r1+[grouped(l)]+r2)
+                return join(r1, l, r2)
+    return join(copy(texel, 0, i), stuff, copy(texel, i, length(texel)))
 
 
 def takeout(texel, i1, i2):
-    """Takes out all content between $i1$ and $i2$.
+    """Takes out all content between *i1* and *i2*.
 
-    Returns the rest and the cut out piece, i.e.
+    Returns the rest and the cut out piece (kernel), i.e.
     G([a, b, c]).takeout(i1, i2) will return G([a, c]), b.
+
+    *Texel* must be root efficient. Kernel and rest are guaranteed to
+    be list efficient. Depths can change.
 
     pre:
         is_root_efficient(texel)
+        #out(texel, i1, i2)
 
     post:
         is_elementlist(__return__[0])
@@ -335,17 +421,24 @@ def takeout(texel, i1, i2):
         #out("takeout", texel, i1, i2)
         #out(__return__[0])
         #out(__return__[1])
+        #dump_list(__return__[0])
+        is_clean(__return__[0])
+        is_clean(__return__[1])
         is_list_efficient(__return__[0])
         is_list_efficient(__return__[1])
+
     """
-    if not (0 <= i1 <= i2 <= length(texel)):
+    if not (0 <= i1 <= i2 <= length(texel)): 
         raise IndexError([i1, i2])
-    if not length(texel):
+    if not length(texel): # 1. empty texel
         return [], []
-    if i1 == i2:
-        return [texel], []
-    if i1 <= 0 and i2 >= length(texel):
-        return [], [texel]
+    if i1 == i2:          # 2. empty interval
+        return strip2list(texel), []
+    if i1 <= 0 and i2 >= length(texel): # 3. fully contained
+        return [], strip2list(texel)
+
+    # Note that singles always fall under case 2 or 3. Beyond ths
+    # point we only have G, C or T.
 
     if texel.is_group:
         r1 = []; r2 = []; r3 = []; r4 = []
@@ -366,58 +459,65 @@ def takeout(texel, i1, i2):
             elif i2 <= j1:
                 r4.append(child)
         # Note that we are returning a list of elements which have
-        # been in the content before. Therefore, we are decreasing the
-        # depth by 1 (or more). This is the reason why the returned
-        # lists are list_efficient. The correctness of the approach
-        # can be seen from full induction.
-        return join(r1, r2, r3, r4), join(k1, k2, k3)
+        # been in the content before. So even if texel is only root
+        # efficient, the elements muss be element efficient.  Each of
+        # the list r1, r2, r3, r4 and k1, k2, k3 is
+        # homogeneous. Therefore join gives us list efficient return
+        # values.
+        if not is_clean(r2):
+            dump_list(r2)
+        if not is_clean(r3):
+            dump_list(r3)
+
+        tmp = fuse(r2, r3)
+        return join(r1, tmp, r4), join(k1, k2, k3)
         
     elif texel.is_container:
         for k, (j1, j2, child) in enumerate(iter_childs(texel)):
             if  i1 < j2 and j1 < i2: # test of overlap
                 if not (j1 <= i1 and i2 <= j2):
                     raise IndexError((i1, i2))
-                childs = list(texel.childs) # list erzeugt immer eine Kopie!
-                tmp, kern = takeout(
+                childs = list(texel.childs) # Note: this always creates a new list!
+                tmp, kernel = takeout(
                     child, max(0, i1-j1), min(len(self), i2-j1))
                 childs[k] = grouped(tmp)
-                return [texel.set_childs(childs)], kern
+                return [texel.set_childs(childs)], kernel
         raise IndexError((i1, i2))
 
     elif texel.is_text:
-        r1 = self.text[:i1]
-        r2 = self.text[i2:]
-        r3 = self.text[i1:i2]
-        s = self.style
+        r1 = texel.text[:i1]
+        r2 = texel.text[i2:]
+        r3 = texel.text[i1:i2]
+        s = texel.style
         return [Text(r1+r2, s)], [Text(r3, s)]
 
     assert False
 
 
 def copy(root, i1, i2):
-    """Copy all content of $root$ between $i1$ and $i2$.
+    """Copy all content of *root* between *i1* and *i2*.
 
        pre:
            isinstance(root, Texel)
 
-       post[i1, i2]:
+       post:
            calc_length(__return__) == (i2-i1)
     """
     return takeout(root, i1, i2)[1]
 
 
 def grouped(stuff):
-    """Creates a single group from the list of texels $stuff$.
+    """Creates a single group from the list of texels *stuff*.
 
        If the number of texels exceeds nmax, subgroups are formed.
-       Therefore, the depth can increase. Note that stuff is not
-       allowed to be empty.
+       Therefore, the depth can increase. 
 
        pre:
            is_elementlist(stuff)
            is_homogeneous(stuff)
+           is_clean(stuff) 
            
-       post[stuff]:
+       post:
            length(__return__) == calc_length(stuff)
     """
     while len(stuff) > nmax:
@@ -427,8 +527,7 @@ def grouped(stuff):
 
 
 def strip(element):
-    """Removes unnecessary Group-elements from the root.
-    """
+    """Removes unnecessary Group-elements from the root."""
     n = length(element)
     while element.is_group and len(element.childs) == 1:
         element = element.childs[0]
@@ -436,8 +535,20 @@ def strip(element):
     return element
 
 
+def strip2list(texel):
+    """Returns a list of texels which is list efficient. 
+       pre:
+           is_root_efficient(texel)
+       post:
+           is_list_efficient(__return__)
+    """
+    if texel.is_group:
+        return texel.childs
+    return [texel]
+
+
 def provides_childs(texel):
-    """Returns True if $texel$ provides the childs_interface."""
+    """Returns True if *texel* provides the childs_interface."""
     return texel.is_group or texel.is_container
 
 
@@ -454,11 +565,11 @@ def get_leftmost(element):
 
 
 def exchange_rightmost(element, new):
-    """Replace the rightmost subelement of $element$ by $new$.
+    """Replace the rightmost subelement of *element* by *new*.
 
        pre:
            depth(new) == 0
-       post[element]:
+       post:
            depth(__return__) == depth(element)
     """
     if provides_childs(element):
@@ -468,15 +579,20 @@ def exchange_rightmost(element, new):
 
 
 def remove_leftmost(element):
-    """Removes the leftmost subelement of $element$.
+    """Removes the leftmost subelement of *element*. Returns a list.
 
-       Note that this function can return an empty group.
-       Also note, that this function can change the depth. 
+       Note that this function can change the depth. 
+
+       post:
+           is_homogeneous(__return__)
+           is_list_efficient(__return__)
     """
-    if element.is_group:
-        l = remove_leftmost(element.childs[0])
-        return Group([l]+element.childs[1:])
-    return Group([])
+
+    if length(element) == 0 or depth(element) == 0:
+        return []
+
+    l = remove_leftmost(element.childs[0])
+    return join(l, element.childs[1:])
 
 
 def can_merge(texel1, texel2):
@@ -485,60 +601,22 @@ def can_merge(texel1, texel2):
 
 
 def merge(texel1, texel2):
-    """Merge the rightmost child of $texel1$ with the leftmost child of
-$texel2$.
+    """Merge the rightmost child of *texel1* with the leftmost child of
+*texel2*.
 
        pre:
            isinstance(texel1, Texel)
            isinstance(texel2, Texel)
            can_merge(texel1, texel2)
 
-       post[texel1, texel2]:
+       post:
            length(__return__) == length(texel1)+length(texel2)
     """
     return Text(texel1.text+texel2.text, texel1.style)
 
 
-def _heal(element, i):
-    n = length(element)
-    if not provides_childs(element):
-        return [element]
-    last_child = None
-    l1 = None # indices of last texel
-    l2 = None # 
-    for i1, i2, child in iter_childs(element):
-        if i1 == i and last_child is not None and i1 == l2:
-            left = get_rightmost(last_child)
-            right = get_leftmost(child)
-            if can_merge(left, right):
-                new = merge(left, right)
-                # XXX UNFIXED BUG: remove_can change the depth!
-                l = [exchange_rightmost(last_child, new),
-                     remove_leftmost(child)]
-                return replace_childs(element, l1, i2, l)
-
-        elif i1 < i < i2:
-            return replace_childs(element, i1, i2, _heal(child, i-i1))
-        last_child = child
-        l1 = i1
-        l2 = i2
-    return [element]
-
-
-def heal(element, *indices):
-    """Do a heal operation at positions $indices$ of element.
-
-       post[element]:
-           length(__return__) == length(element)
-    """
-    n = length(element)
-    for i in indices:
-        element = grouped(_heal(element, i))
-    return element
-
-
 def get_text(texel):
-    if texel.is_glyph or texel.is_text:
+    if texel.is_single or texel.is_text:
         return texel.text
     assert texel.is_group or texel.is_container
     return u''.join([get_text(x) for x in texel.childs])
@@ -549,15 +627,47 @@ def extract_text(element): # XXX REMOVE?
     # for testing
     if type(element) in (list, tuple):
         return u''.join([extract_text(x) for x in element])
-    elif element.is_text or element.is_glyph:
+    elif element.is_text or element.is_single:
         return element.text
     return u''.join([extract_text(x) for x in element.childs])
 
 
+def get_pieces(texel):
+    """For debugging: returns a list of text pieces in *texel*."""
+    if type(texel) == list:
+        texel = grouped(texel)
+    if provides_childs(texel):
+        r = []
+        for child in texel.childs:
+            r.extend(get_pieces(child))
+        return r
+    if texel.is_text:
+        return [texel.text]
+    return [' '] # Glyph
+
+
 def calc_length(l):
-    """Calculates the total length of all elements in list $l$."""
+    """Calculates the total length of all elements in list *l*."""
     return sum([length(x) for x in l])
 
+
+def xxis_clean(l):
+    """Returns True if no element in list *l* has zero length. """
+    for texel in l:
+        if length(texel) == 0:
+            return False
+    return True
+
+def is_clean(l):
+    """Returns True if no element in list *l* has zero length. """
+    for texel in l:                
+        if length(texel) == 0:
+            return False
+        if provides_childs(texel):
+            if not is_clean(texel.childs):
+                return False
+    return True
+    
 
 def is_homogeneous(l):
     """Returns True if the elements in list *l* are homogeneous.
@@ -567,8 +677,8 @@ def is_homogeneous(l):
     return maxdepth(l) == mindepth(l)
 
 
-def is_element_efficient(element):
-    """Returns True if $element$ is efficient.
+def is_efficient(element):
+    """Returns True if *element* is efficient.
 
        An element is efficient, if it is not a group or otherwise if
        all of the following criteria are fulfilled:
@@ -594,20 +704,20 @@ def is_element_efficient(element):
 
 
 def is_list_efficient(l):
-    """Returns True if the list of $l$ of elements is efficient.
+    """Returns True if each element in the list *l* is efficient.
     """
     if not is_homogeneous(l):
         return False
     for element in l:
-        if not is_element_efficient(element):
+        if not is_efficient(element):
             return False
     return True
 
 
 def is_root_efficient(root):
-    """Returns True if $root$ is efficient.
+    """Returns True if *root* is efficient.
 
-       The tree spawned by $root$ is efficient if it is either not a
+       The tree spawned by *root* is efficient if it is either not a
        group or otherwise if it fulfills all of the following
        conditions:
 
@@ -629,7 +739,7 @@ def is_group(element):
 
 
 def is_elementlist(l):
-    """Returns True if $l$ is a list of Elements.
+    """Returns True if *l* is a list of Elements.
     """
     if not type(l) in (tuple, list):
         print "not a list or tuple", type(l), l.__class__ # XXX remove this
@@ -638,7 +748,7 @@ def is_elementlist(l):
 
 
 def maxdepth(l):
-    """Computes the maximal depth of all elements in list $l$.
+    """Computes the maximal depth of all elements in list *l*.
     """
     m = [depth(x) for x in l if length(x)]
     if not m:
@@ -647,7 +757,7 @@ def maxdepth(l):
 
 
 def mindepth(l):
-    """Computes the minimal depth of all elements in list $l$.
+    """Computes the minimal depth of all elements in list *l*.
     """
     m = [depth(x) for x in l if length(x)]
     if not m:
@@ -669,16 +779,17 @@ def dump(texel, i=0):
     if texel.is_group or texel.is_container:
         for i1, i2, child in iter_childs(texel):
             dump(child, i+2)
-
+    return True
 
 
 def dump_list(l):
     print "Dumping list (efficient: %s)" % is_list_efficient(l)
     for i, element in enumerate(l):
         print "Dumping element no. %i" % i,
-        print "(efficient: %s)" % is_element_efficient(element)
+        print "(efficient: %s)" % is_efficient(element)
         dump(element)
     return True
+
 
 # --- Singeltons ---
 TAB = Tabulator()
@@ -686,17 +797,12 @@ NL = NewLine()
 ENDMARK = EndMark()
 
 
-
-
-
-
 # --- Tests ---
 G = Group
 T = Text
 
 
-if debug:
-     #enable contract checking
+if debug: # enable contract checking
      import contract
      contract.checkmod(__name__)
 
@@ -724,12 +830,12 @@ def test_05():
     set_nmax(3)
     g = Group([T("a"), T("b"), T("c")])
     assert depth(g) == 1
-    assert repr(insert(g, 0, [T("d")])) == \
-        "[G([C('d'), C('a')]), G([C('b'), C('c')])]"
+    n = grouped(insert(g, 0, [T("d")]))
+    assert repr(n) == "G([G([T('d'), T('a')]), G([T('b'), T('c')])])"
 
 
 def test_06():
-    "efficient insert / takeout"
+    "maintaining tree efficency in insert / takeout"
     set_nmax(3)
     texel = Group([])
     import random
@@ -761,15 +867,33 @@ def test_07():
 
 
 def test_08():
-    "heal"
-    t = G([T("01234"), T("56789")])
-    assert str(heal(t, 5)) == "T('0123456789')"
+    "fuse"
+    l1 = [T("01234")]
+    l2 = [T("56789")]
+    t = fuse([G(l1)], l2)
+    assert get_pieces(t) == ['0123456789']
 
-    t = G([G([T("01234")]), G([T("56789")])])
-    assert str(heal(t, 5)) == "T('0123456789')"
+    t = fuse([G(l1)], [G(l2)])
+    assert get_pieces(t) == ['0123456789']
 
-    t = G([G([T("01234")]), T("56789")])
-    assert str(heal(t, 5)) == "T('0123456789')"
+    t = fuse(l1, [G(l2)])
+    assert get_pieces(t) == ['0123456789']
+
+
+def test_09():
+    "iter_d0"
+    t1 = T("012345678")
+    t2 = T("ABC")
+    t3 = T("xyz")
+    c = Container().set_childs((t2, t3))
+    g = G((t1, c))
+    #texeltree.dump(g)
+    l = []
+    for i1, i2, elem in iter_d0(g):
+        l.append((i1, i2, elem))
+    assert repr(l) == "[(0, 9, T('012345678')), (0, 6, C([T('ABC'), T('xyz')]))]"
+    
+
 
 
 if __name__ == '__main__':
