@@ -62,6 +62,15 @@ def get_style(texel, i):
     return texel.style
 
 
+def fuse_styles(l1, l2):
+    if len(l1) and len(l2):
+        tail = l1[-1]
+        n, style = l2[0]
+        if tail[1] is style:
+            return l1[:-1]+[(tail[0]+n, style)]+l2[1:]
+    return l1+l2
+
+
 def get_styles(texel, i1, i2):
     """
     pre:
@@ -72,21 +81,16 @@ def get_styles(texel, i1, i2):
     if i1 == i2:
         return []
     if provides_childs(texel):
+        j1 = i1
+        j2 = i2
         styles = []
         for child in texel.childs:
             n = length(child)
-            if i1 < n and i2 > 0:
-                new = get_styles(child, i1, min(i2, n))
-                if len(new) and len(styles):
-                    head = new[0]
-                    tail = styles[-1]
-                    if head[1] is tail[1]:
-                        styles = styles[:-1]+[(tail[0]+head[0], head[1])] \
-                                 +new[1:]
-                        continue
-                styles = styles+new
-            i1 = max(0, i1-n)
-            i2 = max(0, i2-n)
+            if j1 < n and j2 > 0:
+                new = get_styles(child, j1, min(j2, n))
+                styles = fuse_styles(styles, new)
+            j1 = max(0, j1-n)
+            j2 = max(0, j2-n)
         return styles
     return [(i2-i1, texel.style)]
 
