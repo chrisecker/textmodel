@@ -79,12 +79,6 @@ class Text(Texel):
 
 
 class _TexelWithChilds(Texel):
-    functions = (
-        lambda l:max(l)+1, 
-        sum,               
-        sum,               
-        )
-
     def compute_weights(self):
         if len(self.childs): # for empty groups, we use the default weights
             w_list = zip(*[child.weights for child in self.childs])
@@ -94,6 +88,11 @@ class _TexelWithChilds(Texel):
 
 class Group(_TexelWithChilds):
     is_group = 1
+    functions = (
+        lambda l:max(l)+1, 
+        sum,               
+        sum)
+
     def __init__(self, childs):
         self.childs = childs
         self.compute_weights()
@@ -105,6 +104,10 @@ class Group(_TexelWithChilds):
 
 class Container(_TexelWithChilds):
     is_container = 1
+    functions = (
+        lambda l:0,
+        sum,               
+        sum)
         
     def set_childs(self, childs):
         clone = shallow_copy(self)
@@ -120,7 +123,7 @@ class Container(_TexelWithChilds):
         r = []
         for i1, i2, child in iter_childs(self):
             if not is_separator:
-                r.append(i1, i2)
+                r.append((i1, i2))
             is_separator = not is_separator
         return r
         
@@ -153,7 +156,7 @@ class Tabulator(Single):
 
 class Fraction(Container):
     def __init__(self, denominator, nominator):
-        self.childs = (TAB, denominator, TAB, nominator, TAB)
+        self.childs = [TAB, denominator, TAB, nominator, TAB]
         self.compute_weights()
     
 
@@ -240,7 +243,6 @@ def groups(l):
            is_elementlist(l)
            is_list_efficient(l)
            is_clean(l)
-           len(l) >= nmax/2 # XXX
 
        post[l]:
            is_homogeneous(__return__)
@@ -384,7 +386,7 @@ def insert(texel, i, stuff):
     """
     if not 0 <= i <= length(texel):
         raise IndexError(i)
-    if texel.is_group or texel.is_container:
+    if texel.is_group:
         k = -1
         for i1, i2, child in iter_childs(texel):
             k += 1
@@ -392,10 +394,24 @@ def insert(texel, i, stuff):
                 l = insert(child, i-i1, stuff)
                 r1 = texel.childs[:k]
                 r2 = texel.childs[k+1:]
-                if texel.is_container:
-                    return texel.set_childs(r1+[grouped(l)]+r2)
                 return join(r1, l, r2)
-    return join(copy(texel, 0, i), stuff, copy(texel, i, length(texel)))
+    elif texel.is_container:
+        left, right = zip(*texel.get_spans())
+        k = -1
+        for i1, i2, child in iter_childs(texel):
+            k += 1
+            if (i1 < i < i2) or ((i1 <= i <= i2) and (i1 in left or i2 in right)):
+                l = insert(child, i-i1, stuff)
+                r1 = texel.childs[:k]
+                r2 = texel.childs[k+1:]
+                return [texel.set_childs(r1+[grouped(l)]+r2)]
+        if i == 0:
+            return join(stuff, [texel])
+        elif i == length(texel):
+            return join([texel], stuff)
+        assert False
+
+    return fuse(copy(texel, 0, i), stuff, copy(texel, i, length(texel)))
 
 
 def takeout(texel, i1, i2):
@@ -705,6 +721,8 @@ def is_efficient(element):
 
 def is_list_efficient(l):
     """Returns True if each element in the list *l* is efficient.
+       pre:
+           isinstance(l, list)
     """
     if not is_homogeneous(l):
         return False
@@ -894,6 +912,24 @@ def test_09():
     assert repr(l) == "[(0, 9, T('012345678')), (0, 6, C([T('ABC'), T('xyz')]))]"
     
 
+def test_10():
+    "insert in container"
+    fraction = Fraction(T("Sin(alpha)"), T("Cos(alpha)"))
+    t = T("X") #, dict(color='red'))
+    l = insert(fraction, 0, [t])
+    assert get_pieces(grouped(l)) == ['X', ' ', 'Sin(alpha)', ' ', 'Cos(alpha)', ' ']
+    l = insert(fraction, 1, [t])
+    assert get_pieces(grouped(l)) == [' ', 'XSin(alpha)', ' ', 'Cos(alpha)', ' ']
+    l = insert(fraction, 2, [t])
+    assert get_pieces(grouped(l)) == [' ', 'SXin(alpha)', ' ', 'Cos(alpha)', ' ']
+    l = insert(fraction, 11, [t])
+    assert get_pieces(grouped(l)) == [' ', 'Sin(alpha)X', ' ', 'Cos(alpha)', ' ']
+    l = insert(fraction, 12, [t])
+    assert get_pieces(grouped(l)) == [' ', 'Sin(alpha)', ' ', 'XCos(alpha)', ' ']
+    l = insert(fraction, 22, [t])
+    assert get_pieces(grouped(l)) == [' ', 'Sin(alpha)', ' ', 'Cos(alpha)X', ' ']
+    l = insert(fraction, 23, [t])
+    assert get_pieces(grouped(l)) == [' ', 'Sin(alpha)', ' ', 'Cos(alpha)', ' ', 'X']
 
 
 if __name__ == '__main__':
