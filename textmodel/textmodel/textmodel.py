@@ -83,7 +83,7 @@ class TextModel(Model):
     def get_xtexel(self):
         """Returns the texel tree extended by an ENDMARK glyph."""
         texel = self.texel
-        return grouped([texel, ENDMARK])
+        return Group([texel, ENDMARK])
 
     def nlines(self):
         """Returns the number of lines."""
@@ -561,7 +561,7 @@ def test_12():
 def test_13():
     'ENDMARK'
     t = TextModel(text1+'\n'+text2)
-    assert len(t.get_xtexel()) == len(t.texel)+1
+    assert length(t.get_xtexel()) == length(t.texel)+1
     #t.extended_texel().dump()
 
 def heavy_test():
@@ -573,10 +573,10 @@ def heavy_test():
 
 def test_14():
     "random insert/remove"
-    TextModel.defaultstyle.clear()
-    TextModel.defaultstyle['s'] = 10
+    class TestModel(TextModel):
+        defaultstyle = create_style(s=10)
 
-    model = TextModel(u'0123')
+    model = TestModel(u'0123')
     from random import randrange, choice
 
 
@@ -594,7 +594,7 @@ def test_14():
 
         size = choice([6, 8, 10, 14])
 
-        model.insert(i1, TextModel(text, s=size))
+        model.insert(i1, TestModel(text, s=size))
 
         assert not "C(u'')" in str(model.texel)
 
