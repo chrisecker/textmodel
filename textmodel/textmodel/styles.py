@@ -2,7 +2,8 @@
 
 from . import texeltree
 from .texeltree import G, T, length, grouped, provides_childs, iter_childs, \
-    is_root_efficient, is_homogeneous, calc_length, get_pieces, fuse
+    is_root_efficient, is_list_efficient, is_homogeneous, calc_length, \
+    get_pieces, fuse, EMPTYSTYLE
 
 
 debug = 1
@@ -29,7 +30,7 @@ class StyleIterator:
 
 
 
-style_pool = {}
+style_pool = {():EMPTYSTYLE}
 
 
 def hash_style(style):
@@ -105,8 +106,7 @@ def set_styles(texel, i, iterator):
        post:
            #out(__return__)
            is_homogeneous(__return__)
-           #out("texel:", length(texel))
-           #out("return:", calc_length(__return__))
+           is_list_efficient(__return__)
            length(texel) == calc_length(__return__)
     """
 
@@ -219,10 +219,8 @@ def test_10():
             iterator.advance(1)
             i += 1
     g = grouped(set_styles(t, 2, iterator))
-    #texeltree.dump(g)    
     assert get_pieces(g) == ['01', '23', '45678', '9']
 
-    #texeltree.dump(g)    
     iterator = StyleIterator(iter([(10, s10)]))
     n = grouped(set_styles(g, 0, iterator))
     assert get_pieces(n) == ['0123456789']
@@ -243,15 +241,7 @@ def test_11():
     t = T("0123456789", s10)
     g = grouped(set_properties(t, 2, 4, dict(size=12)))
     #texeltree.dump(g)
-    #print get_styles(g, 0, 10)
     assert get_styles(g, 0, 10) == [(2, s10), (2, s12), (6, s10)]
 
 
-
-
-
-
-if __name__ == '__main__':
-    import alltests
-    alltests.dotests()
     

@@ -4,12 +4,14 @@
 from .texeltree import length, provides_childs, iter_childs, Texel
 
 
+debug = 1
+
 
 class NotFound(Exception): 
     pass
 
 
-# Warning: The following helper functions for searching indices only
+# NOTE: The following helper functions for searching indices only
 # work with certain weight functions. They will work for weights
 # aggregated by 'sum', such as lengths and line numbers. But trying to
 # find depth values will lead to unexpected and unpredicted behaviour.
@@ -65,3 +67,8 @@ def get_weight(texel, windex, i):
             else:
                 break
     return w
+
+
+if debug: # enable contract checking
+     import contract
+     contract.checkmod(__name__)

@@ -303,8 +303,7 @@ def pycolorize(rawtext, coding='latin-1'):
 
 
 
-if debug:
-     #enable contract checking
+if debug: # enable contract checking
      import contract
      contract.checkmod(__name__)
 

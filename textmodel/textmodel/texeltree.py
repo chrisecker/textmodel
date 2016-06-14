@@ -1,31 +1,5 @@
 # -*- coding: latin-1 -*-
 
-# Siehe Notizbuch um den 8. Mai 2016
-#
-# Wir brauchen genau 4 Elemente in dem Texelbaum:
-# - Gruppen
-# - Container
-# - Singles
-# - Text
-#
-# Text sind allgmein Sequenzen von Singles (Arrays). Container
-# sind die Basis für Tabellen und Formeln. Die 4 Grundelemente lassen
-# sich unterteilen in Child-Elemente (Gruppen, Container) und
-# Blattelemente (Singles und Text).
-#
-# Anders als in biserigen Entwürfen gibt es keine leeren
-# Indexpositionen. Das bedeutet für den Container, dass er ganz anders
-# implementiert wird, als bisher. Beispielsweise der Bruch würde wie
-# folgt realisiert:
-#
-# Bruch(Container):
-#   - TAB
-#   - Nenner
-#   - TAB
-#   - Zähler
-#   - TAB
-#
-# 
 
 from copy import copy as shallow_copy
 
@@ -44,6 +18,8 @@ def set_nmax(n):
 
 EMPTYSTYLE = {}
 
+
+# ---- Tree objects ----
 class Texel:
     is_single = 0
     is_container = 0
@@ -76,6 +52,7 @@ class Text(Texel):
 
     def __repr__(self):
         return "T(%s)" % repr(self.text)
+T = Text
 
 
 class _TexelWithChilds(Texel):
@@ -99,6 +76,7 @@ class Group(_TexelWithChilds):
 
     def __repr__(self):
         return 'G(%s)' % repr(list(self.childs))
+G = Group
 
 
 
@@ -155,10 +133,15 @@ class Tabulator(Single):
 
 
 class Fraction(Container):
+    # A simple math object for debugging
     def __init__(self, denominator, nominator):
         self.childs = [TAB, denominator, TAB, nominator, TAB]
         self.compute_weights()
     
+
+TAB = Tabulator()
+NL = NewLine()
+ENDMARK = EndMark()
 
 # ---- functions -----
 def depth(texel):
@@ -382,7 +365,6 @@ def insert(texel, i, stuff):
            calc_length(__return__) == length(texel)+calc_length(stuff)
            is_list_efficient(__return__)
            is_clean(__return__)
-
     """
     if not 0 <= i <= length(texel):
         raise IndexError(i)
@@ -400,7 +382,8 @@ def insert(texel, i, stuff):
         k = -1
         for i1, i2, child in iter_childs(texel):
             k += 1
-            if (i1 < i < i2) or ((i1 <= i <= i2) and (i1 in left or i2 in right)):
+            if (i1 < i < i2) or \
+               ((i1 <= i <= i2) and (i1 in left or i2 in right)):
                 l = insert(child, i-i1, stuff)
                 r1 = texel.childs[:k]
                 r2 = texel.childs[k+1:]
@@ -493,7 +476,7 @@ def takeout(texel, i1, i2):
             if  i1 < j2 and j1 < i2: # test of overlap
                 if not (j1 <= i1 and i2 <= j2):
                     raise IndexError((i1, i2))
-                childs = list(texel.childs) # Note: this always creates a new list!
+                childs = list(texel.childs) # this always creates a new list!
                 tmp, kernel = takeout(
                     child, max(0, i1-j1), min(len(self), i2-j1))
                 childs[k] = grouped(tmp)
@@ -631,6 +614,29 @@ def merge(texel1, texel2):
     return Text(texel1.text+texel2.text, texel1.style)
 
 
+def compute_hull(texel, i1, i2, i0=0):
+    if texel.is_text or texel.is_single:
+        return i1, i2
+    elif texel.is_container:
+        overlapp = False
+        for j1, j2 in texel.get_spans():
+            if j1+i0 <= i1 <= i2 <= j2+i0: # inside
+                overlapp = True
+                continue
+            if i1 < j2+i0 and j1+i0 < i2: # overlapp but not inside
+                overlapp = True
+                i1 = min(i1, j1+i0)
+                i2 = max(i2, j2+i0)
+        if not overlapp:
+            i1 = min(i0, i1)
+            i2 = max(i0+length(texel), i1)
+
+    for j1, j2, child in iter_childs(texel):
+        if j1+i0 <= i1 <= i2 <= j2+i0:
+            i1, i2 = compute_hull(child, i1, i2, i0+j1)
+    return i1, i2
+
+
 def get_text(texel):
     if texel.is_single or texel.is_text:
         return texel.text
@@ -639,14 +645,6 @@ def get_text(texel):
 
 
 # ---- Debug Tools ---
-def extract_text(element): # XXX REMOVE?
-    # for testing
-    if type(element) in (list, tuple):
-        return u''.join([extract_text(x) for x in element])
-    elif element.is_text or element.is_single:
-        return element.text
-    return u''.join([extract_text(x) for x in element.childs])
-
 
 def get_pieces(texel):
     """For debugging: returns a list of text pieces in *texel*."""
@@ -666,13 +664,6 @@ def calc_length(l):
     """Calculates the total length of all elements in list *l*."""
     return sum([length(x) for x in l])
 
-
-def xxis_clean(l):
-    """Returns True if no element in list *l* has zero length. """
-    for texel in l:
-        if length(texel) == 0:
-            return False
-    return True
 
 def is_clean(l):
     """Returns True if no element in list *l* has zero length. """
@@ -809,50 +800,39 @@ def dump_list(l):
     return True
 
 
-# --- Singeltons ---
-TAB = Tabulator()
-NL = NewLine()
-ENDMARK = EndMark()
-
-
-# --- Tests ---
-G = Group
-T = Text
-
+# ---- Testing ----
 
 if debug: # enable contract checking
      import contract
      contract.checkmod(__name__)
 
 
-def test_04():
+def test_00():
     "insert"
     set_nmax(4)
     s = G([T('1'), T('2'), T('3')])
     element = G([s, s, s])
 
-    tmp = insert(element, 3, [T('X'), T('Y')])
-    assert depth(grouped(tmp)) == depth(element)
-    assert extract_text(tmp) == '123XY123123'
+    tmp = grouped(insert(element, 3, [T('X'), T('Y')]))
+    assert depth(tmp) == depth(element)
+    assert get_pieces(tmp) == ['1', '2', '3X', 'Y', '1', '2', '3', '1', '2', '3']
 
     tmp = insert(element, 3, [G([T('X'), T('Y')])])
     assert depth(grouped(tmp)) == depth(element)
-    assert extract_text(tmp) == '123XY123123'
-
-    tmp = insert(grouped(tmp), 3, [G([T('Z'), T('#')])])
-    assert extract_text(tmp) == '123Z#XY123123'
+    assert get_pieces(tmp) == ['1', '2', '3X', 'Y', '1', '2', '3', '1', '2', '3']
 
 
-def test_05():
+def test_01():
     "growth in insert"
     set_nmax(3)
     g = Group([T("a"), T("b"), T("c")])
     assert depth(g) == 1
+    assert get_pieces(g) == ['a', 'b', 'c']
     n = grouped(insert(g, 0, [T("d")]))
-    assert repr(n) == "G([G([T('d'), T('a')]), G([T('b'), T('c')])])"
+    assert get_pieces(n) == ['da', 'b', 'c']
 
 
-def test_06():
+def test_02():
     "maintaining tree efficency in insert / takeout"
     set_nmax(3)
     texel = Group([])
@@ -875,7 +855,7 @@ def test_06():
     assert is_root_efficient(texel)
 
 
-def test_07():
+def test_03():
     "depth"
     assert depth(Text('abc')) == 0
     assert depth(G([Text('abc')])) == 1
@@ -884,7 +864,7 @@ def test_07():
     assert depth(element) == 3
 
 
-def test_08():
+def test_04():
     "fuse"
     l1 = [T("01234")]
     l2 = [T("56789")]
@@ -898,7 +878,7 @@ def test_08():
     assert get_pieces(t) == ['0123456789']
 
 
-def test_09():
+def test_05():
     "iter_d0"
     t1 = T("012345678")
     t2 = T("ABC")
@@ -912,7 +892,7 @@ def test_09():
     assert repr(l) == "[(0, 9, T('012345678')), (0, 6, C([T('ABC'), T('xyz')]))]"
     
 
-def test_10():
+def test_06():
     "insert in container"
     fraction = Fraction(T("Sin(alpha)"), T("Cos(alpha)"))
     t = T("X") #, dict(color='red'))
@@ -931,8 +911,25 @@ def test_10():
     l = insert(fraction, 23, [t])
     assert get_pieces(grouped(l)) == [' ', 'Sin(alpha)', ' ', 'Cos(alpha)', ' ', 'X']
 
+    elem = fraction
+    text = "0123456789"
+    for i in range(len(text)):
+        tmp = insert(elem, 12, [T(text[i])])
+        elem = grouped(tmp)
+    assert get_pieces(elem) == [' ', 'Sin(alpha)', ' ', '9876543210Cos(alpha)', ' ']
 
-if __name__ == '__main__':
-    import alltests
-    alltests.dotests()
+
+def test_07():
+    "compute_hull"
+    fraction = Fraction(T("Sin(alpha)"), T("Cos(alpha)"))
+    n = length(fraction)
+    assert compute_hull(fraction, 0, 1) == (0, n)
+    assert compute_hull(fraction, 1, 2) == (1, 2)
+    assert compute_hull(fraction, 2, 3) == (2, 3)
+    assert compute_hull(fraction, 9, 11) == (9, 11)
+    assert compute_hull(fraction, 11, 12) == (0, n)
+    assert compute_hull(fraction, n-2, n-1) == (n-2, n-1)
+    assert compute_hull(fraction, n-1, n) == (0, n)
+
+
     
