@@ -96,14 +96,9 @@ class Container(_TexelWithChilds):
     def __repr__(self):
         return 'C(%s)' % repr(list(self.childs))
 
-    def get_spans(self):
-        is_separator = True
-        r = []
-        for i1, i2, child in iter_childs(self):
-            if not is_separator:
-                r.append((i1, i2))
-            is_separator = not is_separator
-        return r
+    def get_mutability(self):
+        return [i%2==1 for i in range(len(self.childs))]
+
         
 
 class NewLine(Single):
@@ -168,9 +163,14 @@ def length(texel):
 
 
 def spans(texel):
-    if not texel.is_container:
-        return 0, length(texel)
-    return texel.get_spans()
+    r = []
+    mutable = texel.get_mutability()
+    k = -1    
+    for i1, i2, child in iter_childs(texel):
+        k += 1
+        if mutable[k]:
+            r.append((i1, i2))
+    return r
 
 
 def iter_childs(texel):
@@ -378,12 +378,11 @@ def insert(texel, i, stuff):
                 r2 = texel.childs[k+1:]
                 return join(r1, l, r2)
     elif texel.is_container:
-        left, right = zip(*texel.get_spans())
+        mutable = texel.get_mutability()
         k = -1
         for i1, i2, child in iter_childs(texel):
             k += 1
-            if (i1 < i < i2) or \
-               ((i1 <= i <= i2) and (i1 in left or i2 in right)):
+            if (i1 < i < i2) or ((i1 <= i <= i2) and mutable[k]):
                 l = insert(child, i-i1, stuff)
                 r1 = texel.childs[:k]
                 r2 = texel.childs[k+1:]
@@ -619,7 +618,7 @@ def compute_hull(texel, i1, i2, i0=0):
         return i1, i2
     elif texel.is_container:
         overlapp = False
-        for j1, j2 in texel.get_spans():
+        for j1, j2 in spans(texel):
             if j1+i0 <= i1 <= i2 <= j2+i0: # inside
                 overlapp = True
                 continue
@@ -670,7 +669,7 @@ def is_clean(l):
     for texel in l:                
         if length(texel) == 0:
             return False
-        if provides_childs(texel):
+        if texel.is_group:
             if not is_clean(texel.childs):
                 return False
     return True
@@ -917,6 +916,16 @@ def test_06():
         tmp = insert(elem, 12, [T(text[i])])
         elem = grouped(tmp)
     assert get_pieces(elem) == [' ', 'Sin(alpha)', ' ', '9876543210Cos(alpha)', ' ']
+
+    fraction = Fraction(T(""), T("Cos(alpha)"))
+    l = insert(fraction, 0, [t])
+    assert get_pieces(grouped(l)) == ['X', ' ', '', ' ', 'Cos(alpha)', ' ']
+
+    l = insert(fraction, 1, [t])
+    assert get_pieces(grouped(l)) == [' ', 'X', ' ', 'Cos(alpha)', ' ']
+
+    l = insert(fraction, 2, [t])
+    assert get_pieces(grouped(l)) == [' ', '', ' ', 'XCos(alpha)', ' ']
 
 
 def test_07():
