@@ -245,3 +245,6 @@ def test_11():
 
 
     
+if debug: # enable contract checking
+     import contract
+     contract.checkmod(__name__)
