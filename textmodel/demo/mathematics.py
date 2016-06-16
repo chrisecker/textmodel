@@ -2,9 +2,8 @@
 
 """This demo shows how to extend the texel tree by introducing new
 container types. We create two types which can be used for
-typesdetting math: fraction and root. We then create a text, simulate
-some editing operations by the user and print out the resulting text.
-
+typesetting math: fraction and root. We then create a text, simulate
+some editing operations by the user and print out the result.
 """
 
 import sys
