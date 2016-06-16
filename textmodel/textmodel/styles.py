@@ -3,7 +3,7 @@
 from . import texeltree
 from .texeltree import G, T, length, grouped, provides_childs, iter_childs, \
     is_root_efficient, is_list_efficient, is_homogeneous, calc_length, \
-    get_pieces, fuse, EMPTYSTYLE
+    get_pieces, fuse, EMPTYSTYLE, NL, NewLine
 
 
 debug = 1
@@ -19,6 +19,7 @@ class StyleIterator:
         self.advance(0)
         
     def advance(self, m):
+        #print "advance", m
         self.total += m
         self.n -= m
         try:
@@ -155,12 +156,90 @@ def set_styles(texel, i, iterator):
     assert False
 
 
+
 def set_properties(texel, i1, i2, properties):
     """Sets text properties in $i1$...$i2$."""
     l1 = get_styles(texel, i1, i2)
     l2 = [(n, updated_style(s, properties)) for n, s in l1]
     return set_styles(texel, i1, StyleIterator(iter(l2)))
 
+
+
+def get_parstyles(texel, i1, i2):
+    """
+    pre:
+        0 <= i1 <= i2 <= length(texel)
+    post:
+        style_length(__return__) == i2-i1
+    """
+    if i1 == i2:
+        return []
+    if provides_childs(texel):
+        j1 = i1
+        j2 = i2
+        styles = []
+        for child in texel.childs:
+            n = length(child)
+            if j1 < n and j2 > 0:
+                new = get_parstyles(child, j1, min(j2, n))
+                styles = fuse_styles(styles, new)
+            j1 = max(0, j1-n)
+            j2 = max(0, j2-n)
+        return styles
+    if isinstance(texel, NewLine):
+        return [(i2-i1, texel.parstyle)]
+    return [(i2-i1, EMPTYSTYLE)]
+
+
+
+def set_parstyles(texel, i, iterator):
+    """Sets the paragraph styles from position $i$ on.
+
+       pre:
+           is_root_efficient(texel)
+       post:
+           #out(__return__)
+           is_homogeneous(__return__)
+           is_list_efficient(__return__)
+           length(texel) == calc_length(__return__)
+    """
+    if texel.is_group:
+        r1 = []; r2 = []; r3 = []
+        for j1, j2, child in iter_childs(texel):
+            if j2 <= i:
+                r1.append(child)
+            elif iterator.finished:
+                r3.append(child)
+            else:
+                r2 = fuse(r2, set_parstyles(child, i-j1, iterator))
+        return fuse(r1, r2, r3)
+    elif isinstance(texel, NewLine):
+        if i >= 1:
+            return [texel]
+        new = texel.set_parstyle(iterator.style)
+        iterator.advance(1)
+        return [new]
+    elif texel.is_container:
+        r1 = []; r2 = []; r3 = []
+        for j1, j2, child in iter_childs(texel):
+            if j2 <= i:
+                r1.append(texel)
+            elif iterator.finished:
+                r3.append(texel)
+            else:
+                r2.append(grouped(set_parstyles(child, i-j1, iterator)))
+        assert len(r2) == 1
+        return texel.set_childs(r1+r2+r3)
+    iterator.advance(length(texel)-max(0, i))
+    return [texel]
+
+
+
+def set_parproperties(texel, i1, i2, properties):
+    """Sets paragraph properties in $i1$...$i2$."""
+    l1 = get_parstyles(texel, i1, i2)
+    l2 = [(n, updated_style(s, properties)) for n, s in l1]
+    return set_parstyles(texel, i1, StyleIterator(iter(l2)))
 
 
 # -- debug --
@@ -244,7 +323,12 @@ def test_11():
     assert get_styles(g, 0, 10) == [(2, s10), (2, s12), (6, s10)]
 
 
-    
-if debug: # enable contract checking
-     import contract
-     contract.checkmod(__name__)
+def test_12():
+    "set_parstyles"
+    t = grouped([T("0123456789"), NL, T("abcdef"), NL]) 
+    iterator = StyleIterator(iter([(10, {'bold':True})]))
+    g = grouped(set_parstyles(t, 5, iterator))
+    texeltree.dump(g)
+
+    print get_parstyles(g, 0, length(g))
+

@@ -782,6 +782,8 @@ def dump(texel, i=0):
     print (" "*i)+str(texel.__class__.__name__), texel.weights,
     if texel.is_text:
         print repr(texel.text), texel.style
+    elif isinstance(texel, NewLine):
+        print texel.parstyle
     else:
         print
     if texel.is_group or texel.is_container:

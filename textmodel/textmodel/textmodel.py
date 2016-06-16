@@ -5,14 +5,15 @@ from .texeltree import Text, Group, NewLine, Tabulator, insert, takeout, \
     ENDMARK, is_homogeneous, provides_childs, grouped, length, iter_childs, depth, \
     is_list_efficient, is_root_efficient, strip2list
 from .styles import updated_style, create_style, get_styles, set_styles, \
-    get_style, set_properties, StyleIterator
+    get_style, set_properties, get_parstyles, set_parstyles, set_parproperties, \
+    StyleIterator
 from .weights import find_weight, get_weight, NotFound
 from .modelbase import Model
 import re
 
 
 
-debug = 1
+debug = 0
 
 
 
@@ -59,6 +60,7 @@ class TextModel(Model):
 
     def __init__(self, text=u'', **properties):
         style = updated_style(self.defaultstyle, properties)
+        self.ENDMARK = ENDMARK.set_style(style)
         l = []
         text = text.replace('\r', '')
         for part in _split(text):
@@ -83,7 +85,7 @@ class TextModel(Model):
     def get_xtexel(self):
         """Returns the texel tree extended by an ENDMARK glyph."""
         texel = self.texel
-        return Group([texel, ENDMARK])
+        return Group([texel, self.ENDMARK])
 
     def nlines(self):
         """Returns the number of lines."""
@@ -185,12 +187,30 @@ class TextModel(Model):
         self.notify_views('properties_changed', i, i+n)
         return memo
 
+    def set_parproperties(self, i1, i2, **properties):
+        """Sets the paragraph properties between *i1* and *i2*."""
+        memo = get_parstyles(self.texel, i1, i2)
+        self.texel = grouped(
+            set_parproperties(self.texel, i1, i2, properties))
+        #assert check(self.texel)
+        self.notify_views('properties_changed', i1, i2)
+        return memo
+
+    def set_parstyles(self, i, styles):
+        """Sets the paragraph style of a span of text. Usually used by undo."""
+        n = sum([entry[0] for entry in styles])
+        memo = get_styles(self.texel, i, i+n)
+        iterator = StyleIterator(iter(styles))
+        self.texel = grouped(
+            set_parstyles(self.texel, i, iterator))
+        self.notify_views('properties_changed', i, i+n)
+        return memo
+
     def insert(self, i, text):
         """Inserts *text* at position *i*."""
-        
-        if not isinstance(text, TextModel):
-            return self.insert_text(i, text)
 
+        if not isinstance(text, self.__class__):
+            raise TypeError("Wrong type: %s" % type(other))        
         row, col = self.index2position(i)
         n = length(self.texel) + length(text.texel)
 
@@ -206,11 +226,17 @@ class TextModel(Model):
 
     def append(self, text):
         """Appends textmodel *texel*."""
+        if not isinstance(text, self.__class__):
+            raise TypeError("Wrong type: %s" % type(other))
         return self.insert(len(self), text)
 
-    def insert_text(self, i, text):
+    def append_text(self, text, **properties):
+        """Appends unicode text."""
+        return self.insert_text(len(self), text, **properties)
+
+    def insert_text(self, i, text, **properties):
         """Inserts a unicode text string *text* at index *i*.""" 
-        textmodel = self.create_textmodel(text)
+        textmodel = self.create_textmodel(text, **properties)
         d = depth(self.texel)
         self.insert(i, textmodel)
         assert depth(self.texel) <= d+1
@@ -223,6 +249,12 @@ class TextModel(Model):
         rest, removed = takeout(self.texel, i1, i2)
         model = self.create_textmodel()
         model.texel = grouped(removed)
+        return model
+
+    def __add__(self, other):
+        model = self.create_textmodel()
+        model.texel = self.texel
+        model.insert(len(self), other)
         return model
 
     def __getitem__(self, slice):
