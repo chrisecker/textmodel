@@ -174,7 +174,7 @@ def get_parstyles(texel, i1, i2):
     """
     if i1 == i2:
         return []
-    if provides_childs(texel):
+    if texel.weights[2]>0 and provides_childs(texel):
         j1 = i1
         j2 = i2
         styles = []
@@ -186,7 +186,7 @@ def get_parstyles(texel, i1, i2):
             j1 = max(0, j1-n)
             j2 = max(0, j2-n)
         return styles
-    if isinstance(texel, NewLine):
+    elif isinstance(texel, NewLine):
         return [(i2-i1, texel.parstyle)]
     return [(i2-i1, EMPTYSTYLE)]
 
@@ -203,6 +203,10 @@ def set_parstyles(texel, i, iterator):
            is_list_efficient(__return__)
            length(texel) == calc_length(__return__)
     """
+    if not texel.weights[2]:
+        iterator.advance(length(texel)-max(0, i))
+        return [texel]
+
     if texel.is_group:
         r1 = []; r2 = []; r3 = []
         for j1, j2, child in iter_childs(texel):
@@ -230,9 +234,7 @@ def set_parstyles(texel, i, iterator):
                 r2.append(grouped(set_parstyles(child, i-j1, iterator)))
         assert len(r2) == 1
         return texel.set_childs(r1+r2+r3)
-    iterator.advance(length(texel)-max(0, i))
-    return [texel]
-
+    assert False
 
 
 def set_parproperties(texel, i1, i2, properties):
