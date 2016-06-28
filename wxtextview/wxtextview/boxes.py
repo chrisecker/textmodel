@@ -1,14 +1,10 @@
 # -*- coding: latin-1 -*-
 
-
-from ..textmodel import listtools, treebase
-from ..textmodel.texeltree import defaultstyle
-from ..textmodel.treebase import grouped as _grouped
-from ..textmodel.treebase import groups
+from textmodel.texeltree import EMPTYSTYLE
 from .testdevice import TESTDEVICE
 from .rect import Rect
 from math import ceil
-
+import textmodel
 
 
 # Coordinates:
@@ -20,6 +16,79 @@ from math import ceil
 #     |                |
 #     |                |
 #     |__________(width, height+depth)
+
+
+nmax = 15
+
+def calc_length(l):
+    """Calculates the total length of all elements in list *l*."""
+    return sum([len(x) for x in l])
+
+
+def groups(l):
+    """Transform the list of texels *l* into a list of groups.
+
+       If texels have depth d, groups will have depth d+1. All
+       returned groups are efficient.
+
+       pre:
+           is_elementlist(l)
+           is_list_efficient(l)
+           is_clean(l)
+
+       post[l]:
+           is_homogeneous(__return__)
+           calc_length(l) == calc_length(__return__)
+           #out("groups check: ok")
+           #is_list_efficient(__return__) # XXX
+           depth(__return__[0]) == depth(l[0])+1
+
+    """
+    r = []
+    N = len(l)
+    if N == 0:
+        return r
+    create_group = l[0].create_group
+
+    n = N // nmax
+    if n*nmax < N:
+        n = n+1
+    rest = n*nmax-N
+
+    a = nmax-float(rest)/n
+    b = a
+    while l:
+        i = int(b+1e-10)
+        r.append(create_group(l[:i]))
+        l = l[i:]
+        b = b-i+a
+    return r
+
+
+def grouped(stuff):
+    """Creates a single group from the list of boxes *stuff*.
+
+       If the number of boxes exceeds nmax, subgroups are formed.
+
+       post:
+           length(__return__) == calc_length(stuff)
+    """
+    if len(stuff) == 0:
+        raise ValueError("Need at least on element to group.")
+        
+    while len(stuff) > nmax:
+        stuff = groups(stuff)
+    g = stuff[0].create_group(stuff)
+    return strip(g)
+
+
+def strip(element):
+    """Removes unnecessary Group-boxes."""
+    n = len(element)
+    while element.is_group and len(element.childs) == 1:
+        element = element.childs[0]
+    assert n == len(element)
+    return element
 
 
 class Box:
@@ -155,10 +224,11 @@ class Box:
         # absolute coordinates.
         child, j, x1, y1 = self.responding_child(i, x0, y0)
         if child is None:
-            w, h = self.device.measure('M', defaultstyle)
             if i == len(self):
-                x1 += self.width # rechts neben die Box
-            return Rect(x1, y1+self.height, x1+w, y1+self.height-h)
+                # XXX is this a goo choice for the fallback?
+                return Rect(x1, y1+self.height, x1+self.width, y1)
+            # XXX this too?
+            return Rect(x1, y1+self.height, x1, y1)
         return child.get_rect(i-j, x1, y1)
 
     def get_cursorrect(self, i, x0, y0, style):
@@ -302,7 +372,7 @@ class _TextBoxBase(Box):
 
 
 class TextBox(_TextBoxBase):
-    def __init__(self, text, style=defaultstyle, device=None):
+    def __init__(self, text, style=EMPTYSTYLE, device=None):
         self.text = text
         self.style = style
         if device is not None:
@@ -314,7 +384,7 @@ class NewlineBox(_TextBoxBase):
     text = '\n'
     width = 0
     weights = (0, 1)
-    def __init__(self, style=defaultstyle, device=None):        
+    def __init__(self, style=EMPTYSTYLE, device=None):        
         self.style = style
         if device is not None:
             self.device = device
@@ -337,7 +407,7 @@ class NewlineBox(_TextBoxBase):
 class TabulatorBox(_TextBoxBase):
     text = ' ' # XXX for now we treat tabs like spaces
     weights = (0, 1) 
-    def __init__(self, style=defaultstyle, device=None):        
+    def __init__(self, style=EMPTYSTYLE, device=None):        
         self.style = style
         if device is not None:
             self.device = device
@@ -352,7 +422,7 @@ class EndBox(_TextBoxBase):
     text = chr(27)
     width = 0
     weights = (0, 1)
-    def __init__(self, style=defaultstyle, device=None):
+    def __init__(self, style=EMPTYSTYLE, device=None):
         self.style = style
         if device is not None:
             self.device = device
@@ -370,7 +440,7 @@ class EmptyTextBox(_TextBoxBase):
     text = ""
     width = 0
     weights = (0, 0)
-    def __init__(self, style=defaultstyle, device=None):
+    def __init__(self, style=EMPTYSTYLE, device=None):
         self.style = style
         if device is not None:
             self.device = device
@@ -417,7 +487,7 @@ class ChildBox(Box):
         return self.length
 
     def from_childs(self, childs):
-        while len(childs)>treebase.nmax:
+        while len(childs) > nmax:
             childs = groups(childs)
         return [self.__class__(childs, self.device)]
 
@@ -437,7 +507,7 @@ class ChildBox(Box):
         self.width = w1
         self.height = h1
         self.depth = h2-h1
-        self.length = listtools.calc_length(self.childs)
+        self.length = calc_length(self.childs)
 
         # h0 and w0 describe the overlapp to the left and to the right
         # respectively. They might be useful in derived classes. We
@@ -466,7 +536,7 @@ class HBox(ChildBox):
         self.width = w
         self.height = h
         self.depth = d
-        self.length = listtools.calc_length(self.childs)
+        self.length = calc_length(self.childs)
 
 
 class Row(HBox):
@@ -500,7 +570,7 @@ class SimpleGroupBox(ChildBox):
 
     def layout(self):
         # all dimensions are left to 0
-        self.length = listtools.calc_length(self.childs)
+        self.length = calc_length(self.childs)
 
 
 
@@ -518,12 +588,6 @@ class VGroup(VBox):
     def create_group(self, l):
         return VGroup(l, device=self.device)
 
-
-def grouped(stuff):    
-    if not len(stuff):
-        return SimpleGroupBox(stuff) 
-    return _grouped(stuff)
-    
 
 def replace_boxes(box, i1, i2, stuff):
     # Recursively replace everything between $i1$ and $i2$ by
@@ -609,27 +673,27 @@ def check_box(box, texel=None):
     if texel is None:
         return True
 
-    # All index positions which can be selected must be copyable
-    calc_length = listtools.calc_length
-    for i in range(len(box)):
-        j1, j2 = box.extend_range(i, i+1)
-        rest, part = texel.takeout(j1, j2)
-        assert calc_length(part) == j2-j1
-        assert calc_length(rest)+calc_length(part) == len(texel)
+    if 0:
+        # All index positions which can be selected must be copyable
+        for i in range(len(box)):
+            j1, j2 = box.extend_range(i, i+1)
+            rest, part = texel.takeout(j1, j2)
+            assert calc_length(part) == j2-j1
+            assert calc_length(rest)+calc_length(part) == len(texel)
 
-    for i in range(len(box)):
-        if i+2>len(box):
-            continue
-        j1, j2 = box.extend_range(i, i+2)        
-        rest, part = texel.takeout(j1, j2)
-        assert calc_length(part) == j2-j1
-        assert calc_length(rest)+calc_length(part) == len(texel)
+        for i in range(len(box)):
+            if i+2>len(box):
+                continue
+            j1, j2 = box.extend_range(i, i+2)        
+            rest, part = texel.takeout(j1, j2)
+            assert calc_length(part) == j2-j1
+            assert calc_length(rest)+calc_length(part) == len(texel)
 
     return True        
     
 
 def _create_testobjects(s):
-    from ..textmodel.textmodel import TextModel
+    from textmodel.textmodel import TextModel
     texel = TextModel(s).texel    
     box = TextBox(s)
     return box, texel

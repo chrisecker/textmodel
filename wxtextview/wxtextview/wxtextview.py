@@ -4,8 +4,8 @@
 import wx
 import cPickle
 
-from ..textmodel import TextModel
-from ..textmodel.texeltree import defaultstyle
+from textmodel import TextModel
+from textmodel.styles import updated_style
 from .textview import TextView
 from .wxdevice import WxDevice
 from .testdevice import TESTDEVICE
@@ -13,7 +13,11 @@ from .simplelayout import Builder
 
 from math import ceil
 
-defaultstyle.update(dict(underline=False, facename='', weight='normal'))
+
+TextModel.defaultstyle = updated_style(
+    TextModel.defaultstyle, 
+    dict(fontsize=10, bgcolor='white', textcolor='black', 
+         underline=False, facename='', weight='normal'))
 
 
 # XXX should this be integrated in device?
@@ -188,7 +192,7 @@ class WXTextView(wx.ScrolledWindow, TextView):
         layout = self.layout
         layout.draw(x, y, dc, styler)
         if wx.Window.FindFocus() is self: 
-            layout.draw_cursor(self.index, x, y, dc, defaultstyle)
+            layout.draw_cursor(self.index, x, y, dc, self.model.defaultstyle)
         for j1, j2 in self.get_selected():
             layout.draw_selection(j1, j2, x, y, dc)
         styler = None
@@ -295,7 +299,7 @@ def init_testing(redirect=True):
 
     
 def test_02():
-    ns = init_testing(redirect=False)
+    ns = init_testing(redirect=True)
     view = ns['view']
     view.cursor = 5
     view.selection = 3, 6    
@@ -428,9 +432,9 @@ def demo_01():
     win.SetSizer(box)
     win.SetAutoLayout(True)
 
-    from ..textmodel.textmodel import pycolorize
-    from ..textmodel import treebase
-    filename = treebase.__file__.replace('pyc', 'py')
+    from textmodel.textmodel import pycolorize
+    from textmodel import texeltree
+    filename = texeltree.__file__.replace('pyc', 'py')
     rawtext = open(filename).read() 
     model = pycolorize(rawtext)
     view.set_model(model)
@@ -485,5 +489,5 @@ def benchmark_00():
     
     
 if __name__ == '__main__':
-    from ..textmodel import alltests
+    from textmodel import alltests
     alltests.dotests()

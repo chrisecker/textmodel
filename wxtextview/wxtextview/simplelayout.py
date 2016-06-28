@@ -16,13 +16,12 @@
 # When the model changes, we identify the corresponding paragraph
 # objects, rebuild them and replace them.
 
-
+from . import boxes
 from .boxes import HBox, VBox, VGroup, TextBox, EmptyTextBox, NewlineBox, EndBox, \
-                   check_box, Box, tree_depth, replace_boxes, Row
+                   check_box, Box, tree_depth, replace_boxes, Row, groups, \
+                   calc_length
 from .boxes import grouped as _grouped
-from ..textmodel.texeltree import NewLine, Characters, defaultstyle
-from ..textmodel.treebase import groups
-from ..textmodel import listtools, treebase
+from textmodel.texeltree import NewLine, length
 
 from .testdevice import TESTDEVICE
 from .linewrap import simple_linewrap
@@ -96,8 +95,8 @@ def create_paragraphs(textboxes, maxw=0, Paragraph=Paragraph, \
                  # NewLine or an EndBox. Therefore there is no rest in
                  # l.
 
-    assert listtools.calc_length(r) == listtools.calc_length(textboxes)
-    while len(r)>treebase.nmax:
+    assert calc_length(r) == calc_length(textboxes)
+    while len(r)>boxes.nmax:
         r = groups(r)
     return r
 
@@ -132,7 +131,7 @@ class Builder(BuilderBase, Factory):
         if not stuff:
             r = VGroup([], device=self.device)
             return r
-        return treebase.grouped(stuff)
+        return _grouped(stuff)
 
     def replace_paragraphs(self, i1, i2, stuff):
         # Helper: replaces all paragraphs between $i1$ and $i2$ by
@@ -156,7 +155,7 @@ class Builder(BuilderBase, Factory):
     ### Builder-Protocol
     def rebuild(self):
         texel = self.extended_texel()
-        l = self.create_paragraphs(texel, 0, len(texel))
+        l = self.create_paragraphs(texel, 0, length(texel))
         self._layout = self.grouped(l)
         assert isinstance(self._layout, Box)
 
@@ -194,7 +193,7 @@ class Builder(BuilderBase, Factory):
 
 
 def _create_testobjects(s):
-    from ..textmodel.textmodel import TextModel
+    from textmodel.textmodel import TextModel
     texel = TextModel(s).texel    
     box = TextBox(s)
     return box, texel
@@ -270,8 +269,7 @@ def test_01():
     box2 = _grouped(replace_boxes(box, 5, 10, [p]))
     #box2.dump_boxes(0, 0, 0)
     assert len(box2) == 6
-    from ..textmodel import treebase
-    treebase.nmax = 5
+    boxes.nmax = 5
     box2 = Paragraph([
         Row([EmptyTextBox()])
     ])
@@ -327,7 +325,7 @@ def xxtest_02b():
 def test_03():
     t1 = TextBox("0123456789")
     t2 = TextBox("0123456789")
-    p1 = Paragraph([Row([t1, NewlineBox(defaultstyle)])])
+    p1 = Paragraph([Row([t1, NewlineBox()])])
     row = p1.childs[0]
     assert p1.height == 1
     assert p1.width == 10
@@ -342,7 +340,7 @@ def test_04():
     # Problem: get_rect always returns 0, 0
     t1 = TextBox("0123456789")
     t2 = TextBox("0123456789")
-    p1 = Paragraph([Row([t1, t2, NewlineBox(defaultstyle)])])
+    p1 = Paragraph([Row([t1, t2, NewlineBox()])])
 
     assert p1.get_rect(0, 0, 0) == Rect(0, 0.0, 1, 1.0)
     assert p1.get_rect(10, 0, 0) == Rect(10, 0.0, 11, 1.0)
