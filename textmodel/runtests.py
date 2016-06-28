@@ -85,20 +85,21 @@ class Tester:
             if self.silent:
                 return
             if self.stdoutbuffer.len:
-                print "stdout:"
+                print "\nstdout:"
                 print self.stdoutbuffer.getvalue()
             if self.stderrbuffer.len:
-                print "stderr:"                
+                print "\nstderr:"                
                 print self.stderrbuffer.getvalue()
                 
         else:
+            print "error"
             if self.stdoutbuffer.len:
-                print "stdout:"
+                print "\nstdout:"
                 print self.stdoutbuffer.getvalue()
             if self.stderrbuffer.len:
-                print "stderr:"                
+                print "\nstderr:"                
                 print self.stderrbuffer.getvalue()
-            print "error"
+            print
             print tb
         return ok
 
