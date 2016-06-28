@@ -25,6 +25,7 @@ class Texel:
     is_container = 0
     is_group = 0
     is_text = 0
+    is_endmark = 0
     weights = (0, 0, 0) # depth, length, lineno
 
 
@@ -116,9 +117,6 @@ class NewLine(Single):
         return clone
 
 
-class EndMark(NewLine):
-    pass
-
 
 class Tabulator(Single):
     text = u'\t'
@@ -136,7 +134,8 @@ class Fraction(Container):
 
 TAB = Tabulator()
 NL = NewLine()
-ENDMARK = EndMark()
+ENDMARK = NewLine()
+ENDMARK.is_endmark = 1
 
 # ---- functions -----
 def depth(texel):
