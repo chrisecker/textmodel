@@ -112,6 +112,10 @@ class TextView(ViewBase, Model):
         info = self._remove, i, i+len(textmodel)
         self.add_undo(info)
 
+    def insert_text(self, i, text, **style):
+        model = self.model.__class__(text, **style)  
+        return self.insert(i, model)
+
     def remove(self, i1, i2):
         info = self._remove(i1, i2)
         self.add_undo(info)
@@ -173,6 +177,9 @@ class TextView(ViewBase, Model):
             print "index=", index
             print "row=", row
             print "col=", col
+
+        if action == 'dump_boxes':
+            layout.dump()
             
         elif action == 'move_word_end':
             i = index
@@ -284,12 +291,7 @@ class TextView(ViewBase, Model):
             #print keycode
             assert len(action) == 1 # single character
             del_selection()
-            index = self.index
-                
-            s = self._TextModel(action, **style)  
-            n = len(model)
-            assert len(s) == 1
-            self.insert(index, s)
+            self.insert_text(self.index, action, **style)
         self.Refresh()
 
     def copy(self):

@@ -24,10 +24,9 @@ sys.path.insert(0, '..')
 sys.path.insert(0, '../../textmodel')
 
 
-from textmodel import listtools
-from textmodel.texeltree import NewLine, Group, Characters, grouped, \
-    defaultstyle
-from textmodel.container import Container
+from textmodel import texeltree
+from textmodel.texeltree import NewLine, Group, Container, T, TAB, grouped, length
+from textmodel.styles import get_style
 from textmodel.textmodel import TextModel
 from wxtextview.boxes import Box, Row, Rect, TextBox, check_box
 from wxtextview.simplelayout import Builder as _Builder
@@ -40,23 +39,35 @@ import wx
 
 
 
+EMPTY = Group([])
+
 class Fraction(Container):
-    def __init__(self, denominator, nominator, **kwds):
-        self.denominator = denominator
-        self.nominator = nominator
-        Container.__init__(self, **kwds)
+    def __init__(self, denominator, nominator):
+        self.childs = [TAB, denominator, TAB, nominator, TAB]
+        self.compute_weights()
 
-    def get_content(self):
-        return self.denominator, self.nominator
 
-    def get_emptychars(self):
-        return '(;)'
+class Root(Container):
+    def __init__(self, content):
+        self.childs = [TAB, content, TAB]
+        self.compute_weights()
 
-    def dump_boxes(self, i=0):
-        print (" "*i)+"Frac(["
-        self.denominator.dump_boxes(i+4)
-        self.nominator.dump_boxes(i+4)
-        print (" "*i)+"])"
+
+def _mk_textmodel(texel):
+    model = MathTextModel()
+    model.texel = texel
+    return model
+
+
+
+class MathTextModel(TextModel):
+    def insert_fraction(self, i):
+        return self.insert(i, _mk_textmodel(Fraction(EMPTY, EMPTY)))
+
+    def insert_root(self, i):
+        return self.insert(i, _mk_textmodel(Root(EMPTY)))
+
+
 
 
 
@@ -75,13 +86,13 @@ class EntryBox(Box):
     def __len__(self):
         return self.length
 
-    def iter_childs(self):
-        yield 0, self.length-1, self.content
+    def iter_boxes(self, i, x, y):
+        yield 0, self.length-1, x, y, self.content
 
 
 
 class FractionBox(Box):
-    def __init__(self, denomboxes, nomboxes, style=defaultstyle,
+    def __init__(self, denomboxes, nomboxes, style={},
                  device=None):
         if device is not None:
             self.device = device
@@ -96,6 +107,7 @@ class FractionBox(Box):
 
     def iter_childs(self): # XXX not needed!
         d = self.denominator
+        n = self.nominator
         yield 1, len(d), d
         yield 1+len(d), self.length, n
 
@@ -142,14 +154,6 @@ class FractionBox(Box):
 
 
 
-class Root(Container):
-    def __init__(self, content, **kwds):
-        self.content = content
-        Container.__init__(self, **kwds)
-
-    def get_content(self):
-        return [self.content]
-
 
 
 class RootBox(Box):
@@ -157,8 +161,11 @@ class RootBox(Box):
         if device is not None:
             self.device = device
         content = self.content = EntryBox(boxes, device)
+        m = self.device.measure("M", {})[1] # We use the capital
+                                                    # M as a reference
+
         self.width = content.width+12
-        self.height = content.height+5
+        self.height = max(m, content.height)+5
         self.depth = content.depth
         self.length = len(content)+1
 
@@ -202,14 +209,18 @@ class RootBox(Box):
 
 class Builder(_Builder):
     def Fraction_handler(self, texel, i1, i2):
-        denomboxes = self.create_boxes(texel.denominator)
-        nomboxes = self.create_boxes(texel.nominator)
-        return [FractionBox(denomboxes, nomboxes,
-                            style=texel.get_style(0),
-                            device=self.device)]
+        denominator = texel.childs[1]
+        denomboxes = self.create_boxes(denominator, 0, length(denominator))
+        nominator = texel.childs[3]
+        nomboxes = self.create_boxes(nominator, 0, length(nominator))
+        r = FractionBox(denomboxes, nomboxes,
+                        style=get_style(texel, 0),
+                        device=self.device)
+        return [r]
 
     def Root_handler(self, texel, i1, i2):
-        boxes = self.create_boxes(texel.content)
+        content = texel.childs[1]
+        boxes = self.create_boxes(content, 0, length(content))
         return [RootBox(boxes, device=self.device)]
 
 
@@ -229,7 +240,7 @@ def mk_textmodel(texel):
 
 def init_testing(redirect=True):
     app = wx.App(redirect=redirect)
-    model = TextModel(u"")
+    model = MathTextModel(u"")
 
     frame = wx.Frame(None)
     win = wx.Panel(frame, -1)
@@ -243,18 +254,32 @@ def init_testing(redirect=True):
     frame.Show()
     return locals()
 
+
 def test_00():
     ns = init_testing(False)
-    frac = Fraction(Characters(u'Zähler'), Characters(u'Nenner'))
+    model = ns['model']
+    view = ns['view']
+    model.insert_fraction(len(model))
+    model.insert_text(1, 'x')
+    #texeltree.dump(model.texel)
+    view.layout.dump_boxes(0, 0, 0)
+    fractionbox = view.layout.childs[0].childs[0]
+    assert isinstance(fractionbox, FractionBox)
+
+
+def test_000():
+    ns = init_testing(False)
+    frac = Fraction(T(u'Zähler'), T(u'Nenner'))
     factory = Builder(TextModel()) # not very nice
-    box = factory.Fraction_handler(frac, 0, len(frac))[0]
-    assert len(box) == len(frac)
+    box = factory.Fraction_handler(frac, 0, length(frac))[0]
+    assert len(box) == length(frac)
     assert check_box(box, frac)
     assert check_box(box.nominator)
     assert check_box(box.denominator)
 
     model = ns['model']
-    model.insert(len(model), mk_textmodel(frac))
+    #model.insert_text(0, "1234")
+    model.insert_fraction(len(model))
     #model.texel.dump()
 
     model.insert_text(0, "x")
@@ -269,29 +294,30 @@ def test_00():
     assert check_box(layout)
 
 def test_01():
-    ns = init_testing(False)
+    ns = init_testing(True) #False)
     model = ns['model']
     model.remove(0, len(model))
-    model.insert(0, TextModel(__doc__))
+    model.append_text(__doc__)
 
     text = """Try to edit the following formulas:
 
         tan(x) = """
-    model.insert(len(model), TextModel(text))
-    frac = Fraction(Characters(u'sin(x)'), Characters(u'cos(x)'))
-    model.insert(len(model), mk_textmodel(frac))
-    model.insert(len(model), TextModel("\n\n        "))
-    root = Root(Characters(u'2'))
-    model.insert(len(model), mk_textmodel(root))
-    model.insert(len(model), TextModel("= 1.4142135623730951 ...\n"))
-    model.insert(len(model), TextModel("\n\n        "))
+    model.insert(len(model), MathTextModel(text))
+    #frac = Fraction(T(u'sin(x)'), T(u'cos(x)'))
+    n = len(model)
+    model.insert_fraction(len(model))
+    model.insert_text(n+2, 'cos(x)')
+    model.insert_text(n+1, 'sin(x)')
+    model.append_text("\n\n        ")
+    model.insert_root(len(model))
+    model.append_text("= 1.4142135623730951 ...\n")
+    model.append_text("\n\n        ")
 
     i = len(model)
-    root = Root(Characters(u''))
     for j in range(4):
-        model.insert(i+j, mk_textmodel(root))
-    model.insert(i+4, TextModel("2"))
-    model.insert(len(model), TextModel("= 1.04427378243 ...\n"))
+        model.insert_root(i+j)
+    model.insert_text(i+4, "2")
+    model.append_text("= 1.04427378243 ...\n")
 
     view = ns['view']
     view.index = len(model)
@@ -301,16 +327,16 @@ def test_02():
     "insert/remove"
     ns = init_testing(False)
     model = ns['model']
-    frac = Fraction(Characters(u'Zähler'), Characters(u'Nenner'))
+    frac = Fraction(T(u'Zähler'), T(u'Nenner'))
     model.insert(0, mk_textmodel(frac))
     model.insert_text(6, 'test')
     model.remove(6, 7)
 
 def test_03():
     ns = init_testing(False)
-    model = mk_textmodel(Characters('0123456789'))
+    model = mk_textmodel(T('0123456789'))
     frac = mk_textmodel(
-        Fraction(Characters(u'Zähler'), Characters(u'Nenner')))
+        Fraction(T(u'Zähler'), T(u'Nenner')))
     tmodel = model.get_text()
     tfrac = frac.get_text()
     for i in range(len(tfrac)):
@@ -326,9 +352,9 @@ def test_03():
 def test_04():
     ns = init_testing(False)
     model = ns['model']
-    frac = Fraction(Characters(u'Zähler'), Characters(u'Nenner'))
+    frac = Fraction(T(u'Zähler'), T(u'Nenner'))
     model.insert(0, mk_textmodel(frac))
-    root = Root(Characters(u'1+x'))
+    root = Root(T(u'1+x'))
     model.insert(2, mk_textmodel(root))
 
     view = ns['view']
@@ -343,11 +369,11 @@ def test_05():
     model.remove(0, len(model))
     model.insert_text(0, '\n')
 
-    frac = Fraction(Characters(u'Zähler'), Characters(u'Nenner'))
+    frac = Fraction(T(u'Zähler'), T(u'Nenner'))
     model.insert(1, mk_textmodel(frac))
     model.insert_text(1, 'Bruch = ')
     n = len(model)
-    root = Root(Characters(u'1+x'))
+    root = Root(T(u'1+x'))
     model.insert(n, mk_textmodel(root))
     model.insert_text(n, '\nWurzel = ')
 
@@ -371,7 +397,7 @@ def test_06():
     ns = init_testing(False)
     model = ns['model']
     model.remove(0, len(model))
-    frac = Fraction(Characters(u'Zähler'), Characters(u'Nenner'))
+    frac = Fraction(T(u'Zähler'), T(u'Nenner'))
     model.insert(0, mk_textmodel(frac))
     model.insert(14, mk_textmodel(frac))
 
@@ -389,7 +415,7 @@ def test_06():
 def demo_00():
     ns = test_01()
     from wxtextview import testing
-    #testing.pyshell(ns)
+    testing.pyshell(ns)
     ns['app'].MainLoop()
 
 

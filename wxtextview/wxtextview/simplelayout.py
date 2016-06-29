@@ -297,6 +297,7 @@ def test_02():
 
 def _mk_pars(text):
     # for testing
+    from .wxdevice import defaultstyle
     l = []
     for line in text.split('\n'):
         for word in line.split():

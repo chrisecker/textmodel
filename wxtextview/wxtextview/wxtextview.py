@@ -7,17 +7,13 @@ import cPickle
 from textmodel import TextModel
 from textmodel.styles import updated_style
 from .textview import TextView
-from .wxdevice import WxDevice
+from .wxdevice import WxDevice, defaultstyle
 from .testdevice import TESTDEVICE
 from .simplelayout import Builder
 
 from math import ceil
 
 
-TextModel.defaultstyle = updated_style(
-    TextModel.defaultstyle, 
-    dict(fontsize=10, bgcolor='white', textcolor='black', 
-         underline=False, facename='', weight='normal'))
 
 
 # XXX should this be integrated in device?
@@ -30,21 +26,25 @@ class DCStyler:
         if style is self.last_style:
             return
         self.last_style = style
+
+        _style = defaultstyle.copy()
+        _style.update(style)
+        
         weight = {
             'bold' : wx.FONTWEIGHT_BOLD,
             'normal' : wx.FONTWEIGHT_NORMAL
-            }[style['weight']]
-        font = wx.Font(style['fontsize'], 
+            }[_style['weight']]
+        font = wx.Font(_style['fontsize'], 
                        wx.FONTFAMILY_MODERN, wx.FONTSTYLE_NORMAL, 
                        weight, 
-                       style['underline'], style['facename'])
+                       _style['underline'], _style['facename'])
         self.dc.SetFont(font)            
         try: # Phoenix
-            self.dc.SetTextBackground(wx.Colour(style['bgcolor']))
-            self.dc.SetTextForeground(wx.Colour(style['textcolor']))
+            self.dc.SetTextBackground(wx.Colour(_style['bgcolor']))
+            self.dc.SetTextForeground(wx.Colour(_style['textcolor']))
         except TypeError: # Classic
-            self.dc.SetTextBackground(wx.NamedColour(style['bgcolor']))
-            self.dc.SetTextForeground(wx.NamedColour(style['textcolor']))
+            self.dc.SetTextBackground(wx.NamedColour(_style['bgcolor']))
+            self.dc.SetTextForeground(wx.NamedColour(_style['textcolor']))
 
 
 
@@ -71,6 +71,7 @@ class WXTextView(wx.ScrolledWindow, TextView):
         # key = keycode, control, alt
         self.actions = {
             (wx.WXK_ESCAPE, False, False) : 'dump_info', 
+            (wx.WXK_ESCAPE, True, False) : 'dump_boxes', 
             (wx.WXK_RIGHT, True, False)  : 'move_word_end',
             (wx.WXK_RIGHT, False, False)  : 'move_right',
             (wx.WXK_LEFT, True, False)  : 'move_word_begin',

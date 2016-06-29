@@ -108,7 +108,11 @@ class Box:
 
     def dump(self, i=0):
         """Print out a graphical representation of the tree."""
-        print (" "*i)+str(self.__class__.__name__)
+        print (" "*i)+str(self.__class__.__name__), 
+        if hasattr(self, 'style'):
+            print self.style
+        else:
+            print
         for i1, i2, child in self.iter_childs():
             child.dump(i+2)
 
@@ -225,7 +229,7 @@ class Box:
         child, j, x1, y1 = self.responding_child(i, x0, y0)
         if child is None:
             if i == len(self):
-                # XXX is this a goo choice for the fallback?
+                # XXX is this a good choice for the fallback?
                 return Rect(x1, y1+self.height, x1+self.width, y1)
             # XXX this too?
             return Rect(x1, y1+self.height, x1, y1)
@@ -325,6 +329,10 @@ class _TextBoxBase(Box):
 
     def measure_parts(self, text):
         return self.device.measure_parts(text, self.style)
+
+    def dump_boxes(self, i, x, y, indent=0):
+        print " "*indent, "[%i:%i]" % (i, i+len(self)), x, y, 
+        print self.__class__.__name__, repr(self.text)
 
     ### Box-Protokoll
     def get_info(self, i, x0, y0):

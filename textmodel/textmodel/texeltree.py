@@ -476,7 +476,7 @@ def takeout(texel, i1, i2):
                     raise IndexError((i1, i2))
                 childs = list(texel.childs) # this always creates a new list!
                 tmp, kernel = takeout(
-                    child, max(0, i1-j1), min(len(self), i2-j1))
+                    child, max(0, i1-j1), min(length(texel), i2-j1))
                 childs[k] = grouped(tmp)
                 return [texel.set_childs(childs)], kernel
         raise IndexError((i1, i2))

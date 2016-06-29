@@ -54,6 +54,7 @@ class TextModel(Model):
 
     """
     defaultstyle = create_style()
+
     def create_textmodel(self, text=u'', **properties):
         """Creates a new textmodel with text $text$ and uniform style."""
         return self.__class__(text, **properties)
@@ -208,16 +209,8 @@ class TextModel(Model):
 
     def insert(self, i, text):
         """Inserts *text* at position *i*."""
-
-        if not isinstance(text, self.__class__):
-            raise TypeError("Wrong type: %s" % type(other))        
         row, col = self.index2position(i)
         n = length(self.texel) + length(text.texel)
-
-        #hier gibt es ein Problem: texl müssen nur root-effizient sein. [texel] ist daher NICHT LIST-EFIZIENT!
-        if 0:
-            print [text.texel]
-            assert is_list_efficient([text.texel]) # XXX
         stuff = strip2list(text.texel)
         tmp = grouped(insert(self.texel, i, stuff))
         self.texel = tmp
@@ -226,8 +219,6 @@ class TextModel(Model):
 
     def append(self, text):
         """Appends textmodel *texel*."""
-        if not isinstance(text, self.__class__):
-            raise TypeError("Wrong type: %s" % type(other))
         return self.insert(len(self), text)
 
     def append_text(self, text, **properties):
@@ -237,9 +228,7 @@ class TextModel(Model):
     def insert_text(self, i, text, **properties):
         """Inserts a unicode text string *text* at index *i*.""" 
         textmodel = self.create_textmodel(text, **properties)
-        d = depth(self.texel)
         self.insert(i, textmodel)
-        assert depth(self.texel) <= d+1
 
     def copy(self, i1, i2):
         """Returns a copy of all data between *i1* and *i2*."""

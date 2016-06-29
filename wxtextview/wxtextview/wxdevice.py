@@ -3,6 +3,18 @@
 import wx
 
 
+defaultstyle = dict(
+    fontsize=10, bgcolor='white', textcolor='black', 
+    underline=False, facename='', weight='normal')
+
+
+def filled(style, defaultstyle=defaultstyle):
+    # fill empty properties with default values
+    new = defaultstyle.copy()
+    new.update(style)
+    return new
+
+
 def invert_rect_INV(self, x, y, w, h, dc):
     dc.SetLogicalFunction(wx.INVERT)
     dc.SetBrush(wx.BLACK_BRUSH)
@@ -18,6 +30,7 @@ def invert_rect_BLIT(self, x, y, w, h, dc):
 
 
 def measure_win(self, text, style):
+    style = filled(style)
     font = wx.Font(style['fontsize'], wx.MODERN, wx.NORMAL, wx.NORMAL,
                    style['underline'], style['facename'])
     dc = wx.MemoryDC()
@@ -27,6 +40,7 @@ def measure_win(self, text, style):
 
 
 def measure_mac(self, text, style):
+    style = filled(style)
     font = wx.Font(style['fontsize'], wx.MODERN, wx.NORMAL, wx.NORMAL,
                    style['underline'], style['facename'])
     gc = wx.GraphicsContext_CreateMeasuringContext()
@@ -37,6 +51,7 @@ def measure_mac(self, text, style):
 
 def measure_gtk(self, text, style):
     # GC return wrong font metric values in gtk! We therefore use the DC.  
+    style = filled(style)
     text = text.replace('\n', ' ') # replace newlines to avoid double lines
     font = wx.Font(style['fontsize'], wx.MODERN, wx.NORMAL, wx.NORMAL,
                    style['underline'], style['facename'])
@@ -47,6 +62,7 @@ def measure_gtk(self, text, style):
 
 
 def measure_parts_win(self, text, style):
+    style = filled(style)
     font = wx.Font(style['fontsize'], wx.MODERN, wx.NORMAL, wx.NORMAL,
                    style['underline'], style['facename'])
     dc = wx.MemoryDC()
@@ -55,6 +71,7 @@ def measure_parts_win(self, text, style):
 
 
 def measure_parts_gtk(self, text, style):
+    style = filled(style)
     font = wx.Font(style['fontsize'], wx.MODERN, wx.NORMAL, wx.NORMAL,
                    style['underline'], style['facename'])
     dc = wx.MemoryDC()
@@ -63,6 +80,7 @@ def measure_parts_gtk(self, text, style):
 
 
 def measure_parts_mac(self, text, style):
+    style = filled(style)
     font = wx.Font(style['fontsize'], wx.MODERN, wx.NORMAL, wx.NORMAL,
                    style['underline'], style['facename'])
     gc = wx.GraphicsContext_CreateMeasuringContext()
