@@ -229,9 +229,7 @@ class Box:
         child, j, x1, y1 = self.responding_child(i, x0, y0)
         if child is None:
             if i == len(self):
-                # XXX is this a good choice for the fallback?
-                return Rect(x1, y1+self.height, x1+self.width, y1)
-            # XXX this too?
+                return Rect(x1+self.width, y1+self.height, x1+self.width, y1)
             return Rect(x1, y1+self.height, x1, y1)
         return child.get_rect(i-j, x1, y1)
 
@@ -248,46 +246,23 @@ class Box:
     def get_index(self, x, y):
         # Returns the index which is closest to point (x, y). A return
         # value of None means: no matching index position found!
-        # First run: only boxes which directly contain (x, y)
         l = []
-        for j1, j2, x1, y1, child in self.riter_boxes(0, 0, 0):
-            if x1 <= x <= x1+child.width and \
-                    y1 <= y <= y1+child.height+child.height:
-                i = child.get_index(x-x1, y-y1)
-                if i is not None:
-                    r = child.get_rect(i, x1, y1)
-                    dist = r.dist(x, y)
-                    l.append((dist, -j1-i))
-        if l:
-            l.sort() # NOTE: this favors higher index positions!
-            assert -l[0][-1] <= len(self)
-            return -l[0][-1]
-        
-        # Second run: other boxes. NOTE: the full search is general
-        # but is very inefficient! Derived Boxes there should
-        # implement faster version if possible.
+        w = self.width
+        h = self.height
+        l.append((Rect(0, 0, 0, 0).dist(x, y), -0))
+        l.append((Rect(w, h, w, h).dist(x, y), -len(self)))
+
         for j1, j2, x1, y1, child in self.riter_boxes(0, 0, 0):
             if x1 <= x <= x1+child.width and \
                     y1 <= y <= y1+child.height+child.depth:
-                pass
-            else:
-                if l: # Versuch einer Optimierung
-                    if Rect(x1, y1, x1+child.width, 
-                            y1+child.height+child.depth)\
-                            .adist(x, y) > min(l)[0]:
-                        continue
                 i = child.get_index(x-x1, y-y1)
                 if i is not None:
-                    dist = child.get_rect(i, x1, y1).adist(x, y)
-                    l.append((dist, -j1-i))
-        if l:
-            l.sort()
-            assert -l[0][-1] <= len(self) # XXXX
-            return -l[0][-1]
-
-        # No index position found
-        return None
-
+                    r = child.get_rect(i, x1, y1)
+                    l.append((r.dist(x, y), -j1-i))
+        l.sort() # NOTE: this favors higher index positions!
+        assert -l[0][-1] <= len(self)
+        return -l[0][-1]
+        
     def get_info(self, i, x0, y0):
         # Returns the box object which is responsible for position i,
         # the absolute index position and the position of the
@@ -546,6 +521,24 @@ class HBox(ChildBox):
         self.depth = d
         self.length = calc_length(self.childs)
 
+    def get_index(self, x, y):
+        l = []
+        for j1, j2, x1, y1, child in self.riter_boxes(0, 0, 0):
+            if x1 <= x <= x1+child.width:
+                i = child.get_index(x-x1, y-y1)
+                if i is not None:
+                    r = child.get_rect(i, x1, y1)
+                    l.append((r.dist(x, y), -j1-i))
+        if not l:
+            w = self.width
+            h = self.height
+            l.append((Rect(0, 0, 0, 0).dist(x, y), -0))
+            l.append((Rect(w, h, w, h).dist(x, y), -len(self)))
+
+        l.sort() # NOTE: this favors higher index positions!
+        assert -l[0][-1] <= len(self)
+        return -l[0][-1]
+
 
 class Row(HBox):
     pass
@@ -560,6 +553,25 @@ class VBox(ChildBox):
             yield j1, j2, x, y, child
             y += child.height+child.depth
             j1 = j2
+
+    def get_index(self, x, y):
+        l = []
+        for j1, j2, x1, y1, child in self.riter_boxes(0, 0, 0):
+            if y1 <= y <= y1+child.height+child.depth:
+                i = child.get_index(x-x1, y-y1)
+                if i is not None:
+                    r = child.get_rect(i, x1, y1)
+                    l.append((r.dist(x, y), -j1-i))
+        if not l:
+            w = self.width
+            h = self.height
+            l.append((Rect(0, 0, 0, 0).dist(x, y), -0))
+            l.append((Rect(w, h, w, h).dist(x, y), -len(self)))
+
+
+        l.sort() # NOTE: this favors higher index positions!
+        assert -l[0][-1] <= len(self)
+        return -l[0][-1]
 
 
 
