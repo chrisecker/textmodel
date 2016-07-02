@@ -74,21 +74,21 @@ text = MyTextModel()
 
 # We simulate some user input ...
 
-text.append('A text which contains some math\n')
+text.append_text('A text which contains some math\n')
 text.set_properties(27, 32, underline=True)
-text.append('\t')
+text.append_text('\t')
 n = len(text)
 text.insert_root(n)
 
-text.insert(n+1, '2')
-text.append('= 1.414214...\n')
+text.insert_text(n+1, '2')
+text.append_text('= 1.414214...\n')
 
-text.append('\t')
-text.append('tan[alpha] = ')
+text.append_text('\t')
+text.append_text('tan[alpha] = ')
 n = len(text)
 text.insert_fraction(n)
-text.insert(n+2, 'cos[alpha]')
-text.insert(n+1, 'sin[alpha]')
+text.insert_text(n+2, 'cos[alpha]')
+text.insert_text(n+1, 'sin[alpha]')
 
 # ... and output the text
 print_math(text)
