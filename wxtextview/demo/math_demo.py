@@ -14,7 +14,7 @@ texts. Think of tables or math formulas.
 
 Defining new and nested elements is possible in the textmodel
 library. And is actualy not too difficult. The data model of the
-square root below is defined in only 7 lines of python code. It took
+square root below is defined in only 4 lines of python code. It took
 42 more lines to define the graphical representation.
 
 """
