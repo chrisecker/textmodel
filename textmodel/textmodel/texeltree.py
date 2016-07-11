@@ -136,6 +136,7 @@ TAB = Tabulator()
 NL = NewLine()
 ENDMARK = NewLine()
 ENDMARK.is_endmark = 1
+NULL_TEXEL = T(u'')
 
 # ---- functions -----
 def depth(texel):

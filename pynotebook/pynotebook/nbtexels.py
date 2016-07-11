@@ -1,9 +1,9 @@
 # -*- coding: latin-1 -*-
 
 
-from .textmodel.container import Container
 from .textmodel.textmodel import TextModel, dump_range
-from .textmodel.texeltree import Texel, Glyph, Characters, NL
+from .textmodel.texeltree import Texel, T, G, NL, Container, Single, \
+    iter_childs, dump
 
 import wx
 
@@ -24,16 +24,8 @@ class TextCell(Cell):
     def __init__(self, text, **kwargs):
         assert isinstance(text, Texel)
         self.text = text
-        Cell.__init__(self, **kwargs)
-
-    def get_empties(self):
-        return NL, NL
-
-    def get_emptychars(self):
-        return '\n\n'
-
-    def get_content(self):
-        return self.text,
+        self.childs = [NL, text, NL]
+        self.compute_weights()
 
 
 
@@ -41,27 +33,16 @@ class ScriptingCell(Cell):
 
     client_name = 'direct python'
 
+    input = property(lambda s:s.childs[1])
+    output = property(lambda s:s.childs[3])
+
     def __init__(self, input, output, number = 0, **kwargs):
         assert isinstance(input, Texel)
         assert isinstance(output, Texel)
-        self.input = input
-        self.output = output
         self.number = number
-        Cell.__init__(self, **kwargs)
+        self.childs = [NL, input, NL, output, NL]
+        self.compute_weights()
 
-    def get_empties(self):
-        return NL, NL, NL
-
-    def get_emptychars(self):
-        return '\n\n\n'
-
-    def get_content(self):
-        return self.input, self.output
-
-    def get_kwds(self):
-        kwds = Container.get_kwds(self)
-        kwds['number'] = self.number
-        return kwds
 
 
 
@@ -71,14 +52,14 @@ def find_cell(texel, i, i0=0):
     if isinstance(texel, Cell):
         return i0, texel
     elif texel.is_group:
-        for j1, j2, child in texel.iter_childs():
+        for j1, j2, child in iter_childs(texel):
             if j1<=i<j2:
                 return find_cell(child, i-j1, i0+j1)
     raise NotFound()
 
 
 
-class BitmapRGB(Glyph):
+class BitmapRGB(Single):
     def __init__(self, data, size):
         self.data = data
         self.size = size
@@ -88,7 +69,7 @@ class BitmapRGB(Glyph):
 
 
 
-class BitmapRGBA(Glyph):
+class BitmapRGBA(Single):
     def __init__(self, data, alpha, size):
         self.data = data
         self.alpha = alpha
@@ -101,10 +82,10 @@ class BitmapRGBA(Glyph):
 
 def test_00():
     "TextCell"
-    cell = TextCell(Characters('0123456789'))
+    cell = TextCell(T('0123456789'))
     model = TextModel()
     cellmodel = mk_textmodel(cell)
     model.insert(0, cellmodel)
-    model.texel.dump()
+    dump(model.texel)
     model.insert_text(4, "xyz")
-    model.texel.dump()
+    dump(model.texel)

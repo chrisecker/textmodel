@@ -2,6 +2,7 @@
 
 from .clients import Client, Aborted
 from .nbstream import StreamRecorder
+from .textmodel.texeltree import get_text, length
 
 import sys
 import traceback
@@ -69,7 +70,7 @@ def __transform__(obj, iserr):
             raise Aborted()
 
     def execute(self, inputfield, output):
-        source = inputfield.get_text()
+        source = get_text(inputfield)
         self.namespace['__output__'] = output
         self.counter += 1
         name = 'In[%s]' % self.counter
@@ -152,7 +153,7 @@ def __transform__(obj, iserr):
         return options
 
     def colorize(self, inputtexel):
-        text = inputtexel.get_text()
+        text = get_text(inputtexel)
 
         # XXX The pycolorize function was only ment for benchmarking
         # the textmodel. Here, we should use an optimized variant
@@ -162,7 +163,7 @@ def __transform__(obj, iserr):
             colorized = pycolorize(text).texel
         except Exception, e:
             return inputtexel
-        assert len(colorized) == len(inputtexel)
+        assert length(colorized) == length(inputtexel)
         return colorized
 
 
