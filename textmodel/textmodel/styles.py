@@ -146,13 +146,12 @@ def set_styles(texel, i, iterator):
         r1 = []; r2 = []; r3 = []
         for j1, j2, child in iter_childs(texel):
             if j2 <= i:
-                r1.append(texel)
+                r1.append(child)
             elif iterator.finished:
-                r3.append(texel)
+                r3.append(child)
             else:
                 r2.append(grouped(set_styles(child, i-j1, iterator)))
-        assert len(r2) == 1
-        return texel.set_childs(r1+r2+r3)
+        return [texel.set_childs(r1+r2+r3)]
     assert False
 
 
