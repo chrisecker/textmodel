@@ -4,47 +4,16 @@
 import wx
 import cPickle
 
-from textmodel import TextModel
-from textmodel.styles import updated_style
+from ..textmodel import TextModel
+from ..textmodel.styles import updated_style
 from .textview import TextView
-from .wxdevice import WxDevice, defaultstyle
+from .wxdevice import WxDevice, defaultstyle, DCStyler
 from .testdevice import TESTDEVICE
 from .simplelayout import Builder
 
 from math import ceil
 
 
-
-
-# XXX should this be integrated in device?
-class DCStyler:
-    last_style = None
-    def __init__(self, dc):
-        self.dc = dc
-        
-    def set_style(self, style):
-        if style is self.last_style:
-            return
-        self.last_style = style
-
-        _style = defaultstyle.copy()
-        _style.update(style)
-        
-        weight = {
-            'bold' : wx.FONTWEIGHT_BOLD,
-            'normal' : wx.FONTWEIGHT_NORMAL
-            }[_style['weight']]
-        font = wx.Font(_style['fontsize'], 
-                       wx.FONTFAMILY_MODERN, wx.FONTSTYLE_NORMAL, 
-                       weight, 
-                       _style['underline'], _style['facename'])
-        self.dc.SetFont(font)            
-        try: # Phoenix
-            self.dc.SetTextBackground(wx.Colour(_style['bgcolor']))
-            self.dc.SetTextForeground(wx.Colour(_style['textcolor']))
-        except TypeError: # Classic
-            self.dc.SetTextBackground(wx.NamedColour(_style['bgcolor']))
-            self.dc.SetTextForeground(wx.NamedColour(_style['textcolor']))
 
 
 
@@ -433,8 +402,8 @@ def demo_01():
     win.SetSizer(box)
     win.SetAutoLayout(True)
 
-    from textmodel.textmodel import pycolorize
-    from textmodel import texeltree
+    from ..textmodel.textmodel import pycolorize
+    from ..textmodel import texeltree
     filename = texeltree.__file__.replace('pyc', 'py')
     rawtext = open(filename).read() 
     model = pycolorize(rawtext)
@@ -490,5 +459,5 @@ def benchmark_00():
     
     
 if __name__ == '__main__':
-    from textmodel import alltests
+    from ..textmodel import alltests
     alltests.dotests()
