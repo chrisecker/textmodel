@@ -27,6 +27,10 @@ import wx
 class TextModel(_TextModel):
     defaultstyle = updated_style(_TextModel.defaultstyle, dict(temp=False))
 
+textcellstyle = create_style(
+#    bgcolor = 'lightgrey',
+    )
+
 promptstyle = create_style(
     textcolor = 'blue',
     weight = 'bold'
@@ -98,11 +102,10 @@ class TextCellBox(Box):
         return extend_range_seperated(self, i1, i2) # XXX STIMMT DAS?
 
     def xxdraw(self, x, y, dc, styler):
-        a, b = list(self.iter_boxes(0, x, y))
-        styler.set_style(promptstyle)
-        n = self.number or ''
-        dc.DrawText("In[%s]:" % n, x, a[3])
-        dc.DrawText("Out[%s]:" % n, x, b[3])
+        styler.set_style(textcellstyle)
+        dc.SetBrush(wx.LIGHT_GREY_BRUSH)
+        dc.SetPen(wx.TRANSPARENT_PEN)
+        dc.DrawRectangle(x, y, self.width, self.height)
         Box.draw(self, x, y, dc, styler)
 
     def draw_selection(self, i1, i2, x, y, dc):
@@ -455,8 +458,10 @@ def common(s1, s2):
 class NBView(_WXTextView):
     temp_range = (0, 0)
     ScriptingCell = ScriptingCell
+    _maxw = 600
     def __init__(self, parent, id=-1,
-                 pos=wx.DefaultPosition, size=wx.DefaultSize, style=0):
+                 pos=wx.DefaultPosition, size=wx.DefaultSize, style=0, resize=False):
+        self.resize = resize
         self.init_clients()
         _WXTextView.__init__(self, parent, id=id, pos=pos, size=size,
                              style=style)
@@ -472,6 +477,8 @@ class NBView(_WXTextView):
     _resize_pending = False
     _new_size = None
     def on_size(self, event):
+        if not self.resize:
+            return
         # Note that resize involves computing all line breaks and is
         # therefore a very costly operation. We therefore try to avoid
         # unnecessary resize events.
@@ -537,7 +544,7 @@ class NBView(_WXTextView):
         except NotFound:
             return
         index = self.index
-        if index <= i0 or index >= i0+len(cell):
+        if index <= i0 or index >= i0+length(cell):
             return
         if self.has_temp():
             self.clear_temp()
@@ -559,7 +566,6 @@ class NBView(_WXTextView):
             else:
                 options = list(sorted(options))
                 s = ', '.join(options)
-                s = s.replace('(', '') # I don't like the bracket
                 if len(options) == maxoptions:
                     s += ' ... '
                 self.print_temp('\n'+s+'\n')
@@ -583,13 +589,14 @@ class NBView(_WXTextView):
     def execute(self):
         i0, cell = self.find_cell()
         if not isinstance(cell, ScriptingCell):
-            self.index = i0+len(cell)
+            self.index = i0+length(cell)
             return
         n = length(cell)
         client = self._clients.get_matching(cell)
         stream = Stream()
         client.execute(cell.childs[1], stream.output)
-        new = self.ScriptingCell(cell.childs[1], stream.model.texel, client.counter)
+        new = self.ScriptingCell(cell.childs[1], stream.model.texel, 
+                                 client.counter)
 
         assert i0>=0
         assert i0+n<=len(self.model)
