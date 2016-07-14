@@ -23,6 +23,8 @@ Notes:
  - You can copy, paste and delete cells.
  - There is undo (ctrl-z) and redo (ctrl-u).
 
+
+
 [In 0]:
 import matplotlib
 matplotlib.use('Agg')
@@ -78,7 +80,7 @@ def demo_00():
     model = fromtext(examples)
     # Apply some formating (just to show we can)
     model.set_properties(0, 16, fontsize=16, weight='bold', underline=True)
-    model.set_properties(0, 667, textcolor="#4D4D4D")
+    model.set_properties(0, 667, family='swiss' )
     model.set_properties(459, 464, underline=True)
     frame = wx.Frame(None)
     win = wx.Panel(frame, -1)
