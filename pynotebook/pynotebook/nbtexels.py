@@ -21,9 +21,9 @@ class Cell(Container):
 
 
 class TextCell(Cell):
+    text = property(lambda s:s.childs[1])
     def __init__(self, text, **kwargs):
         assert isinstance(text, Texel)
-        self.text = text
         self.childs = [NL, text, NL]
         self.compute_weights()
 
