@@ -220,9 +220,9 @@ class Box:
         if child is not None:
             return child.get_cursorrect(i-j, x, y, style)
         else:
-            m = self.device.measure('M', style)[0]
+            m = self.device.measure('M', style)[1]
             x1, y1, x2, y2 = self.get_rect(i, x0, y0).items()
-            return Rect(x1, y1, x1+2, y2)
+            return Rect(x1, y2-m, x1+2, y2)
 
     def get_index(self, x, y):
         """Returns the index which is closest to point (x, y). A return value

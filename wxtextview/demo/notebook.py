@@ -24,12 +24,12 @@ import sys
 sys.path.insert(0, '..')
 sys.path.insert(0, '../../textmodel')
 
-from textmodel import listtools, create_style
-from textmodel.treebase import simple_insert, insert
-from textmodel.texeltree import NewLine, Group, Characters, grouped, \
-    defaultstyle, NULL_TEXEL, NL, Glyph, Texel
-from textmodel.container import Container
+from textmodel import texeltree
+from textmodel.styles import create_style
+from textmodel.texeltree import NewLine, Single, Group, Text, grouped, \
+    NL, Container, Texel, length, iter_childs, insert
 from textmodel.textmodel import TextModel, dump_range
+from wxtextview import boxes
 from wxtextview.boxes import Box, VGroup, VBox, Row, Rect, check_box, NewlineBox, \
     TextBox, extend_range_seperated, replace_boxes, get_text
 from wxtextview.simplelayout import create_paragraphs, Paragraph
@@ -46,7 +46,8 @@ import wx
 
 
 
-defaultstyle['temp'] = False 
+#defaultstyle['temp'] = False 
+NULL_TEXEL = Text(u'')
 
 
 def has_classname(obj, classname):
@@ -205,13 +206,8 @@ class Cell(Container):
         self.input = input
         self.output = output
         self.number = number
-        Container.__init__(self, **kwargs)
-
-    def get_empties(self):
-        return NL, NL, NL
-
-    def get_content(self):
-        return self.input, self.output
+        self.childs = [NL, input, NL, output, NL]
+        self.compute_weights()
 
     def get_kwds(self):
         kwds = Container.get_kwds(self)
@@ -220,23 +216,24 @@ class Cell(Container):
 
     def execute(self):
         buf = Buffer()
-        INTERPRETER.execute(self.input.get_text(), buf.output)
+        code = texeltree.get_text(self.input)
+        INTERPRETER.execute(code, buf.output)
         number = INTERPRETER.counter
         return self.__class__(self.input, buf.model.texel, number)
 
     def colorize(self):
-        if 0:
+        if 1:
             return self
         # colorize 
-        text = self.input.get_text()
+        text = texeltree.get_text(self.input)
         from textmodel.textmodel import pycolorize
         try:
             colorized = pycolorize(text).texel
         except Exception, e:
             return self
-        assert len(colorized) == len(self.input)
+        assert length(colorized) == length(self.input)
         r = grouped(self.replace_child(1, len(self.input)+1, [colorized]))
-        assert len(r) == len(self)
+        assert length(r) == length(self)
         return r
 
 
@@ -400,14 +397,14 @@ def find_cell(texel, i, i0=0):
     if isinstance(texel, Cell):
         return i0, texel
     elif isinstance(texel, Group):
-        for j1, j2, child in texel.iter_childs():
+        for j1, j2, child in iter_childs(texel):
             if j1<=i<j2:
                 return find_cell(child, i-j1, i0+j1)
     raise NotFound()
 
 
 
-class Figure(Glyph):
+class Figure(Single):
     def __init__(self, figure):
         figure.canvas.draw()
         self.data = figure.canvas.tostring_rgb()
@@ -507,7 +504,7 @@ class Builder(_Builder):
         return l
 
     def create_parstack(self, texel, add_newline=False):
-        l = self.create_paragraphs(texel, 0, len(texel), 
+        l = self.create_paragraphs(texel, 0, length(texel), 
                                    add_newline=add_newline)
         return ParagraphStack(l, device=self.device)
 
@@ -546,11 +543,11 @@ class Builder(_Builder):
         
     ### Handlers
     def Cell_handler(self, texel, i1, i2):
-        assert i2<=len(texel)
+        assert i2<=length(texel)
         #print "Cell handler: (i1, i2)=", (i1, i2)
         #dump_range(texel, 0, len(texel))
         
-        (j1, j2, inp), (k1, k2, outp) = texel.iter_childs()
+        tmp, (j1, j2, inp), tmp, (k1, k2, outp), tmp = iter_childs(texel)
         if i1 < j2 and j1 < i2: 
             if self._has_temp:
                 t1, t2 = self._temp_range
@@ -599,7 +596,7 @@ class Builder(_Builder):
 
 
 def is_temp(model, i):
-    return model.get_style(i)['temp']
+    return model.get_style(i).get('temp', False)
 
 
 class WXTextView(_WXTextView):
@@ -678,7 +675,7 @@ class WXTextView(_WXTextView):
         except NotFound:
             return
         index = self.index
-        if index <= i0 or index >= i0+len(cell):
+        if index <= i0 or index >= i0+length(cell):
             return
         if self.has_temp():
             self.clear_temp()
@@ -730,14 +727,14 @@ class WXTextView(_WXTextView):
 
     def execute(self):
         i0, cell = self.find_cell()
-        n = len(cell)
+        n = length(cell)
         new = cell.execute()
         assert i0>=0
         assert i0+n<=len(self.model)
         infos = []
         infos.append(self._remove(i0, i0+n))
         self.model.insert(i0, mk_textmodel(new))
-        infos.append((self._remove, i0, i0+len(new)))
+        infos.append((self._remove, i0, i0+length(new)))
         self.add_undo(infos) 
         self.adjust_viewport()
 
@@ -745,7 +742,7 @@ class WXTextView(_WXTextView):
         needscell = True
         try:
             i0, cell = self.find_cell()
-            if not (i == i0 or i == i0+len(cell)):
+            if not (i == i0 or i == i0+length(cell)):
                 needscell = False
         except NotFound:
             pass
@@ -757,7 +754,7 @@ class WXTextView(_WXTextView):
         if needscell and not hascell:
             cell = Cell(NULL_TEXEL, NULL_TEXEL)
             self.model.insert(i, mk_textmodel(cell))
-            info = self._remove, i, i+len(cell)
+            info = self._remove, i, i+length(cell)
             self.add_undo(info)
             i = i+1
         _WXTextView.insert(self, i, textmodel)
@@ -865,13 +862,13 @@ output(fig)
 def test_00():
     "cell"
     ns = init_testing(False)
-    cell = Cell(Characters(u'1234567890'), Characters(u'abcdefghij'))
-    assert len(cell.input) == 10
-    assert len(cell.output) == 10
-    assert len(cell) == 23
+    cell = Cell(Text(u'1234567890'), Text(u'abcdefghij'))
+    assert length(cell.input) == 10
+    assert length(cell.output) == 10
+    assert length(cell) == 23
 
-    texel = grouped(insert(cell, 1, [Characters(u'x')]))
-    assert texel.get_text()[1:2] == u'x'
+    texel = grouped(insert(cell, 1, [Text(u'x')]))
+    assert texeltree.get_text(texel)[1:2] == u'x'
 
 def test_01():
     "interpreter"
@@ -905,44 +902,44 @@ def test_01():
 def test_02():
     "execute"
     ns = init_testing(False)
-    cell = Cell(Characters(u'1+2'), Characters(u''))
+    cell = Cell(Text(u'1+2'), Text(u''))
     cell = cell.execute()
-    assert cell.output.get_text() == '3'
+    assert texeltree.get_text(cell.output) == '3'
 
-    cell = Cell(Characters(u'for a in range(2):\n    print a'),
-                Characters(u''))
+    cell = Cell(Text(u'for a in range(2):\n    print a'),
+                Text(u''))
     cell = cell.execute()
-    assert cell.output.get_text() == u'0\n1\n'
+    assert texeltree.get_text(cell.output) == u'0\n1\n'
 
-    cell = Cell(Characters(u'asdsad'), Characters(u''))
+    cell = Cell(Text(u'asdsad'), Text(u''))
     cell = cell.execute()
     #print repr(cell.output.get_text())
-    assert cell.output.get_text() == u'  File "In[3]", line 1, ' \
+    assert texeltree.get_text(cell.output) == u'  File "In[3]", line 1, ' \
         'in <module>\nNameError: name \'asdsad\' is not defined\n'
 
 def test_03():
     "find_cell"
     tmp1 = TextModel(u'for a in range(3):\n    print a')
     tmp2 = TextModel(u'for a in range(10):\n    print a')
-    cell1 = Cell(tmp1.texel, Characters(u''))
-    cell2 = Cell(tmp2.texel, Characters(u''))
+    cell1 = Cell(tmp1.texel, Text(u''))
+    cell2 = Cell(tmp2.texel, Text(u''))
 
     model = TextModel('')
     model.insert(len(model), mk_textmodel(cell1))
     model.insert(len(model), mk_textmodel(cell2))
 
     assert find_cell(model.texel, 1) == (0, cell1)
-    assert find_cell(model.texel, len(cell1)-1) == (0, cell1)
+    assert find_cell(model.texel, length(cell1)-1) == (0, cell1)
 
-    assert find_cell(model.texel, len(cell1)) == (len(cell1), cell2)
-    assert find_cell(model.texel, len(cell1)+5) == (len(cell1), cell2)
+    assert find_cell(model.texel, length(cell1)) == (length(cell1), cell2)
+    assert find_cell(model.texel, length(cell1)+5) == (length(cell1), cell2)
 
 
 def test_04():
     "copy cells"
     model = TextModel('')
     tmp = TextModel(u'for a in range(5):\n    print a')
-    cell = Cell(tmp.texel, Characters(u''))
+    cell = Cell(tmp.texel, Text(u''))
     model.insert(len(model), mk_textmodel(cell))
     tmp = model.copy(0, len(model))
     model.insert(0, tmp)
@@ -1009,13 +1006,13 @@ output(figure)
 def test_10():
     "Factory"
     ns = init_testing(False)
-    cell = Cell(Characters(u'a'), Characters(u'b'))
+    cell = Cell(Text(u'a'), Text(u'b'))
     factory = Builder(TextModel(''))
     boxes = factory.create_all(cell)
     assert len(boxes) == 1
     cellbox = boxes[0]
     assert len(cellbox) == 5
-    assert len(cell) == 5
+    assert length(cell) == 5
 
     check_box(cellbox)
     check_box(cellbox.input)
@@ -1028,7 +1025,7 @@ def test_11():
     model = ns['model']
     model.remove(0, len(model))
     tmp = TextModel(u'for a in range(16):\n    print a')
-    cell = Cell(tmp.texel, Characters(u''))
+    cell = Cell(tmp.texel, Text(u''))
     model.insert(len(model), mk_textmodel(cell))
 
     assert model.index2position(0) == (0, 0)
@@ -1056,7 +1053,7 @@ def test_11():
     assert model.get_text()[65:70] == '14\n15'
 
     model.insert(0, mk_textmodel(cell))
-    model.remove(0, len(cell))
+    model.remove(0, length(cell))
 
     # insert new cell, insert input
     view.insert(0, TextModel("a=1"))

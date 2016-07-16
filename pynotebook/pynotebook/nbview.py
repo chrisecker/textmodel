@@ -4,11 +4,11 @@
 
 from .textmodel import texeltree
 from .textmodel.styles import create_style, updated_style
-from .textmodel.texeltree import Text, grouped, insert, length, get_text, NULL_TEXEL
+from .textmodel.texeltree import Text, grouped, insert, length, get_text, \
+    NULL_TEXEL
 from .textmodel.textmodel import TextModel as _TextModel
-
-from .wxtextview.boxes import Box, VGroup, VBox, Row, Rect, check_box, NewlineBox, \
-    TextBox, extend_range_seperated, replace_boxes
+from .wxtextview.boxes import Box, VGroup, VBox, Row, Rect, check_box, \
+    NewlineBox, TextBox, extend_range_seperated, replace_boxes
 from .wxtextview.simplelayout import create_paragraphs, Paragraph
 from .wxtextview.wxdevice import WxDevice
 from .wxtextview.testdevice import TESTDEVICE
@@ -89,24 +89,10 @@ class TextCellBox(VBox):
         return self.__class__.__name__+'(%s)' % \
             (repr(self.text),)
 
-    def xxget_index(self, x, y):
-        if y<3:
-            return 0
-        elif y>=self.height-2:
-            return len(self)
-        return VBox.get_index(self, x, y)
-
     def extend_range(self, i1, i2):
         if i1<=0 or i2>=len(self):
             return 0, len(self)
         return extend_range_seperated(self, i1, i2) # XXX STIMMT DAS?
-
-    def xxdraw(self, x, y, dc, styler):
-        styler.set_style(textcellstyle)
-        dc.SetBrush(wx.LIGHT_GREY_BRUSH)
-        dc.SetPen(wx.TRANSPARENT_PEN)
-        dc.DrawRectangle(x, y, self.width, self.height)
-        VBox.draw(self, x, y, dc, styler)
 
     def draw_selection(self, i1, i2, x, y, dc):
         if i1<=0 and i2>=self.length:
@@ -114,13 +100,12 @@ class TextCellBox(VBox):
         else:
             VBox.draw_selection(self, i1, i2, x, y, dc)
 
-    def responding_child(self, i, x0, y0): # XXX wird gebraucht um Cursor zu zeichen
-
+    def responding_child(self, i, x0, y0):
         # Index position n+1 usually is managed by a child object. We
         # want the next object to be responsible, so we have to change
         # the return behaviour.
         if i == len(self):
-            return None, i, x0, y0 # None => kein Kind kümert sich darum
+            return None, i, x0, y0
         return VBox.responding_child(self, i, x0, y0)
 
     def get_cursorrect(self, i, x0, y0, style):
@@ -145,7 +130,8 @@ class ScriptingCellBox(VBox):
     input = property(lambda s:s.childs[0])
     output = property(lambda s:s.childs[1])
     def __init__(self, inbox, outbox, number=0, device=None):
-        # NOTE: Inbox and outbox should be PargraphStacks
+        assert isinstance(inbox, ParagraphStack)
+        assert isinstance(outbox, ParagraphStack)
         self.number = number
         if device is not None:
             self.device=device
@@ -191,13 +177,6 @@ class ScriptingCellBox(VBox):
             (repr(self.input),
              repr(self.output))
 
-    def xxget_index(self, x, y):
-        if y<3:
-            return 0
-        elif y>=self.height-2:
-            return len(self)
-        return VBox.get_index(self, x, y)
-
     def extend_range(self, i1, i2):
         for i in (0, len(self.input), len(self)-1):
             if i1<= i<i2:
@@ -225,7 +204,7 @@ class ScriptingCellBox(VBox):
         # want the next object to be responsible, so we have to change
         # the return behaviour.
         if i == len(self):
-            return None, i, x0, y0 # None => kein Kind kümmert sich darum
+            return None, i, x0, y0
         return VBox.responding_child(self, i, x0, y0)
 
     def get_cursorrect(self, i, x0, y0, style):
@@ -300,8 +279,8 @@ class BitmapBox(Box):
 
 
 class Builder(_Builder):
-    _has_temp = False # indicates whether the change we are updating
-                      # to was caused by print_temp
+    _has_temp = False # indicates whether the last change was caused
+                      # by print_temp
 
     def __init__(self, model, clients=None, device=TESTDEVICE, maxw=0):
         if clients is None:
@@ -461,7 +440,8 @@ class NBView(_WXTextView):
     ScriptingCell = ScriptingCell
     _maxw = 600
     def __init__(self, parent, id=-1,
-                 pos=wx.DefaultPosition, size=wx.DefaultSize, style=0, resize=False):
+                 pos=wx.DefaultPosition, size=wx.DefaultSize, style=0, 
+                 resize=False):
         self.resize = resize
         self.init_clients()
         _WXTextView.__init__(self, parent, id=id, pos=pos, size=size,
@@ -706,9 +686,10 @@ def test_04():
     tmp = model.copy(0, len(model))
     model.insert(0, tmp)
 
+
 def test_05():
     "CellBox"
-    empty = VGroup([])
+    empty = ParagraphStack([])
     cell1 = ScriptingCellBox(empty, empty)
     check_box(cell1.input)
     check_box(cell1)
@@ -728,41 +709,15 @@ def test_05():
     NL = NewlineBox()
     p1 = Paragraph([Row([t1, NL])])
     cell1 = ScriptingCellBox(
-        VGroup([Paragraph([Row([t1, NL])]), Paragraph([Row([t2, NL])]),]), 
-        Paragraph([Row([t3, NL])]))
+        ParagraphStack([Paragraph([Row([t1, NL])]), Paragraph([Row([t2, NL])]),]), 
+        ParagraphStack([Paragraph([Row([t3, NL])])]))
 
     (j1, j2, inp), (k1, k2, outp) = cell1.iter_childs()
     assert (j1, j2) == (1, 23) # input box
 
-    cell2 = ScriptingCellBox(Row([t3, NL]), empty)
+    cell2 = ScriptingCellBox(ParagraphStack([Row([t3, NL])]), empty)
 
     g = VGroup([cell1, cell2])
-
-
-def XXXtest_06():
-    "output"
-    buf = StreamRecorder()
-    inter = SimpleInterpreter()
-    inter.execute("output(1)", buf.output)
-    assert not buf.stderr
-    inter.execute("output(1.1)", buf.output)
-    assert not buf.stderr
-    inter.execute(u"output('ö')", buf.output)
-    assert not buf.stderr
-
-    code = '''import matplotlib.pyplot as plt
-plt.plot([1,2,3,4])
-plt.ylabel('some numbers')
-figure = plt.figure()
-output(figure)
-'''
-    buf = TextBuffer()
-    inter.execute(code, buf.output)
-    figure = inter.namespace['figure']
-
-    assert has_classname(figure, 'matplotlib.figure.Figure')
-    assert buf.stdout == 'Graphics ---'
-    assert not buf.stderr
 
 
 def test_10():
@@ -872,6 +827,7 @@ output(figure)''')
     view.execute()
     return ns
 
+
 def test_14():
     "cell cursor"
     ns = init_testing(False)
@@ -894,6 +850,7 @@ def test_14():
     assert r3.x2-r3.x1 == sepwidth
     assert r3.y1 > r2.y1
 
+
 def test_15():
     "get_word, print_temp, remove_temp"
     ns = init_testing(False)
@@ -912,13 +869,13 @@ def test_15():
     view.clear_temp()
     assert model.get_text() == text
 
-
     
 def demo_00():
     from .wxtextview import testing
     ns = test_11()
     testing.pyshell(ns)
     ns['app'].MainLoop()
+
 
 def demo_01():
     from .wxtextview import testing

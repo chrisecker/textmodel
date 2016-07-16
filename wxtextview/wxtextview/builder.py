@@ -1,9 +1,9 @@
 # -*- coding: latin-1 -*-
 
 
-from textmodel import texeltree
-from textmodel.textmodel import TextModel
-from textmodel.texeltree import NewLine, Group, Text, length
+from ..textmodel import texeltree
+from ..textmodel.textmodel import TextModel
+from ..textmodel.texeltree import NewLine, Group, Text, length
 from .testdevice import TESTDEVICE
 from .boxes import TextBox, NewlineBox, TabulatorBox, EmptyTextBox, \
     EndBox, check_box, Box, calc_length

@@ -16,6 +16,7 @@ from pynotebook.nbtexels import ScriptingCell as _ScriptingCell
 from pynotebook.nbview import TextModel, NBView
 from pynotebook.textformat import fromtext
 from pynotebook.textmodel import TextModel
+from pynotebook.textmodel.texeltree import get_text, length
 
 import wx
 
@@ -40,7 +41,7 @@ class TexelFormatter(Formatter):
             elif token is Token.Comment.Single:
                 style = dict(textcolor='grey')
             elif token is Token.Text:
-                style = dict(textcolor='green')
+                style = dict(textcolor='black')
             elif token is Token.Literal.String:
                 style = dict(textcolor='red')                    
             else:
@@ -56,7 +57,7 @@ class RClient(Client):
         self.r = robjects.r
 
     def execute(self, inputfield, output):
-        return self.run(inputfield.get_text(), output)
+        return self.run(get_text(inputfield), output)
 
     def run(self, code, output):
         self.counter += 1
@@ -92,11 +93,14 @@ class RClient(Client):
         return options
 
     def colorize(self, inputtexel):
-        text = inputtexel.get_text()
-        assert len(text) == len(inputtexel)
+        text = get_text(inputtexel)
+        assert len(text) == length(inputtexel)
         formatter = TexelFormatter()
         highlight(text, SLexer(), formatter)
-        model = formatter.model[0:len(inputtexel)]
+        if len(formatter.model) < length(inputtexel):
+            # XXX when does this happen? What does it mean?
+            return inputtexel # fallback: don't colorize
+        model = formatter.model[0:length(inputtexel)]
         return model.texel
 
 

@@ -2,7 +2,7 @@ import sys
 sys.path.insert(0, '..')
 
 from textmodel import TextModel
-from textmodel.texeltree import Texel, T, TAB, NL, EndMark, Container, dump, get_text, NewLine
+from textmodel.texeltree import Texel, T, TAB, NL, Container, dump, get_text, NewLine
 from textmodel.styles import create_style
 
 
@@ -48,7 +48,7 @@ def print_rst(text):
                         break
                     i -= 1
                 r.insert(i+1, ('  '*listlevel)+'- ')
-        if not isinstance(texel, EndMark):
+        if not texel.is_endmark:
             r.append(texel.text)
         last = style
     print ''.join(r)
@@ -70,10 +70,11 @@ text += T("bold", bold=True)
 text += T('\n')
 text.set_parproperties(i1, len(text), listlevel=1)
 i1 = len(text)
-text += T('Here are two \nsub \nitems\n')
-text.set_parproperties(i1, len(text), listlevel=1)
-text.set_parproperties(i1+15, len(text), listlevel=2)
+text += T('Here are two subitems\nsub item 1\nsub item 2\n')
+text.set_parproperties(i1, i1+25, listlevel=1)
+text.set_parproperties(i1+25, len(text), listlevel=2)
 
-
+print "#"*60
 print_rst(text)
+print "#"*60
 dump(text.texel)        

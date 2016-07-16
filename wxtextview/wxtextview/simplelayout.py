@@ -21,7 +21,7 @@ from .boxes import HBox, VBox, VGroup, TextBox, EmptyTextBox, NewlineBox, EndBox
                    check_box, Box, tree_depth, replace_boxes, Row, groups, \
                    calc_length
 from .boxes import grouped as _grouped
-from textmodel.texeltree import NewLine, length
+from ..textmodel.texeltree import NewLine, length
 
 from .testdevice import TESTDEVICE
 from .linewrap import simple_linewrap
@@ -193,7 +193,7 @@ class Builder(BuilderBase, Factory):
 
 
 def _create_testobjects(s):
-    from textmodel.textmodel import TextModel
+    from ..textmodel.textmodel import TextModel
     texel = TextModel(s).texel    
     box = TextBox(s)
     return box, texel

@@ -11,7 +11,7 @@ with open('README') as file:
     long_description = file.read()
 
 setup(name='pynotebook',
-      version='0.0.1',
+      version='0.1.0',
       description = \
           'A notebook interface similar to mathematica / ipython',
       long_description = long_description,

@@ -13,7 +13,7 @@ import wx
 examples = r"""[Text]:
 Matplotlib Demo
 
-The notebook consists of cells: scripting cells and text cells. Scripting cells can be executed by moving the cursor in the cell and pressing shift + return. They have a input field (marked by "In") and an output field (marked - you guessed it - "Out"). Output usually consists of text printed to stdout or stderr by the python interpreter. This demo shows how to output graphics created by matplotlib.
+The notebook consists of cells: scripting cells and text cells. The python code in scripting cells can be executed by moving the cursor in the cell and pressing shift + return. Scripting cells have an input field (marked by "In") and an output field ("Out"). Output usually consists of text printed to stdout or stderr by the python interpreter. Pynotbook can also display matplotlib graphics, other output types can be easily implemented. This demo shows how to output graphics created by matplotlib.
 
 Try to execute the following cells.
 
@@ -21,8 +21,10 @@ Notes:
  - Use the tab-key to complete. 
  - To create a new cell, place the cursor below any output cell and start typing. 
  - You can copy, paste and delete cells.
- - There is undo (ctrl-z) and redo (ctrl-u).
+ - There is undo (ctrl-z) and redo (ctrl-r).
 
+Demo codes are taken from 
+http://www.southampton.ac.uk/~fangohr/training/python/notebooks/Matplotlib.html
 
 
 [In 0]:
@@ -72,16 +74,26 @@ output(fig)
 fig, ax = plt.subplots(facecolor='white')
 cnt = contour(Z, cmap=cm.RdBu, vmin=abs(Z).min(), vmax=abs(Z).max(), extent=[0, 1, 0, 1])
 output(fig)
+
+[In]:
+from mpl_toolkits.mplot3d import axes3d, Axes3D
+fig = plt.figure()
+ax = Axes3D(fig)
+X, Y, Z = axes3d.get_test_data(0.05)
+cset = ax.contour(X, Y, Z, 16, extend3d=True)
+ax.clabel(cset, fontsize=9, inline=1)
+output(fig)
+
 """
 
 
 def demo_00():
     app = wx.App(redirect=False)
     model = fromtext(examples)
-    # Apply some formating (just to show we can)
+    # Apply some formating to make the demo look better
     model.set_properties(0, 16, fontsize=16, weight='bold', underline=True)
-    model.set_properties(0, 667, family='swiss' )
-    model.set_properties(459, 464, underline=True)
+    model.set_properties(0, 876, family='swiss' )
+    model.set_properties(558, 563, underline=True)
     frame = wx.Frame(None)
     win = wx.Panel(frame, -1)
     view = NBView(win, -1, style=wx.SUNKEN_BORDER)

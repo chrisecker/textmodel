@@ -1,10 +1,10 @@
 # -*- coding: latin-1 -*-
 
 
-from textmodel.viewbase import ViewBase, overridable_property
-from textmodel.modelbase import Model
-from textmodel.textmodel import dump_range
-from textmodel import TextModel
+from ..textmodel.viewbase import ViewBase, overridable_property
+from ..textmodel.modelbase import Model
+from ..textmodel.textmodel import dump_range
+from ..textmodel import TextModel
 
 
 debug = 0
@@ -148,6 +148,7 @@ class TextView(ViewBase, Model):
         return self.layout.get_index(x, y)
 
     def handle_action(self, action, shift=False):
+        #print "action = ", action, shift
         model = self.model
         index = self.index
         layout = self.layout
@@ -178,8 +179,8 @@ class TextView(ViewBase, Model):
             print "row=", row
             print "col=", col
 
-        if action == 'dump_boxes':
-            layout.dump()
+        elif action == 'dump_boxes':
+            layout.dump_boxes(0, 0, 0)
             
         elif action == 'move_word_end':
             i = index
@@ -333,7 +334,7 @@ class TextView(ViewBase, Model):
         raise NotImplemented()
 
     def check(self):
-        from textmodel.treebase import is_root_efficient
+        from ..textmodel.treebase import is_root_efficient
         assert is_root_efficient(self.layout)
 
     ### Signals issued by model

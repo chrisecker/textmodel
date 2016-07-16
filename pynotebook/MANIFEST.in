@@ -1,4 +1,6 @@
 recursive-include pynotebook *.py
+exclude pynotebook/jsonformat.py
+exclude pynotebook/xmlformat.py
 include demo/plot_demo.py
 include demo/custom_output.py
 include demo/rnotebook.py

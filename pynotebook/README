@@ -17,7 +17,6 @@ Most notable features of pynotebook are:
 - syntax highlighting
 - command completion (tab-key)
 - matplotlib plotting
-- saving/loading of notebooks
 - BSD-license
 
 

@@ -4,7 +4,7 @@
 from copy import copy as shallow_copy
 
 
-debug = 1
+debug = 0
 nmax = 15
 
 def set_nmax(n):
@@ -33,6 +33,7 @@ class Single(Texel):
     is_single = 1
     weights = (0, 1, 0)
     style = EMPTYSTYLE
+    text = '-'
 
     def __init__(self, style=None):
         if style:

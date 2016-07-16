@@ -1,0 +1,13 @@
+Version 0.1.0
+~~~~~~~~~~~~~
+
+- rewrote textmodel/texeltree.py
+- implemented TextCell
+- many bugfixes & improvements
+
+
+Version 0.0.1
+~~~~~~~~~~~~~
+
+- initial release
+

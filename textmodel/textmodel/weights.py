@@ -4,7 +4,7 @@
 from .texeltree import length, provides_childs, iter_childs, Texel
 
 
-debug = 1
+debug = 0
 
 
 class NotFound(Exception): 
