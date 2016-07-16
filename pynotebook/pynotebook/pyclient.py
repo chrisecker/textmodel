@@ -149,6 +149,7 @@ def __transform__(obj, iserr):
             i += 1
             if option is None or len(options) == nmax:
                 break
+            option = option.replace('(', '') # I don't like the bracket
             options.add(option)
         return options
 
