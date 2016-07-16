@@ -1,10 +1,9 @@
 # -*- coding: latin-1 -*-
 
-from textmodel.texeltree import EMPTYSTYLE
+from ..textmodel.texeltree import EMPTYSTYLE
 from .testdevice import TESTDEVICE
 from .rect import Rect
 from math import ceil
-import textmodel
 
 
 # Coordinates:
@@ -26,23 +25,7 @@ def calc_length(l):
 
 
 def groups(l):
-    """Transform the list of texels *l* into a list of groups.
-
-       If texels have depth d, groups will have depth d+1. All
-       returned groups are efficient.
-
-       pre:
-           is_elementlist(l)
-           is_list_efficient(l)
-           is_clean(l)
-
-       post[l]:
-           is_homogeneous(__return__)
-           calc_length(l) == calc_length(__return__)
-           #out("groups check: ok")
-           #is_list_efficient(__return__) # XXX
-           depth(__return__[0]) == depth(l[0])+1
-
+    """Transform the list of boxes *l* into a list of groups.
     """
     r = []
     N = len(l)
@@ -65,30 +48,27 @@ def groups(l):
     return r
 
 
-def grouped(stuff):
-    """Creates a single group from the list of boxes *stuff*.
+def grouped(boxes):
+    """Creates a single group from the list of boxes *boxes*.
 
        If the number of boxes exceeds nmax, subgroups are formed.
-
-       post:
-           length(__return__) == calc_length(stuff)
     """
-    if len(stuff) == 0:
+    if len(boxes) == 0:
         raise ValueError("Need at least on element to group.")
         
-    while len(stuff) > nmax:
-        stuff = groups(stuff)
-    g = stuff[0].create_group(stuff)
+    while len(boxes) > nmax:
+        boxes = groups(boxes)
+    g = boxes[0].create_group(boxes)
     return strip(g)
 
 
-def strip(element):
+def strip(box):
     """Removes unnecessary Group-boxes."""
-    n = len(element)
-    while element.is_group and len(element.childs) == 1:
-        element = element.childs[0]
-    assert n == len(element)
-    return element
+    n = len(box)
+    while box.is_group and len(box.childs) == 1:
+        box = box.childs[0]
+    assert n == len(box)
+    return box
 
 
 class Box:
@@ -106,17 +86,8 @@ class Box:
     def __len__(self):
         raise NotImplementedError()
 
-    def dump(self, i=0):
-        """Print out a graphical representation of the tree."""
-        print (" "*i)+str(self.__class__.__name__), 
-        if hasattr(self, 'style'):
-            print self.style
-        else:
-            print
-        for i1, i2, child in self.iter_childs():
-            child.dump(i+2)
-
     def dump_boxes(self, i, x, y, indent=0):
+        """Print out a graphical representation of the tree."""
         print " "*indent, "[%i:%i]" % (i, i+len(self)), x, y, 
         print repr(self)[:100]
         for j1, j2, x1, y1, child in self.iter_boxes(i, x, y):
@@ -128,10 +99,13 @@ class Box:
             yield i1, i2, child 
 
     def from_childs(self, childs):
-        # Setting childs will only be implemented for boxes which have
-        # child boxes. For other boxes (e.g. textboxes) we will raise
-        # the not-implemented exception.  Returns a list of boxes,
-        # where each box has the same depth as $self$.
+        """Creates a copy of $self$ where the childs a replaced by $childs$.
+
+        Setting childs will only be implemented for boxes which have
+        child boxes. For other boxes (e.g. textboxes) we will raise
+        the not-implemented exception.  Returns a list of boxes, where
+        each box has the same depth as $self$.
+        """
         try:
             assert len(childs) == 0
         except:
@@ -142,13 +116,14 @@ class Box:
         return [self]
 
     def iter_boxes(self, i, x, y):
-        # This should yield a tuple (i1, i2, x, y, child) for all
-        # childs. Here we assume, that there are no child
-        # boxes. Should be overriden for boxes having childs.
+        """Iter boxes yields the tuple (i1, i2, x, y, child) for all child
+        boxes. Overriding this method is the way of customizing
+        special boxes
+        """
         height = self.height
-        if 0:
-            # we need this yield anyway to mark the
-            # method as a generator
+        if False:
+            # This line contains a dummy yield statement which is
+            # needed because it turns this method into a generator.
             yield j1, j2, x, y+height-child.height, child
 
     def riter_boxes(self, i, x, y):
@@ -156,15 +131,14 @@ class Box:
         return reversed(tuple(self.iter_boxes(i, x, y)))
         
     def extend_range(self, i1, i2):
-        # This method is used to enlarge the selection range. This is
-        # necessary for some more complex boxes. E.g. for fractions,
-        # the user should not be allowed to select half of the
-        # denominator and half of the nominator. When he tries, the
-        # selection will be extended to include the whole
-        # fraction. This is the default implementation. It lets the
-        # children decide whether the seleciton should be
-        # extended. Must to be overriden if a different behaviour is
-        # needed.
+        """In some situations the user may not be allowed to select from $i1$
+        to $i2$. We solve this by extending the selection to a
+        possible interval.
+        """
+        
+        # This is the default implementation. It lets the children
+        # decide whether the seleciton should be extended. Must to be
+        # overriden if a different behaviour is needed.
         for j1, j2, x1, y1, child in self.iter_boxes(0, 0, 0):
             if i1 < j2 and j1 < i2:
                 k1, k2 = child.extend_range(i1-j1, i2-j1)
@@ -173,14 +147,14 @@ class Box:
         return i1, i2
 
     def responding_child(self, i, x0, y0):
-        # Finds the child which is responsible for index position
-        # i. Returns a tuple: child, j1, x1, y1. Child is either the
-        # responsible child or None, j1 is the childs indexposition
-        # relative to i, x1 and y1 are the absolute positions of the
-        # child box.
+        """Finds the child which is responsible for index position i. Returns
+        a tuple: child, j1, x1, y1. Child is either the responsible
+        child or None, j1 is the childs indexposition relative to i,
+        x1 and y1 are the absolute positions of the child box.
+        """
         if i<0 or i>len(self):
             raise IndexError, i
-        j1 = None # Markierung
+        j1 = None # marker
         for j1, j2, x1, y1, child in self.riter_boxes(0, x0, y0):
             if j1 < i <= j2:
                 return child, j1, x1, y1
@@ -188,7 +162,7 @@ class Box:
                 return child, j1, x1, y1
         if i == 0:
             return None, i, x0, y0
-        if j1 is None: # keine Kinder
+        if j1 is None: # -> no childs
             return None, i, x0, y0
         if i == len(self): # empty last
             return None, i, x0, y0
@@ -201,6 +175,7 @@ class Box:
         raise Exception, (self, i, len(self))
 
     def draw(self, x, y, dc, styler):
+        """Draws box and all child boxes at origin (x, y)."""
         device = self.device
         for j1, j2, x1, y1, child in self.iter_boxes(0, x, y):
             r = Rect(x1, y1, x1+child.width, y1+child.height)
@@ -208,6 +183,9 @@ class Box:
                 child.draw(x1, y1, dc, styler)
 
     def draw_selection(self, i1, i2, x, y, dc):
+        """Draws box as selected, where the selection extends from $i1$ to
+        $i2$.
+        """
         device = self.device
         for j1, j2, x1, y1, child in self.iter_boxes(0, x, y):
             if i1 < j2 and j1< i2:
@@ -216,6 +194,7 @@ class Box:
                     child.draw_selection(i1-j1, i2-j1, x1, y1, dc)
 
     def draw_cursor(self, i, x0, y0, dc, style):
+        """Draws the cursor."""
         child, j, x1, y1 = self.responding_child(i, x0, y0)
         if child is not None:
             child.draw_cursor(i-j, x1, y1, dc, style)
@@ -224,8 +203,8 @@ class Box:
             self.device.invert_rect(r.x1, r.y1, r.x2-r.x1, r.y2-r.y1, dc)
 
     def get_rect(self, i, x0, y0):
-        # Returns the rectangle occupied by the Glyph at position i in
-        # absolute coordinates.
+        """Returns the rectangle occupied by the Glyph at position $i$.
+        XXX should be renamed to get_glyphrect(...)"""
         child, j, x1, y1 = self.responding_child(i, x0, y0)
         if child is None:
             if i == len(self):
@@ -234,36 +213,41 @@ class Box:
         return child.get_rect(i-j, x1, y1)
 
     def get_cursorrect(self, i, x0, y0, style):
-        # Returns the BBox around the cursor at index position i. Is
-        # used by draw_cursor.
+        """Returns the BBox around the cursor at index $i$. Is used by
+        draw_cursor.
+        """
         child, j, x, y = self.responding_child(i, x0, y0)
         if child is not None:
             return child.get_cursorrect(i-j, x, y, style)
         else:
+            m = self.device.measure('M', style)[0]
             x1, y1, x2, y2 = self.get_rect(i, x0, y0).items()
             return Rect(x1, y1, x1+2, y2)
 
     def get_index(self, x, y):
-        # Returns the index which is closest to point (x, y). A return
-        # value of None means: no matching index position found!
-        l = []
-        w = self.width
-        h = self.height
-        l.append((Rect(0, 0, 0, 0).dist(x, y), -0))
-        l.append((Rect(w, h, w, h).dist(x, y), -len(self)))
-
+        """Returns the index which is closest to point (x, y). A return value
+        of None means: no matching index position found!
+        """
+        print self
+        raise NotImplemented # XXX
+        l = [0 ,len(self)]
         for j1, j2, x1, y1, child in self.riter_boxes(0, 0, 0):
             if x1 <= x <= x1+child.width and \
                     y1 <= y <= y1+child.height+child.depth:
                 i = child.get_index(x-x1, y-y1)
                 if i is not None:
-                    r = child.get_rect(i, x1, y1)
-                    l.append((r.dist(x, y), -j1-i))
-        l.sort() # NOTE: this favors higher index positions!
-        assert -l[0][-1] <= len(self)
-        return -l[0][-1]
+                    l.append(i+j1)
+        return self._select_index(l, x, y)
+
+    def _select_index(self, l, x, y):# XXX as Function
+        r = []
+        for i in l:
+            r.append((self.get_rect(i, 0, 0).adist(x, y), -i))
+        r.sort() # NOTE: this favours higher index positions!
+        assert -r[0][-1] <= len(self)
+        return -r[0][-1]
         
-    def get_info(self, i, x0, y0):
+    def get_info(self, i, x0, y0): # XXX TODO: should be a function not a method
         # Returns the box object which is responsible for position i,
         # the absolute index position and the position of the
         # surrounding rect. Only used for debugging. 
@@ -522,22 +506,16 @@ class HBox(ChildBox):
         self.length = calc_length(self.childs)
 
     def get_index(self, x, y):
-        l = []
+        l = [0, len(self)]
         for j1, j2, x1, y1, child in self.riter_boxes(0, 0, 0):
             if x1 <= x <= x1+child.width:
                 i = child.get_index(x-x1, y-y1)
                 if i is not None:
-                    r = child.get_rect(i, x1, y1)
-                    l.append((r.dist(x, y), -j1-i))
-        if not l:
-            w = self.width
-            h = self.height
-            l.append((Rect(0, 0, 0, 0).dist(x, y), -0))
-            l.append((Rect(w, h, w, h).dist(x, y), -len(self)))
-
-        l.sort() # NOTE: this favors higher index positions!
-        assert -l[0][-1] <= len(self)
-        return -l[0][-1]
+                    l.append(i+j1)
+                    if len(child):
+                        l.append(j1+len(child))
+                        l.append(j1+len(child)-1) # This is needed for rows
+        return self._select_index(l, x, y)
 
 
 class Row(HBox):
@@ -555,23 +533,17 @@ class VBox(ChildBox):
             j1 = j2
 
     def get_index(self, x, y):
-        l = []
+        l = [0, len(self)]
         for j1, j2, x1, y1, child in self.riter_boxes(0, 0, 0):
             if y1 <= y <= y1+child.height+child.depth:
+                l.append(j1)
                 i = child.get_index(x-x1, y-y1)
                 if i is not None:
-                    r = child.get_rect(i, x1, y1)
-                    l.append((r.dist(x, y), -j1-i))
-        if not l:
-            w = self.width
-            h = self.height
-            l.append((Rect(0, 0, 0, 0).dist(x, y), -0))
-            l.append((Rect(w, h, w, h).dist(x, y), -len(self)))
-
-
-        l.sort() # NOTE: this favors higher index positions!
-        assert -l[0][-1] <= len(self)
-        return -l[0][-1]
+                    l.append(i+j1)
+                if len(child):
+                    l.append(j1+len(child))
+                    l.append(j1+len(child)-1) # This is needed for rows
+        return self._select_index(l, x, y)
 
 
 
@@ -713,7 +685,7 @@ def check_box(box, texel=None):
     
 
 def _create_testobjects(s):
-    from textmodel.textmodel import TextModel
+    from ..textmodel.textmodel import TextModel
     texel = TextModel(s).texel    
     box = TextBox(s)
     return box, texel
