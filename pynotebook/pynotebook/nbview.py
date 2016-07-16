@@ -44,17 +44,17 @@ def is_temp(model, i):
 
 
 class ParagraphStack(VGroup):
-    def create_group(self, l):
-        return VGroup(l, device=self.device)
+    pass
 
 
 
-class TextCellBox(Box):
+class TextCellBox(VBox):
+    text = property(lambda s:s.childs[0])
     def __init__(self, textbox, device=None):
         # NOTE: textbox should be a PargraphStack
         if device is not None:
             self.device=device
-        self.text = textbox
+        self.childs = [textbox]
         self.layout()
 
     def from_childs(self, childs):
@@ -94,7 +94,7 @@ class TextCellBox(Box):
             return 0
         elif y>=self.height-2:
             return len(self)
-        return Box.get_index(self, x, y)
+        return VBox.get_index(self, x, y)
 
     def extend_range(self, i1, i2):
         if i1<=0 or i2>=len(self):
@@ -106,13 +106,13 @@ class TextCellBox(Box):
         dc.SetBrush(wx.LIGHT_GREY_BRUSH)
         dc.SetPen(wx.TRANSPARENT_PEN)
         dc.DrawRectangle(x, y, self.width, self.height)
-        Box.draw(self, x, y, dc, styler)
+        VBox.draw(self, x, y, dc, styler)
 
     def draw_selection(self, i1, i2, x, y, dc):
         if i1<=0 and i2>=self.length:
             self.device.invert_rect(x, y, sepwidth, self.height, dc)
         else:
-            Box.draw_selection(self, i1, i2, x, y, dc)
+            VBox.draw_selection(self, i1, i2, x, y, dc)
 
     def responding_child(self, i, x0, y0): # XXX wird gebraucht um Cursor zu zeichen
 
@@ -121,7 +121,7 @@ class TextCellBox(Box):
         # the return behaviour.
         if i == len(self):
             return None, i, x0, y0 # None => kein Kind kümert sich darum
-        return Box.responding_child(self, i, x0, y0)
+        return VBox.responding_child(self, i, x0, y0)
 
     def get_cursorrect(self, i, x0, y0, style):
         child, j, x1, y1 = self.responding_child(i, x0, y0)
@@ -141,14 +141,15 @@ class TextCellBox(Box):
 
 
 
-class ScriptingCellBox(Box):
+class ScriptingCellBox(VBox):
+    input = property(lambda s:s.childs[0])
+    output = property(lambda s:s.childs[1])
     def __init__(self, inbox, outbox, number=0, device=None):
         # NOTE: Inbox and outbox should be PargraphStacks
         self.number = number
         if device is not None:
             self.device=device
-        self.input = inbox
-        self.output = outbox
+        self.childs = [inbox, outbox]
         self.layout()
 
     def from_childs(self, childs):
@@ -190,12 +191,12 @@ class ScriptingCellBox(Box):
             (repr(self.input),
              repr(self.output))
 
-    def get_index(self, x, y):
+    def xxget_index(self, x, y):
         if y<3:
             return 0
         elif y>=self.height-2:
             return len(self)
-        return Box.get_index(self, x, y)
+        return VBox.get_index(self, x, y)
 
     def extend_range(self, i1, i2):
         for i in (0, len(self.input), len(self)-1):
@@ -211,13 +212,13 @@ class ScriptingCellBox(Box):
         n = self.number or ''
         dc.DrawText("In[%s]:" % n, x, a[3])
         dc.DrawText("Out[%s]:" % n, x, b[3])
-        Box.draw(self, x, y, dc, styler)
+        VBox.draw(self, x, y, dc, styler)
 
     def draw_selection(self, i1, i2, x, y, dc):
         if i1<=0 and i2>=self.length:
             self.device.invert_rect(x, y, sepwidth, self.height, dc)
         else:
-            Box.draw_selection(self, i1, i2, x, y, dc)
+            VBox.draw_selection(self, i1, i2, x, y, dc)
 
     def responding_child(self, i, x0, y0):
         # Index position n+1 usually is managed by a child object. We
@@ -225,7 +226,7 @@ class ScriptingCellBox(Box):
         # the return behaviour.
         if i == len(self):
             return None, i, x0, y0 # None => kein Kind kümmert sich darum
-        return Box.responding_child(self, i, x0, y0)
+        return VBox.responding_child(self, i, x0, y0)
 
     def get_cursorrect(self, i, x0, y0, style):
         child, j, x1, y1 = self.responding_child(i, x0, y0)
