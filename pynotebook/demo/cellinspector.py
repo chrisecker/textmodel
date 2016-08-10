@@ -5,11 +5,11 @@ import sys
 sys.path.insert(0, '..')
 
 import wx
-import  wx.lib.colourselect as  csel
+import wx.lib.colourselect as  csel
 
 from pynotebook.textmodel.viewbase import ViewBase
 from pynotebook.textmodel import TextModel
-
+from pynotebook.wxtextview.wxdevice import filled
 
 
 
@@ -19,14 +19,15 @@ class Inspector(wx.Frame, ViewBase):
         wx.Frame.__init__(self, *args, title='Inspector',
                           style=wx.DEFAULT_FRAME_STYLE|wx.FRAME_FLOAT_ON_PARENT
                                |wx.FRAME_TOOL_WINDOW, **kwds)
-        sizer1 = wx.BoxSizer( wx.VERTICAL )
-        #self.SetBackgroundColour( wx.SystemSettings.GetColour( wx.SYS_COLOUR_BTNFACE ) )
+        sizer1 = wx.BoxSizer(wx.VERTICAL)
         panel = wx.Panel(self)
-        panel.SetBackgroundColour( wx.SystemSettings.GetColour( wx.SYS_COLOUR_BTNFACE ) )
+        panel.SetBackgroundColour(wx.SystemSettings.GetColour(wx.SYS_COLOUR_BTNFACE))
         self.SetBackgroundColour(panel.BackgroundColour)
-        sizer2 = wx.BoxSizer( wx.VERTICAL )
 
-        sizer3 = wx.StaticBoxSizer( wx.StaticBox( panel, wx.ID_ANY, u"Style" ), wx.VERTICAL )
+        sizer2 = wx.BoxSizer(wx.VERTICAL)
+
+        sizer3 = wx.StaticBoxSizer(wx.StaticBox(panel, wx.ID_ANY, u"Font Size"), 
+                                   wx.VERTICAL)
 
         choices = map(str, (8, 9, 10, 12, 14, 16, 18, 20, 22, 24, 26, 30))
 
@@ -63,20 +64,17 @@ class Inspector(wx.Frame, ViewBase):
 
         button = wx.Button(panel, -1, "Clear")
         button.Bind(wx.EVT_BUTTON, self.on_clear)
-        sizer3.Add( button, 0, wx.ALL, 5 )
-
-
-        sizer2.Add( sizer3, 1, wx.ALL|wx.EXPAND, 5 )
+        sizer3.Add(button, 0, wx.ALL, 5)
+        sizer2.Add(sizer3, 1, wx.ALL|wx.EXPAND, 5)
 
         panel.SetSizer( sizer2 )
         panel.Layout()
-        sizer2.Fit( panel )
-        sizer1.Add( panel, 1, wx.EXPAND |wx.ALL, 5 )
+        sizer2.Fit(panel)
+        sizer1.Add(panel, 1, wx.EXPAND |wx.ALL, 5)
 
         self.SetSizer( sizer1 )
         self.Layout()
         sizer1.Fit( self )
-
 
     def on_clear(self, event):
         textview = self.model
@@ -102,22 +100,20 @@ class Inspector(wx.Frame, ViewBase):
     def set_properties(self, **properties):
         textview = self.model
         textmodel = self.model.model
-        selection = textview.selection
-        i1, i2 = sorted(selection)
+        i1, i2 = sorted(textview.selection)
+        i1, i2 = textview.layout.extend_range(i1, i2)
         textmodel.set_properties(i1, i2, **properties)
 
     def update(self):
-        import sys
-        self.stderr = sys.stderr
         textview = self.model
         index = textview.index
         textmodel = textview.model
-        if index>0:
-            style = textmodel.get_style(index-1)
+        style = textview.current_style()
+        if index == 0:
+            style = textmodel.get_style(index)            
         else:
-            # we query the style from the extended texel, because this
-            # will work even for emtpy texts
-            style = textmodel.get_xtexel().get_style(index)
+            style = textmodel.get_style(index-1)
+        style = filled(style)
         self.fgcolor.SetValue(style['textcolor'])
         self.bgcolor.SetValue(style['bgcolor'])
         self.underline.SetValue(style['underline'])
@@ -143,8 +139,6 @@ def demo_00():
     frame.Show()
     model = view.model
     cell = TextCell(TextModel('This is a text cell!').texel)
-    print len(cell), cell.weights
-    cell.dump()
     model.insert(0, mk_textmodel(cell))
 
     inspector = Inspector(frame)
