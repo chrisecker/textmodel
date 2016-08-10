@@ -3,7 +3,7 @@
 
 from .texeltree import Text, Group, NewLine, Tabulator, insert, takeout, \
     ENDMARK, is_homogeneous, provides_childs, grouped, length, iter_childs, depth, \
-    is_list_efficient, is_root_efficient, strip2list
+    is_list_efficient, is_root_efficient, strip2list, EMPTYSTYLE
 from .styles import updated_style, create_style, get_styles, set_styles, \
     get_style, set_properties, get_parstyles, set_parstyles, set_parproperties, \
     StyleIterator
@@ -168,6 +168,10 @@ class TextModel(Model):
         except NotFound:
             i2 = len(self)
         return i2-i1
+
+
+    def clear_styles(self, i1, i2):
+        return self.set_styles(i1, [(i2-i1, EMPTYSTYLE)])
 
     def set_properties(self, i1, i2, **properties):
         """Sets the text properties between *i1* and *i2*."""
