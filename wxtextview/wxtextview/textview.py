@@ -147,18 +147,18 @@ class TextView(ViewBase, Model):
             return 0
         return self.layout.get_index(x, y)
 
+    def current_style(self):
+        index = self.index
+        if index == 0:
+            return self.model.get_style(index)            
+        return self.model.get_style(index-1)
+
     def handle_action(self, action, shift=False):
         #print "action = ", action, shift
         model = self.model
         index = self.index
         layout = self.layout
-        if index == len(model):
-            if index == 0:
-                style = {} 
-            else:
-                style = model.get_style(index-1)
-        else:
-            style = model.get_style(index)
+        style = self.current_style()
         row, col = self.current_position()
         rect = layout.get_rect(index, 0, 0)
         x = rect.x1
