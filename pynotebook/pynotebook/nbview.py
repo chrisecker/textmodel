@@ -4,8 +4,8 @@
 
 from .textmodel import texeltree
 from .textmodel.styles import create_style, updated_style
-from .textmodel.texeltree import Text, grouped, insert, length, get_text, \
-    NULL_TEXEL
+from .textmodel.texeltree import Group, Text, grouped, insert, length, get_text, \
+    get_rightmost, NULL_TEXEL, dump
 from .textmodel.textmodel import TextModel as _TextModel
 from .wxtextview.boxes import Box, VGroup, VBox, Row, Rect, check_box, \
     NewlineBox, TextBox, extend_range_seperated, replace_boxes
@@ -288,10 +288,15 @@ class Builder(_Builder):
         self._clients = clients
         _Builder.__init__(self, model, device, maxw)
 
-    def create_paragraphs(self, texel, i1, i2, add_newline=False):
+    def mk_style(self, style):
+        r = self.parstyle.copy()
+        r.update(style)
+        return r
+
+    def create_paragraphs(self, texel, i1, i2):
+        r = get_rightmost(texel)
+        self.parstyle = r.parstyle
         boxes = self.create_boxes(texel, i1, i2)
-        if add_newline:
-            boxes = boxes+(self.NewlineBox(device=self.device),)
         if self._maxw:
             maxw = max(100, self._maxw-80)
         else:
@@ -302,10 +307,21 @@ class Builder(_Builder):
             device = self.device)
         return l
 
-    def create_parstack(self, texel, add_newline=False):
-        l = self.create_paragraphs(texel, 0, length(texel), 
-                                   add_newline=add_newline)
+    def create_parstack(self, texel):
+        l = self.create_paragraphs(texel, 0, length(texel))
         return ParagraphStack(l, device=self.device)
+
+    def Text_handler(self, texel, i1, i2):
+        return [self.TextBox(texel.text[i1:i2], self.mk_style(texel.style), 
+                             self.device)]
+
+    def NewLine_handler(self, texel, i1, i2):
+        if texel.is_endmark:
+            return [self.EndBox(self.mk_style(texel.style), self.device)]
+        return [self.NewlineBox(self.mk_style(texel.style), self.device)] # XXX: Hmmmm
+
+    def Tabulator_handler(self, texel, i1, i2):
+        return [self.TabulatorBox(self.mk_style(texel.style), self.device)]
 
     def rebuild(self):
         model = self.model
@@ -342,7 +358,7 @@ class Builder(_Builder):
         
     ### Handlers
     def TextCell_handler(self, texel, i1, i2):
-        textbox = self.create_parstack(texel.text, add_newline=True)
+        textbox = self.create_parstack(Group(texel.childs[1:]))
         cell = TextCellBox(textbox, device=self.device)
         assert len(cell) == length(texel)
         return [cell]
@@ -353,10 +369,11 @@ class Builder(_Builder):
         n = i2-i1
         #dump_range(texel, 0, length(texel))
         
-        tmp, (j1, j2, inp), tmp, (k1, k2, outp), tmp \
+        sep1, (j1, j2, inp), sep2, (k1, k2, outp), sep3 \
             = texeltree.iter_childs(texel)
         assert length(texel) == length(inp)+length(outp)+3
-
+        _inp = Group([inp, sep2[-1]])
+        _outp = Group([outp, sep3[-1]])
         if i1 < j2 and j1 < i2: 
             client = self._clients.get_matching(texel)
             if self._has_temp:
@@ -364,19 +381,19 @@ class Builder(_Builder):
                 i0, tmp = find_cell(self.model.texel, t1)
                 assert tmp is texel
                 i0 += 1 
-                model = mk_textmodel(inp)
+                model = mk_textmodel(_inp)
                 old = model.remove(t1-i0, t2-i0)
                 tmp = mk_textmodel(client.colorize(model.texel))
                 model.insert(t1-i0, old)
                 colorized = model.texel
             else:
-                colorized = client.colorize(inp)
-            inbox = self.create_parstack(colorized, add_newline=True)
-            assert len(inbox) == length(inp)+1
+                colorized = client.colorize(_inp)
+            inbox = self.create_parstack(colorized)
+            assert len(inbox) == length(_inp)
 
         if i1 < k2 and k1 < i2: 
-            outbox = self.create_parstack(outp, add_newline=True)
-            assert len(outbox) == length(outp)+1
+            outbox = self.create_parstack(_outp)
+            assert len(outbox) == length(_outp)
 
         if j1<=i1<=i2<=k1:
             assert j1 == i1 and i2 == j2+1
