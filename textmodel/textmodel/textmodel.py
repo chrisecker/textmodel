@@ -16,6 +16,15 @@ import re
 debug = 0
 
 
+def _get_texel(texel, i):
+    if provides_childs(texel):
+        for i1, i2, child in iter_childs(texel):
+            if i1 <= i < i2:
+                return _get_texel(child, i-i1)
+    else:
+        if i != 0:
+            raise IndexError(i)
+    return texel
 
 def _get_text(texel, i1, i2):
     r = []
@@ -107,6 +116,12 @@ class TextModel(Model):
     def get_style(self, i):
         """Returns the style at index *i*."""
         return get_style(self.texel, i)
+
+    def get_parstyle(self, i):
+        row, col = self.index2position(i)
+        j = self.lineend(row)
+        texel = _get_texel(self.get_xtexel(), j)
+        return texel.parstyle
 
     def position2index(self, row, col):
         """Returns the index corresponding to *row* and *col*."""
@@ -693,5 +708,12 @@ def test_18():
     t = TextModel(text1+'\n'+text2)
     dump_range(t.texel, 1, 10)
 
+
+def test_19():
+    "parstyle"
+    model = TextModel(text1+'\n'+text2)
+    assert model.get_parstyle(1) == {}
+    model.set_parproperties(0, len(model), textcolor='red')
+    assert model.get_parstyle(1) == {'textcolor':'red'}
 
 __all__ = ['TextModel']
