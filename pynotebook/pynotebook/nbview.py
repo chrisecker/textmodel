@@ -1,12 +1,11 @@
 # -*- coding: latin-1 -*-
 
-# Am 07.2.16 von wxtextview/demo/notebook.py übertragen 
 
 from .textmodel import texeltree
 from .textmodel.styles import create_style, updated_style
 from .textmodel.texeltree import Group, Text, grouped, insert, length, get_text, \
     get_rightmost, NULL_TEXEL, dump
-from .textmodel.textmodel import TextModel as _TextModel
+from .textmodel.textmodel import TextModel
 from .wxtextview.boxes import Box, VGroup, VBox, Row, Rect, check_box, \
     NewlineBox, TextBox, extend_range_seperated, replace_boxes
 from .wxtextview.simplelayout import create_paragraphs, Paragraph
@@ -15,7 +14,7 @@ from .wxtextview.testdevice import TESTDEVICE
 from .wxtextview.wxtextview import WXTextView as _WXTextView
 from .wxtextview.simplelayout import Builder as _Builder
 
-from .nbtexels import ScriptingCell, find_cell, mk_textmodel, NotFound
+from .nbtexels import TextCell, ScriptingCell, find_cell, mk_textmodel, NotFound
 from .clients import ClientPool
 from .pyclient import PythonClient
 from .nbstream import Stream, StreamRecorder
@@ -24,12 +23,6 @@ import wx
 
 
 
-class TextModel(_TextModel):
-    defaultstyle = updated_style(_TextModel.defaultstyle, dict(temp=False))
-
-textcellstyle = create_style(
-#    bgcolor = 'lightgrey',
-    )
 
 promptstyle = create_style(
     textcolor = 'blue',
@@ -886,7 +879,29 @@ def test_15():
     view.clear_temp()
     assert model.get_text() == text
 
+
+def test_16():
+    "parstyle"
+    model = TextModel('')
+    tmp = TextModel(u'Line 1\nLine 2\nLine 3')
+    cell = TextCell(tmp.texel)
+    model.insert(len(model), mk_textmodel(cell))
+    i0 = 0
+    i1 = model.linestart(1)
+    i2 = model.linestart(2)
+    #print i0, i1, i2
+    assert model.get_parstyle(i0) == {}
+    assert model.get_parstyle(i1) == {}
+    assert model.get_parstyle(i2) == {}
+    #dump(model.texel)
+    #print
+    model.set_parproperties(i1, i2, bullet = True)
+    #dump(model.texel)
+    assert model.get_parstyle(i0) == {}
+    assert model.get_parstyle(i1) == {'bullet':True}
+    assert model.get_parstyle(i2) == {}
     
+
 def demo_00():
     from .wxtextview import testing
     ns = test_11()
