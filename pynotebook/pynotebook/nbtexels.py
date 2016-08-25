@@ -6,6 +6,8 @@ from .textmodel.texeltree import Texel, T, G, NL, Container, Single, \
     iter_childs, dump
 
 import wx
+import StringIO
+import base64    
 
 
 
@@ -59,6 +61,28 @@ def find_cell(texel, i, i0=0):
 
 
 
+def _bitmap_saver(bitmap):
+    # we convert images to png before saving to save disk space
+    w, h = bitmap.size
+    im = wx.ImageFromData(w, h, bitmap.data)
+    if isinstance(bitmap, BitmapRGBA):
+        im.SetAlphaBuffer(bitmap.alpha)
+    output = StringIO.StringIO()
+    im.SaveStream(output, wx.BITMAP_TYPE_PNG)
+
+    r = base64.b64encode(output.getvalue())
+    return base64.b64encode(output.getvalue())
+
+
+
+def _bitmap_loader(data):
+    pngdata = base64.b64decode(data)
+    stream = StringIO.StringIO(pngdata)
+    image = wx.ImageFromStream(stream, type=wx.BITMAP_TYPE_ANY)
+    return (image.Width, image.Height), image.Data, image.AlphaData
+
+
+
 class BitmapRGB(Single):
     def __init__(self, data, size):
         self.data = data
@@ -66,6 +90,12 @@ class BitmapRGB(Single):
 
     def __repr__(self):
         return 'BitmapRGB(...)'
+
+    def __getstate__(self):
+        return _bitmap_saver(self)
+
+    def __setstate__(self, data):
+        self.size, self.data = _bitmap_loader(data)[:2]
 
 
 
@@ -78,6 +108,12 @@ class BitmapRGBA(Single):
     def __repr__(self):
         return 'BitmapRGB(...)'
 
+    def __getstate__(self):
+        return _bitmap_saver(self)
+
+    def __setstate__(self, data):
+        self.size, self.data, self.alpha = _bitmap_loader(data)
+
 
 
 def test_00():
@@ -89,3 +125,21 @@ def test_00():
     dump(model.texel)
     model.insert_text(4, "xyz")
     dump(model.texel)
+
+
+def test_01():
+    import pickle
+    app = wx.App()
+
+    im = wx.ArtProvider.GetBitmap(wx.ART_WARNING, size=(128, 128)).ConvertToImage()
+    texel = BitmapRGBA(im.GetData(), im.GetAlphaData(), im.GetSize())
+    s = pickle.dumps(texel)
+    obj = pickle.loads(s)
+    s2 = pickle.dumps(obj)
+    assert s == s2
+
+    texel = BitmapRGB(im.GetData(), im.GetSize())
+    s = pickle.dumps(texel)
+    obj = pickle.loads(s)
+    s2 = pickle.dumps(obj)
+    assert s == s2
