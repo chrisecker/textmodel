@@ -19,7 +19,8 @@ setup(name='pynotebook',
       author_email='textmodelview@gmail.com',
       url='https://pypi.python.org/pypi/pynotebook/',
       license='BSD',
-      packages=['pynotebook'],
+      packages=['pynotebook', 'pynotebook/textmodel', 'pynotebook/wxtextview'],
+      scripts=['bin/pynb'],
       platforms = ['any'],
      )
 
