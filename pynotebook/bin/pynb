@@ -1,0 +1,124 @@
+#!/usr/bin/env python
+
+# simple notebook app
+
+
+import sys
+sys.path.insert(0, '..')
+
+import pynotebook
+from pynotebook.nbview import TextModel, NBView
+
+import wx
+
+
+wildcard = "Pynotebook files (*.pnb)|*.pnb|" \
+           "Python source (*.py)|*.py|" \
+           "All files (*.*)|*.*"
+
+class MainWindow(wx.Frame):
+    menu_entries = ['new', 'open', 'save', 'save_as', 'quit']
+    def __init__(self, filename=None):
+        wx.Frame.__init__(self, None)
+        panel = wx.Panel(self, -1)
+        shell = NBView(panel, -1, style=wx.SUNKEN_BORDER, filename=filename)
+        box = wx.BoxSizer(wx.VERTICAL)
+        box.Add(shell, 1, wx.ALL|wx.GROW, 1)
+        panel.SetSizer(box)
+        panel.SetAutoLayout(True)
+        shell.Bind(wx.EVT_RIGHT_DOWN, self.right_click)
+        shell.SetFocus()
+        self.shell = shell
+        self.filename = filename
+        self.Bind(wx.EVT_IDLE, self.update_filename)
+
+    def changed(self):
+        return self.shell.undocount()>0
+
+    def update_filename(self, event):
+        if self.filename:
+            title = self.filename
+        else:
+            title = '<unnamed>'
+        if self.changed():
+            title = title+' *'
+        self.SetTitle(title)
+
+    def new(self, event):
+        "&New Notebook"
+        win = MainWindow()
+        win.Show()
+
+    def open(self, event):
+        "&Open File ..."
+        dlg = wx.FileDialog(
+            self, message="Choose a file",
+            #defaultDir=self.currentDirectory, 
+            #defaultFile="",
+            wildcard=wildcard,
+            style=wx.OPEN | wx.MULTIPLE | wx.CHANGE_DIR
+            )
+        if dlg.ShowModal() == wx.ID_OK:
+            paths = dlg.GetPaths()
+            for path in paths:
+                win = MainWindow(path)
+                win.Show()
+        dlg.Destroy()
+
+    def save(self, event):
+        "&Save"
+        if self.filename is None:
+            self.save_as(event)
+        else:
+            self.shell.save(self.filename)
+            self.shell.clear_undo()
+            
+    def save_as(self, event):
+        "Save &As ..."
+        dlg = wx.FileDialog(
+            self, message="Save file as ...", 
+            #defaultDir=self.currentDirectory, 
+            defaultFile="", wildcard=wildcard, style=wx.SAVE
+            )
+        if dlg.ShowModal() == wx.ID_OK:
+            path = dlg.GetPath()
+            self.shell.save(path)
+            self.filename = path
+            self.shell.clear_undo()
+
+        dlg.Destroy()
+
+    def quit(self, event):
+        "&Quit"
+        self.Close(True)
+        
+    def right_click( self, event):
+        menu = wx.Menu()
+        for entry in self.menu_entries:
+            fun = getattr(self, entry)
+            title = fun.__doc__
+            item = menu.Append(-1, title)
+            self.Bind(wx.EVT_MENU, fun, item)
+
+        self.PopupMenu(menu, event.Position)
+        menu.Destroy() # destroy to avoid mem leak
+
+        
+
+
+def main():
+    app = wx.App(redirect=False)
+    win = None
+    print sys.argv
+    for arg in sys.argv[1:]:
+        # Arguments are notebook files. Each file is opened in a seperate
+        # window.
+        win = MainWindow(arg)
+        win.Show()
+    if win is None:
+        win = MainWindow()
+        win.Show()
+    app.MainLoop()
+
+
+main()
