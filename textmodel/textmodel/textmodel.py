@@ -106,7 +106,7 @@ class TextModel(Model):
 
     def get_style(self, i):
         """Returns the style at index *i*."""
-        return get_style(self.texel, i)
+        return get_style(self.get_xtexel(), i)
 
     def position2index(self, row, col):
         """Returns the index corresponding to *row* and *col*."""
