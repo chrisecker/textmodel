@@ -21,6 +21,8 @@ nmax = 15
 
 def calc_length(l):
     """Calculates the total length of all elements in list *l*."""
+    if not l:
+        return 0
     return sum([len(x) for x in l])
 
 
