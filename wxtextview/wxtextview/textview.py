@@ -35,8 +35,7 @@ class TextView(ViewBase, Model):
     _TextModel = TextModel
     def __init__(self):
         ViewBase.__init__(self)
-        self._undoinfo = []
-        self._redoinfo = []
+        self.clear_undo()
         self.set_model(self._TextModel(''))
         assert self.layout is not None
 
@@ -105,6 +104,16 @@ class TextView(ViewBase, Model):
         # Internal method: add a single redo info
         self._redoinfo.insert(0, info)
         self.notify_views('undo_changed')
+
+    def undocount(self):
+        return len(self._undoinfo)
+
+    def redocount(self):
+        return len(self._redoinfo)
+
+    def clear_undo(self):
+        self._undoinfo = []
+        self._redoinfo = []
 
     def insert(self, i, textmodel):
         self.model.insert(i, textmodel)
