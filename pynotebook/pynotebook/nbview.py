@@ -15,7 +15,8 @@ from .wxtextview.testdevice import TESTDEVICE
 from .wxtextview.wxtextview import WXTextView as _WXTextView
 from .wxtextview.simplelayout import Builder as _Builder
 
-from .nbtexels import ScriptingCell, find_cell, mk_textmodel, NotFound
+from .nbtexels import ScriptingCell, Graphics, find_cell, mk_textmodel, \
+    NotFound
 from .clients import ClientPool
 from .pyclient import PythonClient
 from .nbstream import Stream, StreamRecorder
@@ -257,7 +258,7 @@ class BitmapBox(Box):
             self.device = device
         self.bitmap = bitmap
         self.width, self.height = bitmap.Size
-        self.depth = 0
+        self.depth = 0 # XXX ?
 
     def __len__(self):
         return 1
@@ -267,6 +268,47 @@ class BitmapBox(Box):
 
     def draw(self, x, y, dc, styler):
         dc.DrawBitmap(self.bitmap, x, y, useMask=False)
+
+    def get_index(self, x, y):
+        if x>self.width/2.0:
+            return 1
+        return 0
+
+    def draw_selection(self, i1, i2, x, y, dc):
+        self.device.invert_rect(x, y, self.width, self.height, dc)
+
+
+
+class GraphicsBox(Box):
+    # XXX experimental!
+    def __init__(self, texel, device=None):
+        if device is not None:
+            self.device = device
+        self.texel = texel
+        self.width, self.height = texel.size
+
+    def __len__(self):
+        return 1
+
+    def iter_boxes(self, i, x, y):
+        if 0: yield 0,0,0
+
+    def draw(self, x, y, dc, styler):
+        gc = wx.GraphicsContext.Create(dc)
+        gc.Clip(x, y, self.width, self.height)
+        gc.Translate(x, y)
+        pen = wx.Pen(colour='black')
+        brush = wx.Brush(colour='transparent')
+        state = dict(pen=pen, brush=brush)
+        gc.SetPen(pen)
+        gc.SetBrush(brush)
+        texel = self.texel
+        if texel.frame:
+            gc.DrawRectangle(1, 1, self.width-2, self.height-2)
+
+        for item in self.texel.items:
+            item.draw(gc, state)
+        del gc
 
     def get_index(self, x, y):
         if x>self.width/2.0:
@@ -397,6 +439,9 @@ class Builder(_Builder):
     def Plot_handler(self, texel, i1, i2):
         return [PlotBox(device=self.device)]
 
+    def Graphics_handler(self, texel, i1, i2):
+        return [GraphicsBox(texel, device=self.device)]
+
     def BitmapRGB_handler(self, texel, i1, i2):
         w, h = texel.size
         bitmap = wx.BitmapFromBuffer(w, h, texel.data)
@@ -441,13 +486,28 @@ class NBView(_WXTextView):
     _maxw = 600
     def __init__(self, parent, id=-1,
                  pos=wx.DefaultPosition, size=wx.DefaultSize, style=0, 
-                 resize=False):
+                 resize=False, filename=None):
         self.resize = resize
         self.init_clients()
         _WXTextView.__init__(self, parent, id=id, pos=pos, size=size,
                              style=style)
+        if filename is not None:
+            self._load(filename)
         self.actions[(wx.WXK_TAB, False, False)] = 'complete'
         self.actions[(wx.WXK_RETURN, False, False)] = 'insert_newline_indented'
+
+    def _load(self, filename):
+        # Only meant to be called on fresh NBViews. Therefore we do
+        # not reset cursor, selection etc.
+        s = open(filename, 'rb').read()
+        import cerealizerformat        
+        model = cerealizerformat.loads(s)
+        self.model = model
+
+    def save(self, filename):
+        import cerealizerformat
+        s = cerealizerformat.dumps(self.model)
+        open(filename, 'wb').write(s)
 
     def init_clients(self):
         self._clients = ClientPool()        
@@ -623,7 +683,6 @@ def init_testing(redirect=True):
     box.Add(view, 1, wx.ALL|wx.GROW, 1)
     win.SetSizer(box)
     win.SetAutoLayout(True)
-
     
     frame.Show()
     return locals()
@@ -868,6 +927,14 @@ def test_15():
 
     view.clear_temp()
     assert model.get_text() == text
+
+
+def test_16():
+    "Graphics"
+    ns = init_testing(False)
+    model = ns['model']
+    model.insert(len(model), mk_textmodel(Graphics()))
+    view = ns['view']
 
     
 def demo_00():

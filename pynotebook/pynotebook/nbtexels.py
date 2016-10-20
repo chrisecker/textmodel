@@ -116,6 +116,14 @@ class BitmapRGBA(Single):
 
 
 
+class Graphics(Single):
+    def __init__(self, items=(), size=(100, 100), frame=False):
+        self.items = tuple(items)
+        self.size = size
+        self.frame = frame
+
+
+
 def test_00():
     "TextCell"
     cell = TextCell(T('0123456789'))
