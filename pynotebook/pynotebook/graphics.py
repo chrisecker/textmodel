@@ -81,6 +81,17 @@ class Rectangle:
         gc.DrawRectangle(x, y, w, h) 
 
 
+class Bitmap:
+    def __init__(self, data, size):
+        self.data = data
+        self.size = size
+
+    def draw(self, gc, state):
+        w, h = self.size
+        bitmap = wx.BitmapFromBuffer(w, h, self.data)
+        gc.DrawBitmap(bitmap, 0, 0, w, h)
+
+
 class Translate:
     def __init__(self, offset):
         self.offset = offset
@@ -96,6 +107,17 @@ class Rotate:
         
     def draw(self, gc, state):
         gc.Rotate(self.angle) 
+
+
+class Scale:
+    def __init__(self, fx, fy=None):
+        if fy is None:
+            fy = fx
+        self.fx = fx
+        self.fy = fy
+        
+    def draw(self, gc, state):
+        gc.Scale(self.fx, self.fy) 
 
 
 def register_classes():
