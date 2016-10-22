@@ -280,6 +280,21 @@ class BitmapBox(Box):
 
 
 
+def copy_pen(pen):
+    new = wx.Pen(pen.Colour, pen.Width, pen.Style)
+    new.SetCap(pen.Cap)
+    new.Cap = pen.Cap
+    new.Dashes = pen.Dashes
+    new.Join = pen.Join
+    return new
+
+
+def copy_brush(brush):
+    new = wx.Brush(brush.Colour, brush.Style)
+    new.Stipple = brush.Stipple
+    return new
+
+
 class GraphicsBox(Box):
     # XXX experimental!
     def __init__(self, texel, device=None):
@@ -303,16 +318,33 @@ class GraphicsBox(Box):
         state = dict(pen=pen, brush=brush)
         gc.SetPen(pen)
         gc.SetBrush(brush)
+
         texel = self.texel
         if texel.frame:
             gc.DrawRectangle(1, 1, self.width-2, self.height-2)
 
-        for item in self.texel.items:
-            try:
-                item.draw(gc, state)
-            except Exception, e:
-                print >>sys.stderr, e
-        del gc
+        def draw(item, state=state, gc=gc):
+            if type(item) is list or type(item) is tuple:
+                oldbrush = copy_brush(state['brush'])
+                oldpen = copy_pen(state['pen'])
+                gc.PushState()
+                for child in item:
+                    draw(child)
+                gc.PopState()
+                gc.SetPen(oldpen)
+                gc.SetBrush(oldbrush)
+                state['brush'] = oldbrush
+                state['pen'] = oldpen
+            else:
+                try:
+                    item.draw(gc, state)
+                except Exception, e:
+                    print >>sys.stderr, e
+
+        draw(texel.items)
+        draw = None
+        #del gc
+        #del draw
 
     def get_index(self, x, y):
         if x>self.width/2.0:

@@ -60,7 +60,6 @@ def find_cell(texel, i, i0=0):
     raise NotFound()
 
 
-
 def _bitmap_saver(bitmap):
     # we convert images to png before saving to save disk space
     w, h = bitmap.size
@@ -117,8 +116,13 @@ class BitmapRGBA(Single):
 
 
 class Graphics(Single):
-    def __init__(self, items=(), size=(100, 100), frame=False):
-        self.items = tuple(items)
+    def __init__(self, item, size=(100, 100), frame=False):
+        if type(item) is tuple:
+            self.items = item
+        elif type(item) is list:
+            self.items = tuple(item)
+        else:
+            self.items = (item)
         self.size = size
         self.frame = frame
 
