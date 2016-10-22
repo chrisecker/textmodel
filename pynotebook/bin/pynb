@@ -107,9 +107,14 @@ class MainWindow(wx.Frame):
 
 
 def main():
-    app = wx.App(redirect=False)
+    debug = 0
+    if debug:
+        redirect = True
+    else:
+        redirect = False
+    app = wx.App(redirect=redirect)
     win = None
-    print sys.argv
+    
     for arg in sys.argv[1:]:
         # Arguments are notebook files. Each file is opened in a seperate
         # window.
@@ -118,8 +123,15 @@ def main():
     if win is None:
         win = MainWindow()
         win.Show()
+
+    if debug: 
+        from pynotebook.wxtextview import testing
+        testing.pyshell()    
+
     app.MainLoop()
 
-
+# Register classes to the fileformat
 graphics.register_classes()
+
+
 main()
