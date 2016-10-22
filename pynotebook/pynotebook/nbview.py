@@ -5,7 +5,7 @@
 from .textmodel import texeltree
 from .textmodel.styles import create_style, updated_style
 from .textmodel.texeltree import Text, grouped, insert, length, get_text, \
-    NULL_TEXEL
+    join, NULL_TEXEL
 from .textmodel.textmodel import TextModel as _TextModel
 from .wxtextview.boxes import Box, VGroup, VBox, Row, Rect, check_box, \
     NewlineBox, TextBox, extend_range_seperated, replace_boxes
@@ -15,13 +15,14 @@ from .wxtextview.testdevice import TESTDEVICE
 from .wxtextview.wxtextview import WXTextView as _WXTextView
 from .wxtextview.simplelayout import Builder as _Builder
 
-from .nbtexels import ScriptingCell, Graphics, find_cell, mk_textmodel, \
+from .nbtexels import Cell, ScriptingCell, Graphics, find_cell, mk_textmodel, \
     NotFound
 from .clients import ClientPool
 from .pyclient import PythonClient
 from .nbstream import Stream, StreamRecorder
 import string
 import wx
+import sys
 
 
 
@@ -307,7 +308,10 @@ class GraphicsBox(Box):
             gc.DrawRectangle(1, 1, self.width-2, self.height-2)
 
         for item in self.texel.items:
-            item.draw(gc, state)
+            try:
+                item.draw(gc, state)
+            except Exception, e:
+                print >>sys.stderr, e
         del gc
 
     def get_index(self, x, y):
@@ -477,6 +481,18 @@ def common(s1, s2):
     except IndexError:
         pass
     return s1[:i]
+
+
+def strip_cells(texel):
+    # Helper: remove some top-level Cells from texel
+    if texel.is_group:
+        l = []
+        for child in group.childs:
+            l.extend(strip_cells(child))
+        return groupes(l)
+    if isinstance(texel, Cell):
+        return join(*[[c] for c in texel.childs]) 
+    return [texel]
 
 
 
@@ -649,25 +665,33 @@ class NBView(_WXTextView):
         self.adjust_viewport()
 
     def insert(self, i, textmodel):
-        needscell = True
+        insidecell = False
         try:
             i0, cell = self.find_cell()
-            if not (i == i0 or i == i0+length(cell)):
-                needscell = False
+            if i0 < i < i0+length(cell):
+               insidecell = True
         except NotFound:
             pass
         try:
             find_cell(textmodel.texel, 0)
-            hascell = True
+            hascells = True
         except NotFound:
-            hascell = False
-        if needscell and not hascell:
-            cell = self.ScriptingCell(NULL_TEXEL, NULL_TEXEL)
-            self.model.insert(i, mk_textmodel(cell))
-            info = self._remove, i, i+length(cell)
-            self.add_undo(info)
-            i = i+1
-        _WXTextView.insert(self, i, textmodel)
+            hascells = False
+        if insidecell:
+            if hascells:
+                # We can't insert cells inside cells. Therefore we
+                # remove all outer cells from what we insert.
+                texel = grouped(strip_cells(textmodel.texel))
+                _WXTextView.insert(self, i, mk_textmodel(texel))
+            else:
+                _WXTextView.insert(self, i, textmodel)
+        else:
+            if hascells:
+                _WXTextView.insert(self, i, textmodel)
+            else:
+                cell = self.ScriptingCell(NULL_TEXEL, NULL_TEXEL)
+                _WXTextView.insert(self, i, mk_textmodel(cell))
+                _WXTextView.insert(self, i+1, textmodel)
 
 
 
