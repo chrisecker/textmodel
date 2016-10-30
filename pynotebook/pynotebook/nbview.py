@@ -339,12 +339,16 @@ class GraphicsBox(Box):
                 state['brush'] = oldbrush
                 state['pen'] = oldpen
             else:
-                try:
-                    item.draw(gc, state)
-                except Exception, e:
-                    print >>sys.stderr, e
+                item.draw(gc, state)
 
-        draw(texel.items)
+        try:
+            draw(texel.items)
+        except Exception, e:
+            dc.SetBrush(wx.RED_BRUSH)
+            dc.SetPen(wx.RED_PEN)
+            dc.DrawRectangle(x, y, self.width, self.height)
+            print >>sys.stderr, e
+
         draw = None
         #del gc
         #del draw
