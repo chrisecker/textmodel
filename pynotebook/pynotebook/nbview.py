@@ -316,9 +316,11 @@ class GraphicsBox(Box):
         gc.Translate(x, y)
         pen = wx.Pen(colour='black')
         brush = wx.Brush(colour='transparent')
-        state = dict(pen=pen, brush=brush)
+        font = wx.SystemSettings.GetFont(wx.SYS_DEFAULT_GUI_FONT)
+        state = dict(pen=pen, brush=brush, font=font)
         gc.SetPen(pen)
         gc.SetBrush(brush)
+        gc.SetFont(font)
 
         texel = self.texel
         if texel.frame:
