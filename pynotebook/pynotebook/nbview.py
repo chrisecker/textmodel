@@ -291,7 +291,8 @@ def copy_pen(pen):
 
 def copy_brush(brush):
     new = wx.Brush(brush.Colour, brush.Style)
-    new.Stipple = brush.Stipple
+    if brush.Stipple.Ok():
+        new.Stipple = brush.Stipple
     return new
 
 
