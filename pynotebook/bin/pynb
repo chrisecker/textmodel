@@ -8,6 +8,7 @@ sys.path.insert(0, '..')
 
 import pynotebook
 from pynotebook.nbview import TextModel, NBView
+from pynotebook.nbtexels import strip_output, mk_textmodel
 from pynotebook import graphics
 import wx
 
@@ -17,7 +18,8 @@ wildcard = "Pynotebook files (*.pnb)|*.pnb|" \
            "All files (*.*)|*.*"
 
 class MainWindow(wx.Frame):
-    menu_entries = ['new', 'open', 'save', 'save_as', 'quit']
+    ctxt_entries = ['new', 'open', 'save', 'save_as', 'remove_output', 'close']
+    file_entries = ['new', 'open', 'save', 'save_as', 'close']
     def __init__(self, filename=None):
         wx.Frame.__init__(self, None)
         panel = wx.Panel(self, -1)
@@ -30,7 +32,28 @@ class MainWindow(wx.Frame):
         shell.SetFocus()
         self.shell = shell
         self.filename = filename
+        self.SetMenuBar(self.make_menubar())
         self.Bind(wx.EVT_IDLE, self.update_filename)
+        
+    def make_menubar(self):
+        menubar = wx.MenuBar()
+        menu = wx.Menu()
+        for entry in self.ctxt_entries:
+            fun = getattr(self, entry)
+            title = fun.__doc__
+            item = menu.Append(-1, title)
+            self.Bind(wx.EVT_MENU, fun, item)
+        menubar.Append(menu, '&File')
+        return menubar
+
+    def make_ctxtmenu(self):
+        menu = wx.Menu()
+        for entry in self.ctxt_entries:
+            fun = getattr(self, entry)
+            title = fun.__doc__
+            item = menu.Append(-1, title)
+            self.Bind(wx.EVT_MENU, fun, item)
+        return menu
 
     def changed(self):
         return self.shell.undocount()>0
@@ -45,12 +68,12 @@ class MainWindow(wx.Frame):
         self.SetTitle(title)
 
     def new(self, event):
-        "&New Notebook"
+        "&New Notebook\tCtrl-N"
         win = MainWindow()
         win.Show()
 
     def open(self, event):
-        "&Open File ..."
+        "&Open File ...\tCtrl-O"
         dlg = wx.FileDialog(
             self, message="Choose a file",
             #defaultDir=self.currentDirectory, 
@@ -66,7 +89,7 @@ class MainWindow(wx.Frame):
         dlg.Destroy()
 
     def save(self, event):
-        "&Save"
+        "&Save\tCtrl-s"
         if self.filename is None:
             self.save_as(event)
         else:
@@ -88,18 +111,30 @@ class MainWindow(wx.Frame):
 
         dlg.Destroy()
 
-    def quit(self, event):
-        "&Quit"
+    def close(self, event):
+        "&Close\tCtrl-w"
+        if self.changed():
+            dlg = wx.MessageDialog(
+                self, 'Hello from Python and wxPython!',
+                'A Message Box',
+                #wx.OK | wx.ICON_INFORMATION
+                wx.YES_NO | wx.NO_DEFAULT | wx.CANCEL | wx.ICON_INFORMATION
+            )
+            result = dlg.ShowModal()
+            print result
+            dlg.Destroy()
+            
         self.Close(True)
+
+    def remove_output(self, event):
+        "Remove output"
+        texel = self.shell.model.texel
+        model = mk_textmodel(strip_output(texel))
+        self.shell.model = model
+        # XXX add undo
         
     def right_click( self, event):
-        menu = wx.Menu()
-        for entry in self.menu_entries:
-            fun = getattr(self, entry)
-            title = fun.__doc__
-            item = menu.Append(-1, title)
-            self.Bind(wx.EVT_MENU, fun, item)
-
+        menu = self.make_ctxtmenu()
         self.PopupMenu(menu, event.Position)
         menu.Destroy() # destroy to avoid mem leak
 

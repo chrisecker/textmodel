@@ -3,7 +3,7 @@
 
 from .textmodel.textmodel import TextModel, dump_range
 from .textmodel.texeltree import Texel, T, G, NL, Container, Single, \
-    iter_childs, dump
+    iter_childs, dump, NULL_TEXEL
 
 import wx
 import StringIO
@@ -46,6 +46,18 @@ class ScriptingCell(Cell):
         self.compute_weights()
 
 
+def strip_output(texel):
+    if isinstance(texel, ScriptingCell):
+        print texel.__class__
+        clone = texel.__class__(texel.input, NULL_TEXEL)
+        return clone
+    elif texel.is_group:
+        r = []
+        for child in texel.childs:
+            r.append(strip_output(child))
+        return G(r)
+    else: 
+        return texel
 
 
 class NotFound(Exception): pass
