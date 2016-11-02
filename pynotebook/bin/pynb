@@ -115,15 +115,15 @@ class MainWindow(wx.Frame):
         "&Close\tCtrl-w"
         if self.changed():
             dlg = wx.MessageDialog(
-                self, 'Hello from Python and wxPython!',
-                'A Message Box',
+                self, 'There are unsaved changes. Do you really want to close?',
+                'Close window',
                 #wx.OK | wx.ICON_INFORMATION
                 wx.YES_NO | wx.NO_DEFAULT | wx.CANCEL | wx.ICON_INFORMATION
             )
             result = dlg.ShowModal()
-            print result
             dlg.Destroy()
-            
+            if result != wx.ID_YES:
+                return            
         self.Close(True)
 
     def remove_output(self, event):
@@ -132,6 +132,7 @@ class MainWindow(wx.Frame):
         model = mk_textmodel(strip_output(texel))
         self.shell.model = model
         # XXX add undo
+        # XXX restrict cursor to length of new model
         
     def right_click( self, event):
         menu = self.make_ctxtmenu()
