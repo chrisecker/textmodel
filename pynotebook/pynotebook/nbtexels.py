@@ -34,7 +34,6 @@ class TextCell(Cell):
 class ScriptingCell(Cell):
 
     client_name = 'direct python'
-    evaluated = True
 
     input = property(lambda s:s.childs[1])
     output = property(lambda s:s.childs[3])
@@ -45,14 +44,6 @@ class ScriptingCell(Cell):
         self.number = number
         self.childs = [NL, input, NL, output, NL]
         self.compute_weights()
-
-
-def set_unevaluated(texel):
-    if isinstance(texel, ScriptingCell):
-        texel.evaluated = False
-    elif texel.is_group:
-        for child in texel.childs:
-            set_unevaluated(child)
 
 
 def strip_output(texel):

@@ -16,7 +16,7 @@ from .wxtextview.wxtextview import WXTextView as _WXTextView
 from .wxtextview.simplelayout import Builder as _Builder
 
 from .nbtexels import Cell, ScriptingCell, Graphics, find_cell, mk_textmodel, \
-    NotFound, set_unevaluated
+    NotFound
 from .clients import ClientPool
 from .pyclient import PythonClient
 from .nbstream import Stream, StreamRecorder
@@ -33,12 +33,7 @@ textcellstyle = create_style(
 #    bgcolor = 'lightgrey',
     )
 
-promptstyle1 = create_style(
-    textcolor = 'grey',
-    weight = 'bold'
-    )
-
-promptstyle2 = create_style(
+promptstyle = create_style(
     textcolor = 'blue',
     weight = 'bold'
     )
@@ -136,10 +131,9 @@ class TextCellBox(VBox):
 class ScriptingCellBox(VBox):
     input = property(lambda s:s.childs[0])
     output = property(lambda s:s.childs[1])
-    def __init__(self, inbox, outbox, number=0, evaluated=False, device=None):
+    def __init__(self, inbox, outbox, number=0, device=None):
         assert isinstance(inbox, ParagraphStack)
         assert isinstance(outbox, ParagraphStack)
-        self.evaluated = evaluated
         self.number = number
         if device is not None:
             self.device=device
@@ -195,10 +189,7 @@ class ScriptingCellBox(VBox):
 
     def draw(self, x, y, dc, styler):
         a, b = list(self.iter_boxes(0, x, y))
-        if self.evaluated:
-            styler.set_style(promptstyle2)
-        else:
-            styler.set_style(promptstyle1)
+        styler.set_style(promptstyle)
         n = self.number or ''
         dc.DrawText("In[%s]:" % n, x, a[3])
         dc.DrawText("Out[%s]:" % n, x, b[3])
@@ -234,6 +225,14 @@ class ScriptingCellBox(VBox):
         h = self.height
         return Rect(x0, y0+h, sepwidth, y0+h+2)
 
+ 
+
+def reset_numbers(texel):
+    if isinstance(texel, ScriptingCell):
+        texel.number = 0
+    elif texel.is_group:
+        for child in texel.childs:
+            reset_numbers(child)
 
 
 def get_update_range(box, i1, i2):
@@ -484,7 +483,6 @@ class Builder(_Builder):
 
         assert i1 == 0 and i2 == k2+1
         cell = ScriptingCellBox(inbox, outbox, number=texel.number,
-                                evaluated=texel.evaluated,
                                 device=self.device)
         assert len(cell) == n
         return [cell]
@@ -569,7 +567,7 @@ class NBView(_WXTextView):
         s = open(filename, 'rb').read()
         import cerealizerformat        
         model = cerealizerformat.loads(s)
-        set_unevaluated(model.texel)
+        reset_numbers(model.texel)
         self.model = model
 
     def save(self, filename):
