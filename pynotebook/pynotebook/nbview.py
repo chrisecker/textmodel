@@ -551,7 +551,9 @@ class NBView(_WXTextView):
     _maxw = 600
     def __init__(self, parent, id=-1,
                  pos=wx.DefaultPosition, size=wx.DefaultSize, style=0, 
-                 resize=False, filename=None):
+                 resize=False, filename=None, maxw=None):
+        if maxw is not None:
+            self.maxw = maxw
         self.resize = resize
         self.init_clients()
         _WXTextView.__init__(self, parent, id=id, pos=pos, size=size,
