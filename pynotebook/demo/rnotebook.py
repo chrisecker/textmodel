@@ -147,8 +147,8 @@ def demo_00():
     model = fromtext(examples, ScriptingCell=ScriptingCell)
 
     frame = wx.Frame(None)
-    win = wx.Panel(frame, -1)
-    view = NBView(win, -1, style=wx.SUNKEN_BORDER)
+    win = wx.Panel(frame)
+    view = NBView(win)
     view.ScriptingCell = ScriptingCell
     view._clients.register(RClient())
     view.model = model

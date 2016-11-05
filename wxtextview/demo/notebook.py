@@ -766,8 +766,8 @@ def init_testing(redirect=True):
     model = TextModel('')
 
     frame = wx.Frame(None)
-    win = wx.Panel(frame, -1)
-    view = WXTextView(win, -1, style=wx.SUNKEN_BORDER)
+    win = wx.Panel(frame)
+    view = WXTextView(win)
     view.model = model
     box = wx.BoxSizer(wx.VERTICAL)
     box.Add(view, 1, wx.ALL|wx.GROW, 1)

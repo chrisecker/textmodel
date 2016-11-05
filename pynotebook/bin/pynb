@@ -30,7 +30,7 @@ class MainWindow(wx.Frame):
     def __init__(self, filename=None):
         wx.Frame.__init__(self, None)
         panel = wx.Panel(self, -1)
-        shell = NBView(panel, -1, style=wx.SUNKEN_BORDER, filename=filename, maxw=600)
+        shell = NBView(panel, -1, filename=filename, maxw=600)
         box = wx.BoxSizer(wx.VERTICAL)
         box.Add(shell, 1, wx.ALL|wx.GROW, 1)
         panel.SetSizer(box)

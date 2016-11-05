@@ -27,7 +27,7 @@ model.insert(len(model), TextModel(instructions))
 
 # display the texmodel in a view
 frame = wx.Frame(None)
-view = WXTextView(frame, -1)
+view = WXTextView(frame)
 view.model = model
 frame.Show()
 
@@ -37,7 +37,7 @@ view.selection = 0, 5
 
 # display the same textmodel in a second view
 frame2 = wx.Frame(None)
-view2 = WXTextView(frame2, -1)
+view2 = WXTextView(frame2)
 view2.model = model
 frame2.Show()
 

@@ -255,8 +255,8 @@ def init_testing(redirect=True):
     model.set_properties(249, 269, fontsize=14)
 
     frame = wx.Frame(None)
-    win = wx.Panel(frame, -1)
-    view = WXTextView(win, -1, style=wx.SUNKEN_BORDER)
+    win = wx.Panel(frame)
+    view = WXTextView(win)
     view.model = model
     assert view.layout is not None
     box = wx.BoxSizer(wx.VERTICAL)
@@ -395,8 +395,8 @@ def demo_01():
     "colorize demo"
     app = wx.App(redirect = False)
     frame = wx.Frame(None)
-    win = wx.Panel(frame, -1)
-    view = WXTextView(win, -1, style=wx.SUNKEN_BORDER)
+    win = wx.Panel(frame)
+    view = WXTextView(win)
     box = wx.BoxSizer(wx.VERTICAL)
     box.Add(view, 1, wx.ALL|wx.GROW, 1)
     win.SetSizer(box)
@@ -416,8 +416,8 @@ def demo_02():
     "empty text"
     app = wx.App(redirect = True)
     frame = wx.Frame(None)
-    win = wx.Panel(frame, -1)
-    view = WXTextView(win, -1, style=wx.SUNKEN_BORDER)
+    win = wx.Panel(frame)
+    view = WXTextView(win)
     box = wx.BoxSizer(wx.VERTICAL)
     box.Add(view, 1, wx.ALL|wx.GROW, 1)
     win.SetSizer(box)

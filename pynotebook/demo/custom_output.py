@@ -36,8 +36,8 @@ def demo_00():
     model = fromtext(examples, ScriptingCell=ScriptingCell)
 
     frame = wx.Frame(None)
-    win = wx.Panel(frame, -1)
-    view = NBView(win, -1, style=wx.SUNKEN_BORDER)
+    win = wx.Panel(frame)
+    view = NBView(win)
     view.model = model
     box = wx.BoxSizer(wx.VERTICAL)
     box.Add(view, 1, wx.ALL|wx.GROW, 1)
