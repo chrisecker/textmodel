@@ -551,7 +551,7 @@ class NBView(_WXTextView):
                  pos=wx.DefaultPosition, size=wx.DefaultSize, style=0, 
                  resize=False, filename=None, maxw=None):
         if maxw is not None:
-            self.maxw = maxw
+            self._maxw = maxw
         self.resize = resize
         self.init_clients()
         _WXTextView.__init__(self, parent, id=id, pos=pos, size=size,
@@ -750,8 +750,8 @@ def init_testing(redirect=True):
     model = TextModel('')
 
     frame = wx.Frame(None)
-    win = wx.Panel(frame, -1)
-    view = NBView(win, -1, style=wx.SUNKEN_BORDER)
+    win = wx.Panel(frame)
+    view = NBView(win)
     view.model = model
     box = wx.BoxSizer(wx.VERTICAL)
     box.Add(view, 1, wx.ALL|wx.GROW, 1)
