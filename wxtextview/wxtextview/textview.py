@@ -140,6 +140,20 @@ class TextView(ViewBase, Model):
         self.index = i2
         return self._remove, i1, i2
 
+    def clear_styles(self, i1, i2):
+        styles = self.model.clear_styles()
+        info = self._set_styles, i, styles
+        self.add_undo(info)
+
+    def set_properties(self, i1, i2, **properties):
+        styles = self.model.set_properties(i1, i2, **properties)
+        info = self._set_styles, i1, styles
+        self.add_undo(info)
+
+    def _set_styles(self, i, styles):
+        styles = self.model.set_styles(i, styles)
+        return self._set_styles, i, styles
+
     def set_maxw(self, maxw):
         if maxw == self._maxw:
             return
