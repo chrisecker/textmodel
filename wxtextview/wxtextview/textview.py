@@ -141,8 +141,8 @@ class TextView(ViewBase, Model):
         return self._remove, i1, i2
 
     def clear_styles(self, i1, i2):
-        styles = self.model.clear_styles()
-        info = self._set_styles, i, styles
+        styles = self.model.clear_styles(i1, i2)
+        info = self._set_styles, i1, styles
         self.add_undo(info)
 
     def set_properties(self, i1, i2, **properties):
