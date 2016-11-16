@@ -1,12 +1,12 @@
 # -*- coding: latin-1 -*-
 
-# Am 07.2.16 von wxtextview/demo/notebook.py übertragen 
 
 from .textmodel import texeltree
 from .textmodel.styles import create_style, updated_style
-from .textmodel.texeltree import Text, grouped, insert, length, get_text, \
-    join, NULL_TEXEL
-from .textmodel.textmodel import TextModel as _TextModel
+from .textmodel.texeltree import Group, Text, grouped, insert, length, get_text, \
+    join, get_rightmost, NULL_TEXEL, dump
+from .textmodel.textmodel import TextModel
+
 from .wxtextview.boxes import Box, VGroup, VBox, Row, Rect, check_box, \
     NewlineBox, TextBox, extend_range_seperated, replace_boxes
 from .wxtextview.simplelayout import create_paragraphs, Paragraph
@@ -15,7 +15,7 @@ from .wxtextview.testdevice import TESTDEVICE
 from .wxtextview.wxtextview import WXTextView as _WXTextView
 from .wxtextview.simplelayout import Builder as _Builder
 
-from .nbtexels import Cell, ScriptingCell, Graphics, find_cell, mk_textmodel, \
+from .nbtexels import Cell, ScriptingCell, TextCell, Graphics, find_cell, mk_textmodel, \
     NotFound
 from .clients import ClientPool
 from .pyclient import PythonClient
@@ -26,12 +26,6 @@ import sys
 
 
 
-class TextModel(_TextModel):
-    defaultstyle = updated_style(_TextModel.defaultstyle, dict(temp=False))
-
-textcellstyle = create_style(
-#    bgcolor = 'lightgrey',
-    )
 
 promptstyle = create_style(
     textcolor = 'blue',
@@ -381,10 +375,14 @@ class Builder(_Builder):
         self._clients = clients
         _Builder.__init__(self, model, device, maxw)
 
-    def create_paragraphs(self, texel, i1, i2, add_newline=False):
+    def mk_style(self, style):
+        r = self.parstyle.copy()
+        r.update(style)
+        return r
+
+    def create_paragraphs(self, texel, i1, i2):
+        # Ich müsste jeden Paragraphen separat erzeugen!
         boxes = self.create_boxes(texel, i1, i2)
-        if add_newline:
-            boxes = boxes+(self.NewlineBox(device=self.device),)
         if self._maxw:
             maxw = max(100, self._maxw-80)
         else:
@@ -395,10 +393,33 @@ class Builder(_Builder):
             device = self.device)
         return l
 
-    def create_parstack(self, texel, add_newline=False):
-        l = self.create_paragraphs(texel, 0, length(texel), 
-                                   add_newline=add_newline)
+    def create_parstack(self, texel):
+        l = self.create_paragraphs(texel, 0, length(texel))
         return ParagraphStack(l, device=self.device)
+
+    def Group_handler(self, texel, i1, i2):
+        # A variant of group handler which traverses the texeltree
+        # from right to left.
+        r = []
+        for j1, j2, child in reversed(list(texeltree.iter_childs(texel))):
+            if i1 < j2 and j1 < i2: # overlapp
+                l = self.create_boxes(
+                    child, max(0, i1-j1), min(i2, j2)-j1)
+                r = list(l)+r
+        return r
+
+    def Text_handler(self, texel, i1, i2):
+        return [self.TextBox(texel.text[i1:i2], self.mk_style(texel.style), 
+                             self.device)]
+
+    def NewLine_handler(self, texel, i1, i2):
+        self.parstyle = texel.parstyle
+        if texel.is_endmark:
+            return [self.EndBox(self.mk_style(texel.style), self.device)]
+        return [self.NewlineBox(self.mk_style(texel.style), self.device)] # XXX: Hmmmm
+
+    def Tabulator_handler(self, texel, i1, i2):
+        return [self.TabulatorBox(self.mk_style(texel.style), self.device)]
 
     def rebuild(self):
         model = self.model
@@ -435,7 +456,7 @@ class Builder(_Builder):
         
     ### Handlers
     def TextCell_handler(self, texel, i1, i2):
-        textbox = self.create_parstack(texel.text, add_newline=True)
+        textbox = self.create_parstack(Group(texel.childs[1:]))
         cell = TextCellBox(textbox, device=self.device)
         assert len(cell) == length(texel)
         return [cell]
@@ -446,10 +467,11 @@ class Builder(_Builder):
         n = i2-i1
         #dump_range(texel, 0, length(texel))
         
-        tmp, (j1, j2, inp), tmp, (k1, k2, outp), tmp \
+        sep1, (j1, j2, inp), sep2, (k1, k2, outp), sep3 \
             = texeltree.iter_childs(texel)
         assert length(texel) == length(inp)+length(outp)+3
-
+        _inp = Group([inp, sep2[-1]])
+        _outp = Group([outp, sep3[-1]])
         if i1 < j2 and j1 < i2: 
             client = self._clients.get_matching(texel)
             if self._has_temp:
@@ -457,19 +479,19 @@ class Builder(_Builder):
                 i0, tmp = find_cell(self.model.texel, t1)
                 assert tmp is texel
                 i0 += 1 
-                model = mk_textmodel(inp)
+                model = mk_textmodel(_inp)
                 old = model.remove(t1-i0, t2-i0)
                 tmp = mk_textmodel(client.colorize(model.texel))
                 model.insert(t1-i0, old)
                 colorized = model.texel
             else:
-                colorized = client.colorize(inp)
-            inbox = self.create_parstack(colorized, add_newline=True)
-            assert len(inbox) == length(inp)+1
+                colorized = client.colorize(_inp)
+            inbox = self.create_parstack(colorized)
+            assert len(inbox) == length(_inp)
 
         if i1 < k2 and k1 < i2: 
-            outbox = self.create_parstack(outp, add_newline=True)
-            assert len(outbox) == length(outp)+1
+            outbox = self.create_parstack(_outp)
+            assert len(outbox) == length(_outp)
 
         if j1<=i1<=i2<=k1:
             assert j1 == i1 and i2 == j2+1
@@ -1007,10 +1029,32 @@ def test_16():
     "Graphics"
     ns = init_testing(False)
     model = ns['model']
-    model.insert(len(model), mk_textmodel(Graphics()))
+    model.insert(len(model), mk_textmodel(Graphics([])))
     view = ns['view']
 
+
+def test_17():    
+    "parstyle"
+    model = TextModel('')
+    tmp = TextModel(u'Line 1\nLine 2\nLine 3')
+    cell = TextCell(tmp.texel)
+    model.insert(len(model), mk_textmodel(cell))
+    i0 = 0
+    i1 = model.linestart(1)
+    i2 = model.linestart(2)
+    #print i0, i1, i2
+    assert model.get_parstyle(i0) == {}
+    assert model.get_parstyle(i1) == {}
+    assert model.get_parstyle(i2) == {}
+    #dump(model.texel)
+    #print
+    model.set_parproperties(i1, i2, bullet = True)
+    #dump(model.texel)
+    assert model.get_parstyle(i0) == {}
+    assert model.get_parstyle(i1) == {'bullet':True}
+    assert model.get_parstyle(i2) == {}
     
+
 def demo_00():
     from .wxtextview import testing
     ns = test_11()
