@@ -5,7 +5,7 @@ import wx
 
 defaultstyle = dict(
     fontsize=10, bgcolor='white', textcolor='black', 
-    underline=False, facename='', weight='normal')
+    underline=False, facename='', italic=False, bold=False)
 
 
 def filled(style, defaultstyle=defaultstyle):
@@ -32,18 +32,18 @@ def invert_rect_BLIT(self, x, y, w, h, dc):
 
 
 def get_font(style):
-    weight = dict(
-        normal = wx.FONTWEIGHT_NORMAL, 
-        light = wx.FONTWEIGHT_LIGHT,
-        bold = wx.FONTWEIGHT_BOLD,
-    )[style.get('weight', 'normal')]
+    weight = {False : wx.FONTWEIGHT_NORMAL,
+              True : wx.FONTWEIGHT_BOLD}[style.get('bold', False)]
+    slant = {False : wx.FONTSTYLE_NORMAL,
+              True : wx.FONTSTYLE_ITALIC}[style.get('italic', False)]
+
     family = dict(
         roman = wx.FONTFAMILY_ROMAN,
         modern = wx.FONTFAMILY_MODERN, 
         swiss = wx.FONTFAMILY_SWISS,        
     )[style.get('family', 'modern')]
     return wx.Font(
-        style['fontsize'], family, wx.NORMAL, weight,
+        style['fontsize'], family, slant, weight,
         style['underline'], style['facename'])
 
 
