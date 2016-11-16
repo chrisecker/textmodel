@@ -375,11 +375,6 @@ class Builder(_Builder):
         self._clients = clients
         _Builder.__init__(self, model, device, maxw)
 
-    def mk_style(self, style):
-        r = self.parstyle.copy()
-        r.update(style)
-        return r
-
     def create_paragraphs(self, texel, i1, i2):
         # Ich müsste jeden Paragraphen separat erzeugen!
         boxes = self.create_boxes(texel, i1, i2)
@@ -396,30 +391,6 @@ class Builder(_Builder):
     def create_parstack(self, texel):
         l = self.create_paragraphs(texel, 0, length(texel))
         return ParagraphStack(l, device=self.device)
-
-    def Group_handler(self, texel, i1, i2):
-        # A variant of group handler which traverses the texeltree
-        # from right to left.
-        r = []
-        for j1, j2, child in reversed(list(texeltree.iter_childs(texel))):
-            if i1 < j2 and j1 < i2: # overlapp
-                l = self.create_boxes(
-                    child, max(0, i1-j1), min(i2, j2)-j1)
-                r = list(l)+r
-        return r
-
-    def Text_handler(self, texel, i1, i2):
-        return [self.TextBox(texel.text[i1:i2], self.mk_style(texel.style), 
-                             self.device)]
-
-    def NewLine_handler(self, texel, i1, i2):
-        self.parstyle = texel.parstyle
-        if texel.is_endmark:
-            return [self.EndBox(self.mk_style(texel.style), self.device)]
-        return [self.NewlineBox(self.mk_style(texel.style), self.device)] # XXX: Hmmmm
-
-    def Tabulator_handler(self, texel, i1, i2):
-        return [self.TabulatorBox(self.mk_style(texel.style), self.device)]
 
     def rebuild(self):
         model = self.model

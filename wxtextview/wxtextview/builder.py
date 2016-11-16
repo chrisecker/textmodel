@@ -22,6 +22,14 @@ class Factory:
     def get_device(self):
         return self.device
 
+    def mk_style(self, style):
+        # This can overriden e.g. to implement style sheets. The
+        # default behaviour is to use the paragraph style and add the
+        # text styles.
+        r = self.parstyle.copy()
+        r.update(style)
+        return r
+
     ### Factory methods
     def create_all(self, texel):
         # Convenience method
@@ -45,23 +53,31 @@ class Factory:
         return tuple(l)
         
     def Group_handler(self, texel, i1, i2):
-        r = []
-        for j1, j2, child in texeltree.iter_childs(texel):
+        # Handles group texels. Note that the list of childs is
+        # traversed from right to left. This way the "Newline" which
+        # ends a line is handled before the content in the line. This
+        # is important because in order to build boxes for the line
+        # elements, we need the paragraph style which is located in
+        # the NewLine-Texel.
+        r = ()
+        for j1, j2, child in reversed(list(texeltree.iter_childs(texel))):
             if i1 < j2 and j1 < i2: # overlapp
-                r.extend(self.create_boxes(
-                    child, max(0, i1-j1), min(i2, j2)-j1))
+                r = self.create_boxes(child, max(0, i1-j1), min(i2, j2)-j1)+r
         return r
 
     def Text_handler(self, texel, i1, i2):
-        return [self.TextBox(texel.text[i1:i2], texel.style, self.device)]
+        return [self.TextBox(texel.text[i1:i2], self.mk_style(texel.style), 
+                             self.device)]
 
     def NewLine_handler(self, texel, i1, i2):
+        self.parstyle = texel.parstyle
         if texel.is_endmark:
-            return [self.EndBox(texel.style, self.device)]
-        return [self.NewlineBox(texel.style, self.device)] # XXX: Hmmmm
+            return [self.EndBox(self.mk_style(texel.style), self.device)]
+        return [self.NewlineBox(self.mk_style(texel.style), self.device)] # XXX: Hmmmm
 
     def Tabulator_handler(self, texel, i1, i2):
-        return [self.TabulatorBox(texel.style, self.device)]
+        return [self.TabulatorBox(self.mk_style(texel.style), self.device)]
+
 
 
 
