@@ -2,12 +2,70 @@
 
 from .clients import Client, Aborted
 from .nbstream import StreamRecorder
-from .textmodel.texeltree import get_text, length
+from pynotebook.textmodel.textmodel import TextModel
+from pynotebook.textmodel.texeltree import Text, grouped, get_text, NL, length
+from pynotebook.textmodel.styles import create_style, EMPTYSTYLE
 
 import sys
 import traceback
 import rlcompleter
 import types
+import cStringIO
+import token, tokenize, keyword
+
+
+
+def pycolorize(texel):
+    model = TextModel()
+    model.texel = grouped([texel, NL]) # the NL is needed by
+                                       # tokenizer. We have to remove
+                                       # it in the end
+
+    text = get_text(model.texel)
+    rawtext = (text).encode('utf-8')
+
+    instream = cStringIO.StringIO(rawtext).readline
+
+    _KEYWORD = token.NT_OFFSET + 1
+    _TEXT    = token.NT_OFFSET + 2
+
+    _styles = {
+        token.NUMBER:       create_style(textcolor='#0080C0'),
+        token.OP:           create_style(textcolor='#0000C0'),
+        token.STRING:       create_style(textcolor='#004080'),
+        tokenize.COMMENT:   create_style(textcolor='#008000'),
+        token.NAME:         create_style(textcolor='#000000'),
+        token.ERRORTOKEN:   create_style(textcolor='#FF8080'),
+        _KEYWORD:           create_style(textcolor='#C00000'),
+        #_TEXT:              create_style(),
+    }
+    l = []    
+    class TokenEater:
+        ai = 0
+        def __call__(self, toktype, toktext, (srow,scol), (erow,ecol), line, l=l, 
+                     position2index=model.position2index):
+            if token.LPAR <= toktype and toktype <= token.OP:
+                toktype = token.OP
+            elif toktype == token.NAME and keyword.iskeyword(toktext):
+                toktype = _KEYWORD
+
+            i1 = position2index(srow-1, scol)
+            i2 = position2index(erow-1, ecol)
+            if i1 > self.ai:
+                l.append(Text(text[self.ai:i1]))
+            if i2 > i1:
+                t = text[i1:i2]
+                if t == '\n':
+                    l.append(NL)
+                else:
+                    try:
+                        style = _styles[toktype]
+                    except:
+                        style = EMPTYSTYLE
+                    l.append(Text(t, style))
+            self.ai = i2
+    tokenize.tokenize(instream, TokenEater())        
+    return grouped(l[:-1]) # note that we are stripping of the last NL
 
 
 
@@ -154,18 +212,25 @@ def __transform__(obj, iserr):
         return options
 
     def colorize(self, inputtexel):
-        text = get_text(inputtexel)
-
-        # XXX The pycolorize function was only ment for benchmarking
-        # the textmodel. Here, we should use an optimized variant
-        # instead.
-        from .textmodel.textmodel import pycolorize
-        try:
-            colorized = pycolorize(text).texel
-        except Exception, e:
-            return inputtexel
+        
+        if 0:
+            # The pycolorize function was ment for benchmarking the
+            # textmodel. It is quite inefficient. Here, we should use
+            # an optimized variant instead.
+            text = get_text(inputtexel).encode('utf-8')
+            from .textmodel.textmodel import pycolorize as _pycolorize
+            try:
+                colorized = _pycolorize(text, 'utf-8').texel
+            except:
+                return inputtexel
+        else:
+            try:
+                colorized = pycolorize(inputtexel)
+            except:
+                return inputtexel
         assert length(colorized) == length(inputtexel)
         return colorized
+
 
 
 def test_00():
@@ -230,4 +295,12 @@ for i in range(10):
         client.abort() # emulate a ctrl-c
     """, stream.output)
     assert 'Aborted' in str(stream.messages)
+    
+def test_03():
+    "colorize"
+    client = PythonClient()
+    textmodel = TextModel("""
+for i in range(10):
+    print i""")
+    client.colorize(textmodel.texel)
     
