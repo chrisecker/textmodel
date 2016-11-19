@@ -4,6 +4,7 @@
 from ..textmodel import texeltree
 from ..textmodel.textmodel import TextModel
 from ..textmodel.texeltree import NewLine, Group, Text, length
+from ..textmodel.styles import EMPTYSTYLE
 from .testdevice import TESTDEVICE
 from .boxes import TextBox, NewlineBox, TabulatorBox, EmptyTextBox, \
     EndBox, check_box, Box, calc_length
@@ -15,6 +16,8 @@ class Factory:
     NewlineBox = NewlineBox
     TabulatorBox = TabulatorBox
     EndBox = EndBox
+
+    parstyle = EMPTYSTYLE
 
     def __init__(self, device=TESTDEVICE):
         self.device = device
