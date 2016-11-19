@@ -6,7 +6,7 @@ from .texeltree import G, T, length, grouped, provides_childs, iter_childs, \
     get_pieces, fuse, EMPTYSTYLE, NL, NewLine
 
 
-debug = 1
+debug = 0
 
 
 class StyleIterator:
