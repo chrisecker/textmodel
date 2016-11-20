@@ -42,15 +42,21 @@ def pycolorize(texel):
     l = []    
     class TokenEater:
         ai = 0
+        arow = 0
+        acol = 0
         def __call__(self, toktype, toktext, (srow,scol), (erow,ecol), line, l=l, 
                      position2index=model.position2index):
             if token.LPAR <= toktype and toktype <= token.OP:
                 toktype = token.OP
             elif toktype == token.NAME and keyword.iskeyword(toktext):
                 toktype = _KEYWORD
-
-            i1 = position2index(srow-1, scol)
-            i2 = position2index(erow-1, ecol)
+                
+            if self.arow == srow == erow:
+                i1 = scol-self.acol+self.ai
+                i2 = ecol-self.acol+self.ai
+            else:
+                i1 = position2index(srow-1, scol)
+                i2 = position2index(erow-1, ecol)
             if i1 > self.ai:
                 l.append(Text(text[self.ai:i1]))
             if i2 > i1:
@@ -64,6 +70,8 @@ def pycolorize(texel):
                         style = EMPTYSTYLE
                     l.append(Text(t, style))
             self.ai = i2
+            self.acol = ecol
+            self.arow = erow
     tokenize.tokenize(instream, TokenEater())        
     return grouped(l[:-1]) # note that we are stripping of the last NL
 

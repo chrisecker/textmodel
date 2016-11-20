@@ -47,32 +47,66 @@ def get_font(style):
         style['underline'], style['facename'])
 
 
+# Profiling revelead that a lot of time is spent in the measure_*
+# functions. We therefore cache the results in a fixed size dict. This
+# reduces the time spent by ~90%.
+_cache = dict()
+_cache_keys = []
+
 def measure_win(self, text, style):
+    key = text, tuple(style.items())
+    try:
+        return _cache[key]
+    except:
+        pass
     style = filled(style)
     font = get_font(style)
     dc = wx.MemoryDC()
     dc.SetFont(font)
     w, h = dc.GetTextExtent(text)
+    _cache[key] = w, h
+    _cache_keys.insert(0, key)
+    if len(_cache_keys) > 1000:
+        _key = _cache_keys.pop()
+        del _cache[key]        
     return w, h
 
-
 def measure_mac(self, text, style):
+    key = text, tuple(style.items())
+    try:
+        return _cache[key]
+    except:
+        pass
     style = filled(style)
     font = get_font(style)
     gc = wx.GraphicsContext_CreateMeasuringContext()
     gc.SetFont(font)
     w, h = gc.GetTextExtent(text)
+    _cache[key] = w, h
+    _cache_keys.insert(0, key)
+    if len(_cache_keys) > 1000:
+        _key = _cache_keys.pop()
+        del _cache[key]        
     return w, h
 
-
 def measure_gtk(self, text, style):
-    # GC return wrong font metric values in gtk! We therefore use the DC.  
+    key = text, tuple(style.items())
+    try:
+        return _cache[key]
+    except:
+        pass
     style = filled(style)
     text = text.replace('\n', ' ') # replace newlines to avoid double lines
     font = get_font(style)
+    # GC returns wrong font metric values in gtk! We therefore use the DC.  
     dc = wx.MemoryDC()
     dc.SetFont(font)
     w, h = dc.GetTextExtent(text)
+    _cache[key] = w, h
+    _cache_keys.insert(0, key)
+    if len(_cache_keys) > 1000:
+        _key = _cache_keys.pop()
+        del _cache[key]        
     return w, h
 
 
