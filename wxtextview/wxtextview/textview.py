@@ -50,6 +50,7 @@ class TextView(ViewBase, Model):
     def rebuild(self):
         self.builder.rebuild()
         self.layout = self.builder.get_layout()
+        self.refresh()
         assert self.layout is not None
 
     def join_undo(self, info2, info1):
@@ -153,6 +154,21 @@ class TextView(ViewBase, Model):
     def _set_styles(self, i, styles):
         styles = self.model.set_styles(i, styles)
         return self._set_styles, i, styles
+
+    def transform(self, fun):
+        # Apply a tranforming function to the texeltree. Can change
+        # index.
+        texel = self.model.texel
+        new = fun(texel)
+        info = self._set_texel(new)
+        self.add_undo(info)
+
+    def _set_texel(self, new):
+        old = self.model.texel
+        self.model.texel = new
+        self.index = min(len(self.model), self.index)        
+        self.rebuild()
+        return self._set_texel, old
 
     def set_maxw(self, maxw):
         if maxw == self._maxw:
