@@ -15,7 +15,7 @@ from .wxtextview.wxdevice import defaultstyle
 class Inspector(wx.Frame, ViewBase):
     def __init__(self, *args, **kwds):
         ViewBase.__init__(self)
-        wx.Frame.__init__(self, *args, title='Inspector',
+        wx.Frame.__init__(self, *args, title='Text format',
                           style=wx.DEFAULT_FRAME_STYLE|wx.FRAME_FLOAT_ON_PARENT
                                |wx.FRAME_TOOL_WINDOW, **kwds)
         sizer1 = wx.BoxSizer( wx.VERTICAL )
