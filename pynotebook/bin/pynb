@@ -21,16 +21,15 @@ wildcard = "Pynotebook files (*.pnb)|*.pnb|" \
            "All files (*.*)|*.*"
 
 class MainWindow(wx.Frame):
-    ctxt_entries = ['new', 'open', 'save', 'save_as', 'close']
+    ctxt_entries = ['inspector', 'open', 'save', 'save_as', 'close']
     file_entries = ['new', 'open', 'save', 'save_as', 'close']
     edit_entries = ['copy', 'paste', 'cut', 'undo', 'redo']
-    cell_entries = ['insert_textcell', 'insert_pycell', 'remove_output']
-    interpreter_entries = []
+    cell_entries = ['inspector', 'insert_textcell', 'insert_pycell', 'remove_output']
     updaters = ()
     def __init__(self, filename=None):
         wx.Frame.__init__(self, None)
         panel = wx.Panel(self, -1)
-        shell = NBView(panel, -1, filename=filename, maxw=600)
+        shell = NBView(panel, -1, filename=filename, maxw=1000)
         box = wx.BoxSizer(wx.VERTICAL)
         box.Add(shell, 1, wx.ALL|wx.GROW, 1)
         panel.SetSizer(box)
@@ -64,7 +63,6 @@ class MainWindow(wx.Frame):
         menubar.Append(mk_menu(self.file_entries), '&File')
         menubar.Append(mk_menu(self.edit_entries), '&Edit')
         menubar.Append(mk_menu(self.cell_entries), '&Cell')
-        menubar.Append(mk_menu(self.interpreter_entries), '&Interpreter')
         self.updaters = updaters 
         return menubar
 
@@ -179,12 +177,15 @@ class MainWindow(wx.Frame):
 
     def copy(self, event):
         "Copy\tCtrl-c"
+        self.shell.handle_action('copy')
     
     def paste(self, event):
         "Paste\tCtrl-v"
+        self.shell.handle_action('paste')
 
     def cut(self, event):
         "Cut\tCtrl-x"
+        self.shell.handle_action('cut')
 
     def can_undo(self):
         return self.shell.undocount() > 0
@@ -202,11 +203,7 @@ class MainWindow(wx.Frame):
 
     def remove_output(self, event):
         "Remove output"
-        texel = self.shell.model.texel
-        model = mk_textmodel(strip_output(texel))
-        self.shell.model = model
-        # XXX add undo
-        # XXX restrict cursor to length of new model
+        self.shell.transform(strip_output)
 
     def between_cells(self):
         i = self.shell.index
@@ -231,8 +228,14 @@ class MainWindow(wx.Frame):
         cell = ScriptingCell(NULL_TEXEL, NULL_TEXEL)
         self.shell.insert(self.shell.index, mk_textmodel(cell))
 
-        
-
+    def inspector(self, event):
+        "Format ..."
+        from pynotebook.inspector import Inspector
+        inspector = Inspector(self.shell.Parent)
+        inspector.model = self.shell
+        inspector.Show()
+        inspector.update()
+ 
 
 def main(argv):
     debug = 0
