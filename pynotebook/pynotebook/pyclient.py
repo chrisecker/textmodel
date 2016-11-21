@@ -135,6 +135,11 @@ def __transform__(obj, iserr):
             self.aborted = False
             raise Aborted()
 
+    def _execute(self, text, output):
+        # for debugging
+        model = TextModel(text)
+        self.execute(model.texel, output)
+
     def execute(self, inputfield, output):
         source = get_text(inputfield)
         self.namespace['__output__'] = output
@@ -241,54 +246,55 @@ def __transform__(obj, iserr):
 
 
 
+
 def test_00():
     "execute"
     client = PythonClient()
     assert 'output' in client.namespace
 
     stream = StreamRecorder()
-    client.execute("12+2", stream.output)
+    client._execute("12+2", stream.output)
     assert client.namespace['ans'] == 14
     assert stream.messages == [(14, False)]
 
     stream = StreamRecorder()
-    client.execute("12+(", stream.output)
+    client._execute("12+(", stream.output)
     assert 'SyntaxError' in str(stream.messages)
     assert client.namespace['ans'] == None
 
     stream = StreamRecorder()
-    client.execute("asdasds", stream.output)
+    client._execute("asdasds", stream.output)
     assert stream.messages == [
         ('  File "In[3]", line 1, in <module>\n', True), 
         ("NameError: name 'asdasds' is not defined\n", True)]
 
     stream = StreamRecorder()
-    client.execute("a=1", stream.output)
+    client._execute("a=1", stream.output)
     assert client.namespace['ans'] == None
     assert stream.messages == []
 
     stream = StreamRecorder()
-    client.execute("a", stream.output)
+    client._execute("a", stream.output)
     assert client.namespace['ans'] == 1
     assert stream.messages == [(1, False)]
 
     stream = StreamRecorder()
-    client.execute("a+1", stream.output)
+    client._execute("a+1", stream.output)
     assert client.namespace['ans'] == 2
     assert stream.messages == [(2, False)]
 
     stream = StreamRecorder()
-    client.execute("print a", stream.output)
+    client._execute("print a", stream.output)
     assert stream.messages == [('1', False), ('\n', False)]
     
 def test_01():
     "complete"
     client = PythonClient()
-    assert client.complete('a') == ('abs(', 'all(', 'and', 'ans', 'any(', 
-                                    'apply(', 'as', 'assert')
-    assert client.complete('ba') == ('basestring(',)
-    assert client.complete('cl') == ('class',)
-    assert client.complete('class') == ('class', 'classmethod(')
+    assert client.complete('a') == set(['abs', 'all', 'and', 'ans', 'any', 
+                                        'apply', 'as', 'assert'])
+    assert client.complete('ba') == set(['basestring'])
+    assert client.complete('cl') == set(['classmethod', 'class'])
+    assert client.complete('class') == set(['class', 'classmethod'])
 
 def test_02():
     "abort"
@@ -296,7 +302,7 @@ def test_02():
     client = PythonClient(namespace)
     stream = StreamRecorder()
     namespace['client'] = client
-    client.execute("""
+    client._execute("""
 for i in range(10):
     print i
     if i>5:
