@@ -27,6 +27,16 @@ class LineColor: # wx style
         pen.SetColour(self.color)
         gc.SetPen(pen)
 
+
+class Width: # XXX or LineWidth?
+    def __init__(self, width):
+        self.width = width
+        
+    def draw(self, gc, state):
+        pen = state["pen"]
+        pen.SetWidth(self.width)
+        gc.SetPen(pen)
+
         
 class FillColor:
     def __init__(self, color):
@@ -39,7 +49,7 @@ class FillColor:
 
 
 class Dot:
-    def __init__(self, x, y):
+    def __init__(self, (x, y)):
         self.x = x
         self.y = y
 
@@ -92,6 +102,21 @@ class Bitmap:
         gc.DrawBitmap(bitmap, 0, 0, w, h)
 
 
+class Text:
+    regname = 'GraphicsText'
+    def __init__(self, text, point, align=(0, 0)):
+        self.text = text
+        self.point = point
+        self.align = align
+        
+    def draw(self, gc, state):
+        x, y = self.point
+        w, h = gc.GetTextExtent(self.text)
+        dx = 0.5*w*(self.align[0]-1)
+        dy = 0.5*h*(self.align[1]-1)
+        gc.DrawText(self.text, x+dx, y+dy)
+
+
 class Translate:
     def __init__(self, offset):
         self.offset = offset
@@ -120,12 +145,33 @@ class Scale:
         gc.Scale(self.fx, self.fy) 
 
 
+
+def _unscale_widths(l):
+    if isinstance(l, list) or isinstance(l, tuple):
+        r = []
+        for obj in l:
+            if isinstance(obj, Scale):
+                r.append(Width(1.0/obj.fx))
+                r.append(obj)
+            else:
+                r.append(_unscale_widths(obj))
+        return r
+    return l
+
+    
+def Sketch(l, *args, **kwds): # XXX highly experimental
+    return Graphics(_unscale_widths(l), *args, **kwds)
+
+
 def register_classes():
     from cerealizerformat import register
     import types
     for name, value in globals().items():
         if type(value) is types.ClassType:
-            register(value)
+            if hasattr(value, 'regname'):
+                register(value, classname=value.regname)
+            else:
+                register(value)
 
 
 def init_testing(redirect=True):
