@@ -72,6 +72,23 @@ class Factory:
         return [self.TextBox(texel.text[i1:i2], self.mk_style(texel.style), 
                              self.device)]
 
+    _cache = dict()
+    _cache_keys = []
+    def Text_handler(self, texel, i1, i2):
+        # cached version
+        key = texel.text, id(texel.style), id(self.parstyle), i1, i2, self.device
+        try:
+            return self._cache[key]
+        except: pass        
+        r = [self.TextBox(texel.text[i1:i2], self.mk_style(texel.style), 
+                          self.device)]
+        self._cache_keys.insert(0, key)        
+        if len(self._cache_keys) > 10000:
+            _key = self._cache_keys.pop()
+            del self._cache[_key]
+        self._cache[key] = r
+        return r
+
     def NewLine_handler(self, texel, i1, i2):
         self.parstyle = texel.parstyle
         if texel.is_endmark:
