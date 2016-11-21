@@ -316,6 +316,9 @@ class TextView(ViewBase, Model):
             self.undo()
         elif action == 'redo':
             self.redo()
+        elif action == 'del_line_end':
+            i = model.linestart(row)+model.linelength(row)-1
+            self.remove(index, i)
         elif action == 'del_word_left':
             # find the beginning of the word
             i = index

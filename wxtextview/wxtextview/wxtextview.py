@@ -65,6 +65,7 @@ class WXTextView(wx.ScrolledWindow, TextView):
             (24, True, False) : 'cut',
             (26, True, False) : 'undo',
             (18, True, False) : 'redo',  
+            (11, True, False) : 'del_line_end',   
             (127, True, False) : 'del_word_left',   
             (1, True, False) : 'select_all',
             }        
@@ -87,7 +88,7 @@ class WXTextView(wx.ScrolledWindow, TextView):
         ctrl = event.ControlDown()
         shift = event.ShiftDown()
         alt = event.AltDown()        
-        char = event.GetUnicodeKey()
+        char = event.GetUnicodeKey()        
         action = self.actions.get((keycode, ctrl, alt))
         if action is None:
             action = unichr(keycode)
