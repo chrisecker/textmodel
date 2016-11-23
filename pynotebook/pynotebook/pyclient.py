@@ -3,16 +3,36 @@
 from .clients import Client, Aborted
 from .nbstream import StreamRecorder
 from pynotebook.textmodel.textmodel import TextModel
-from pynotebook.textmodel.texeltree import Text, grouped, get_text, NL, length
+from pynotebook.textmodel.texeltree import Text, grouped, get_text, NL, length, dump, \
+    iter_childs
 from pynotebook.textmodel.styles import create_style, EMPTYSTYLE
 
 import sys
 import traceback
 import rlcompleter
 import types
-import cStringIO
 import token, tokenize, keyword
+import io
 
+
+debug = 0
+
+def join(elements, sep):
+    # helper
+    if len(elements)>1:
+        return [elements[0], sep] + join(elements[1:], sep)
+    return list(elements)
+
+
+def mk_breaklist(texel, i0=0):
+    # helper
+    if not texel.weights[2]: return ()
+    if texel.is_group or texel.is_container:
+        r = []
+        for i1, i2, child in iter_childs(texel):
+            r += mk_breaklist(child, i1+i0)
+        return r
+    return [i0+length(texel)]
 
 
 def pycolorize(texel):
@@ -20,11 +40,9 @@ def pycolorize(texel):
     model.texel = grouped([texel, NL]) # the NL is needed by
                                        # tokenizer. We have to remove
                                        # it in the end
-
+    position2index = model.position2index
     text = get_text(model.texel)
-    rawtext = (text).encode('utf-8')
-
-    instream = cStringIO.StringIO(rawtext).readline
+    instream = io.StringIO(text).readline
 
     _KEYWORD = token.NT_OFFSET + 1
     _TEXT    = token.NT_OFFSET + 2
@@ -39,42 +57,40 @@ def pycolorize(texel):
         _KEYWORD:           create_style(textcolor='#C00000'),
         #_TEXT:              create_style(),
     }
-    l = []    
+
     class TokenEater:
         ai = 0
-        arow = 0
-        acol = 0
-        def __call__(self, toktype, toktext, (srow,scol), (erow,ecol), line, l=l, 
-                     position2index=model.position2index):
+        breaks = [0]+mk_breaklist(model.texel)
+        l = []
+        def moveto(self, i, style=EMPTYSTYLE):
+            # move index to $i$ and create texels the text between $ai$ and $i$
+            ai = self.ai
+            if i<ai: 
+                raise IndexError
+            if i == ai:
+                return
+            t = [Text(t, style) for t in text[ai:i].split('\n')]
+            self.l.extend([x for x in join(t, NL) if length(x)])
+            self.ai = i
+            
+        def __call__(self, toktype, toktext, (srow,scol), (erow,ecol), line):
             if token.LPAR <= toktype and toktype <= token.OP:
                 toktype = token.OP
             elif toktype == token.NAME and keyword.iskeyword(toktext):
                 toktype = _KEYWORD
                 
-            if self.arow == srow == erow:
-                i1 = scol-self.acol+self.ai
-                i2 = ecol-self.acol+self.ai
-            else:
-                i1 = position2index(srow-1, scol)
-                i2 = position2index(erow-1, ecol)
-            if i1 > self.ai:
-                l.append(Text(text[self.ai:i1]))
-            if i2 > i1:
-                t = text[i1:i2]
-                if t == '\n':
-                    l.append(NL)
-                else:
-                    try:
-                        style = _styles[toktype]
-                    except:
-                        style = EMPTYSTYLE
-                    l.append(Text(t, style))
-            self.ai = i2
-            self.acol = ecol
-            self.arow = erow
-    tokenize.tokenize(instream, TokenEater())        
-    return grouped(l[:-1]) # note that we are stripping of the last NL
+            i1 = self.breaks[srow-1]+scol
+            i2 = self.breaks[erow-1]+ecol
+            if debug:
+                assert i1 == position2index(srow-1, scol)
+                assert i2 == position2index(erow-1, ecol)
+            self.moveto(i1)
+            self.moveto(i2)
 
+    eater = TokenEater()
+    tokenize.tokenize(instream, eater)
+    eater.moveto(len(text))
+    return grouped(eater.l[:-1]) # note that we are stripping of the last NL
 
 
 class FakeFile:
@@ -237,11 +253,22 @@ def __transform__(obj, iserr):
             except:
                 return inputtexel
         else:
-            try:
+            if 1:
                 colorized = pycolorize(inputtexel)
-            except:
-                return inputtexel
-        assert length(colorized) == length(inputtexel)
+            else:
+                try:
+                    colorized = pycolorize(inputtexel)
+                except:
+                    return inputtexel
+
+        try:
+            assert length(colorized) == length(inputtexel)
+        except:
+            print "colorized:"
+            dump(colorized)
+            print "input"
+            dump(inputtexel)
+            return inputtexel
         return colorized
 
 
@@ -317,4 +344,28 @@ def test_03():
 for i in range(10):
     print i""")
     client.colorize(textmodel.texel)
+
+
+def test_04():
+    "colorize (2)"
+    client = PythonClient()    
+    text = u"""# Die Integrazeichen sind in vielen Unicode-Fonts enthalten. Z.B. FONTFAMILY_ROMAN. Sieht leider alles sehr ähnlich aus. Schöner ist z.B. wasy10. Der Font ist aber nicht auf allen Plattformen enthalten. Symbol dürfte enthalten sein, enthält aber nicht das Mittelstück.
+# https://de.wikipedia.org/wiki/Integralzeichen  """
+    textmodel = TextModel(text)
+    client.colorize(textmodel.texel)
+
+def test_05():
+    "colorize (3)"
+    from pynotebook.textmodel import textmodel
+    text = open(textmodel.__file__.replace('.pyc', '.py')).read()
+    textmodel = TextModel(text)
+    client = PythonClient()    
+    client.colorize(textmodel.texel)
     
+def benchmark():
+    from pynotebook.textmodel import texeltree
+    text = open(texeltree.__file__.replace('.pyc', '.py')).read()
+    textmodel = TextModel(text)
+    client = PythonClient()    
+    from cProfile import runctx 
+    runctx("client.colorize(textmodel.texel)", globals(), locals())
