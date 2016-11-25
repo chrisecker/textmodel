@@ -9,7 +9,7 @@ sys.path.insert(0, '..')
 import pynotebook
 from pynotebook.nbview import TextModel, NBView
 from pynotebook.nbtexels import strip_output, mk_textmodel, NotFound, \
-    TextCell, ScriptingCell
+    TextCell, ScriptingCell, split_cell
 from pynotebook.textmodel.texeltree import NULL_TEXEL, length
 from pynotebook import graphics
 import os
@@ -24,7 +24,8 @@ class MainWindow(wx.Frame):
     ctxt_entries = ['inspector', 'open', 'save', 'save_as', 'close']
     file_entries = ['new', 'open', 'save', 'save_as', 'close']
     edit_entries = ['copy', 'paste', 'cut', 'undo', 'redo']
-    cell_entries = ['inspector', 'insert_textcell', 'insert_pycell', 'remove_output']
+    cell_entries = ['inspector', 'insert_textcell', 'insert_pycell', 'remove_output', 
+                    'split_cell']
     updaters = ()
     def __init__(self, filename=None):
         wx.Frame.__init__(self, None)
@@ -138,7 +139,7 @@ class MainWindow(wx.Frame):
         dlg.Destroy()
 
     def save(self, event):
-        "&Save\tCtrl-s"
+        "&Save\tCtrl-S"
         if self.filename is None:
             self.save_as(event)
         else:
@@ -161,7 +162,7 @@ class MainWindow(wx.Frame):
         dlg.Destroy()
 
     def close(self, event):
-        "&Close\tCtrl-w"
+        "&Close\tCtrl-W"
         if self.changed():
             dlg = wx.MessageDialog(
                 self, 'There are unsaved changes. Do you really want to close?',
@@ -176,29 +177,29 @@ class MainWindow(wx.Frame):
         self.Close(True)
 
     def copy(self, event):
-        "Copy\tCtrl-c"
+        "Copy\tCtrl-C"
         self.shell.handle_action('copy')
     
     def paste(self, event):
-        "Paste\tCtrl-v"
+        "Paste\tCtrl-V"
         self.shell.handle_action('paste')
 
     def cut(self, event):
-        "Cut\tCtrl-x"
+        "Cut\tCtrl-X"
         self.shell.handle_action('cut')
 
     def can_undo(self):
         return self.shell.undocount() > 0
 
     def undo(self, event):
-        "Undo\tCtrl-z"
+        "Undo\tCtrl-Z"
         self.shell.undo()
 
     def can_redo(self):
         return self.shell.redocount() > 0
 
     def redo(self, event):
-        "Redo\tCtrl-r"
+        "Redo\tCtrl-R"
         self.shell.redo()
 
     def remove_output(self, event):
@@ -228,8 +229,13 @@ class MainWindow(wx.Frame):
         cell = ScriptingCell(NULL_TEXEL, NULL_TEXEL)
         self.shell.insert(self.shell.index, mk_textmodel(cell))
 
+    def split_cell(self, event):
+        "Break cell\tCtrl+B"
+        i = self.shell.index
+        self.shell.transform(lambda texel, i=i:split_cell(texel, i))
+
     def inspector(self, event):
-        "Format ..."
+        "Format ...\tCtrl+F"
         from pynotebook.inspector import Inspector
         inspector = Inspector(self.shell.Parent)
         inspector.model = self.shell
