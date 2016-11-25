@@ -3,7 +3,7 @@
 
 from .textmodel.textmodel import TextModel, dump_range
 from .textmodel.texeltree import Texel, T, G, NL, Container, Single, \
-    iter_childs, dump, NULL_TEXEL
+    iter_childs, dump, NULL_TEXEL, length, grouped, copy
 
 import wx
 import StringIO
@@ -57,6 +57,34 @@ def strip_output(texel):
         return G(r)
     else: 
         return texel
+
+
+def _split_cell(texel, i):
+    if i<=0 or i>=length(texel): return [texel]
+    if texel.is_group:
+        r = []
+        for i1, i2, child in iter_childs(texel):
+            if i1<i<i2:
+                r.append(split_cell(child, i-i1))
+            else:
+                r.append(child)
+        return r
+    if isinstance(texel, Cell):
+        r1 = []
+        r2 = []
+        for i1, i2, child in iter_childs(texel):
+            if i1<i<i2:
+                j = i-i1
+                r1.append(grouped(copy(child, 0, j)))
+                r2.append(grouped(copy(child, j, i2-i1)))
+            else:
+                r1.append(child)
+                r2.append(child)
+        return [texel.set_childs(r1), texel.set_childs(r2)]        
+    return [texel]
+
+def split_cell(texel, i):
+    return grouped(_split_cell(texel, i))
 
 
 class NotFound(Exception): pass
