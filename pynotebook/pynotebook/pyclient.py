@@ -353,8 +353,11 @@ for i in range(10):
 def test_04():
     "colorize (2)"
     client = PythonClient()    
-    text = u"""# Die Integrazeichen sind in vielen Unicode-Fonts enthalten. Z.B. FONTFAMILY_ROMAN. Sieht leider alles sehr ähnlich aus. Schöner ist z.B. wasy10. Der Font ist aber nicht auf allen Plattformen enthalten. Symbol dürfte enthalten sein, enthält aber nicht das Mittelstück.
-# https://de.wikipedia.org/wiki/Integralzeichen  """
+    text = u"# Die Integralzeichen sind in vielen Unicode-Fonts enthalten. Z.B. "\
+    "FONTFAMILY_ROMAN. Sieht leider alles sehr ähnlich aus. Schöner ist z.B. wasy10. "\
+    "Der Font ist aber nicht auf allen Plattformen enthalten. Symbol dürfte enthalten"\
+    " sein, enthält aber nicht das Mittelstück.\n"
+    "# https://de.wikipedia.org/wiki/Integralzeichen  "
     textmodel = TextModel(text)
     client.colorize(textmodel.texel)
 
