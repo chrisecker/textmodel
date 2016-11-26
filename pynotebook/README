@@ -5,37 +5,68 @@ pynotebook
 Introduction
 ------------
 
-Pynotebook is a command shell for interactive computing following the
-"notebook" concept. Notebooks originally appeared with the program
+Pynotebook is a an interactive shell for python, similar to the python
+command line but much nicer to work with. Noteboks can contain python
+code together with output and documentation. Nootebooks are a pleasent
+way to develop python code and to document and store your ideas.
+
+The "notebook" concept originally appeared with the program
 Mathematica and became famous for python with the iPython/Jupyter
 project. Unlike iPython, pynotebook does not need a webbrowser, c
-extensions or anything except python and wx. It is a python module,
-runs out of the box and therefore is easy to embed and distribute.
+extensions or anything except python and `wxPython
+<https://wxpython.org/>`_ . Pynotebook runs out of the box and is
+therefore easy to embed and distribute.
 
 Most notable features of pynotebook are:
 
 - syntax highlighting
 - command completion (tab-key)
-- matplotlib plotting
+- builtin graphics
+- plotting via matplotlib
 - BSD-license
 
 
-There are a couple of demo applications: 
+Pynotebook can be used as stand alone application (pynb) or as a
+widget in wx programs.
+
+There are a couple of demo applications:
+
+- the pynb application 
 - a plotting demo
-- a notebook interface to gnu r
+- a notebook interface to `Gnu R <https://www.r-project.org/>`_
+
 
 The later demonstrates how to completely modify the notebook. It uses
-rpy2 for interfacing gnu r and pygments for colorization.
+`rpy2 <http://rpy2.bitbucket.org/>`_ for interfacing Gnu R and
+Pygments `Pygments <http://pygments.org/>`_ for colorization.
 
-Basic usage
------------
+
+.. image::
+   https://raw.githubusercontent.com/chrisecker/textmodel/master/pynotebook/screenshots/ball.png
+   :width: 400 px
+
+Installation:
+-------------
+
+Do in a console:matplotlib 
+
+:: 
+
+  python ./setup.py build
+
+and then as root:
 
 ::
 
-    >>> from pynotebook.nbview import NBView
-    >>> import wx
-    >>> app = wx.App()
-    >>> frame = wx.Frame(None)
-    >>> view = NBView(frame)
-    >>> frame.Show()
-    >>> app.MainLoop()
+  python ./setup.py install
+
+This will install the pynb application and the pynotebook module. 
+
+To open a notebook:
+
+::
+
+        pynb demo/ball.pyb
+
+
+

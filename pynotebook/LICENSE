@@ -23,3 +23,16 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+-----------------------------------------------------------------------------
+
+Pynotebook includes cerealizer which is released under the python
+license. Copyright details can be found here:
+
+http://www.lesfleursdunormal.fr/static/informatique/cerealizer/index_en.html
+
+
+Pynotebook includes parts of pygui which is according to the readme
+free software and can be used however you want it. Details can be
+found here:
+
+http://www.cosc.canterbury.ac.nz/greg.ewing/python_gui/

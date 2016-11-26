@@ -2,7 +2,7 @@
 
 # Runs module tests. 
 #
-# python runtests.py texmtodel/base.py
+# example: python runtests.py pynotebook/pyclient.py
 #
 
 # TODO:
@@ -148,12 +148,12 @@ for name in sys.argv:
         
 
 name = sys.argv[1]
-print name
+
 if name.lower().endswith('.py'):
     name = name[:-3]
 filename = name.replace('/', '.')
 fun_names = sys.argv[2:]
 print "testing:", filename
-#print "testing functions:", fun_names
+
 test_library(filename, names=fun_names, silent=silent, profile=profile)
     

@@ -1,6 +1,5 @@
 # -*- coding: latin-1 -*-
 
-#!/usr/bin/env python
 
 from setuptools import setup
 
@@ -11,9 +10,8 @@ with open('README') as file:
     long_description = file.read()
 
 setup(name='pynotebook',
-      version='0.1.0',
-      description = \
-          'A notebook interface similar to mathematica / ipython',
+      version='0.2.1',
+      description = 'A notebook interface for wxpython',
       long_description = long_description,
       author='C. Ecker',
       author_email='textmodelview@gmail.com',
