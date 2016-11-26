@@ -6,16 +6,16 @@ Introduction
 ------------
 
 Pynotebook is a an interactive shell for python, similar to the python
-command line but much nicer to work with. Noteboks can contain python
+command line but much nicer to work with. Notebooks can contain python
 code together with output and documentation. Nootebooks are a pleasent
 way to develop python code and to document and store your ideas.
 
 The "notebook" concept originally appeared with the program
-Mathematica and became famous for python with the iPython/Jupyter
-project. Unlike iPython, pynotebook does not need a webbrowser, c
-extensions or anything except python and `wxPython
-<https://wxpython.org/>`_ . Pynotebook runs out of the box and is
-therefore easy to embed and distribute.
+Mathematica and became famous for python with the `iPython/Jupyter <http://ipython.org>`_
+project. Unlike iPython, pynotebook does not
+need a webbrowser, c extensions or anything except python and
+`wxPython <https://wxpython.org/>`_ . Pynotebook runs out of the box
+and is therefore easy to embed and distribute.
 
 Most notable features of pynotebook are:
 
@@ -43,12 +43,12 @@ Pygments `Pygments <http://pygments.org/>`_ for colorization.
 
 .. image::
    https://raw.githubusercontent.com/chrisecker/textmodel/master/pynotebook/screenshots/ball.png
-   :width: 400 px
+   :width: 350 px
 
 Installation:
 -------------
 
-Do in a console:matplotlib 
+Do in a console:
 
 :: 
 
