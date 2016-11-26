@@ -10,7 +10,7 @@ with open('README') as file:
     long_description = file.read()
 
 setup(name='pynotebook',
-      version='0.2.1',
+      version='0.2.2',
       description = 'A notebook interface for wxpython',
       long_description = long_description,
       author='C. Ecker',
