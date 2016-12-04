@@ -150,8 +150,8 @@ class MainWindow(wx.Frame):
         "Save &As ..."
         dlg = wx.FileDialog(
             self, message="Save file as ...", 
-            #defaultDir=self.currentDirectory, 
-            defaultFile="", wildcard=wildcard, style=wx.SAVE
+            defaultFile="", wildcard=wildcard, 
+            style=wx.SAVE|wx.OVERWRITE_PROMPT
             )
         if dlg.ShowModal() == wx.ID_OK:
             path = dlg.GetPath()
@@ -167,7 +167,6 @@ class MainWindow(wx.Frame):
             dlg = wx.MessageDialog(
                 self, 'There are unsaved changes. Do you really want to close?',
                 'Close window',
-                #wx.OK | wx.ICON_INFORMATION
                 wx.YES_NO | wx.NO_DEFAULT | wx.CANCEL | wx.ICON_INFORMATION
             )
             result = dlg.ShowModal()
@@ -273,6 +272,3 @@ graphics.register_classes()
 
 if __name__ == '__main__':
     main(sys.argv)
-else:
-    main([])
-
