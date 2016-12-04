@@ -316,7 +316,7 @@ class GraphicsBox(Box):
         gc = wx.GraphicsContext.Create(dc)
         gc.Clip(x, y, self.width, self.height)
         gc.Translate(x, y)
-        pen = wx.Pen(colour='black')
+        pen = wx.Pen(colour='black', style=wx.USER_DASH)
         brush = wx.Brush(colour='transparent')
         font = wx.SystemSettings.GetFont(wx.SYS_DEFAULT_GUI_FONT)
         state = dict(pen=pen, brush=brush, font=font)

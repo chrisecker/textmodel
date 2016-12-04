@@ -3,24 +3,35 @@
 #
 # graphics.py
 #
-
+# Graphics interface based on the graphics capabilities of wx. Known
+# limitation of wx are:
+#
+#  - line widths can only be integer numbers
+#  - when zoomed in there is no way of drawing fixed width lines
+#
+#  TODO: take a closer look an GraphicsPath. -> Can it help?
 
 import wx
 from .nbtexels import Graphics
 
 
 
-class RGBColor: # Mathematicy style
-    def __init__(self, r, g, b):
-        self.color = (r, g, b)
-        
-    def draw(self, gc, state):
-        gc.SetPen(wx.Pen(colour=self.color))
+def _normalize_color(color):
+    if isinstance(color, wx.Color):
+        return color.asTuple()+(color.Alpha(), )
+    elif isinstance(color, str):
+        c = wx.Color()
+        c.SetFromString(color)
+        return c.asTuple()+(c.Alpha(), )
+    elif isinstance(color, list) or isinstance(color, tuple):
+        return tuple(color)
+    else:
+        raise ValueError('Not a valid color specification: %s' % repr(color))
 
 
-class LineColor: # wx style
+class LineColor:
     def __init__(self, color):
-        self.color = color
+        self.color = _normalize_color(color)
         
     def draw(self, gc, state):
         pen = state["pen"]
@@ -28,7 +39,7 @@ class LineColor: # wx style
         gc.SetPen(pen)
 
 
-class Width: # XXX or LineWidth?
+class LineWidth:
     def __init__(self, width):
         self.width = width
         
@@ -37,10 +48,49 @@ class Width: # XXX or LineWidth?
         pen.SetWidth(self.width)
         gc.SetPen(pen)
 
+
+class LineDashes:
+    def __init__(self, dashes):
+        self.dashes = dashes
+        
+    def draw(self, gc, state):
+        pen = state["pen"]
+        pen.SetDashes(self.dashes)
+        gc.SetPen(pen)
+
+line_joins = dict(
+    bevel=wx.JOIN_BEVEL, miter=wx.JOIN_MITER, round=wx.JOIN_ROUND)
+
+class LineJoin:
+    def __init__(self, join_style):
+        if not join_style in line_joins:
+            raise ValueError("join_style mus be 'bevel, 'miter or 'round'")
+        self.join_style = join_style
+        
+    def draw(self, gc, state):
+        pen = state["pen"]
+        pen.SetJoin(line_joins[self.join_style])
+        gc.SetPen(pen)
+
+
+line_caps = dict(
+    round=wx.CAP_ROUND, projecting=wx.CAP_PROJECTING, butt=wx.CAP_BUTT)
+
+class LineCap:
+    def __init__(self, cap_style):
+        if not cap_style in line_caps:
+            raise ValueError("cap_style mus be 'round', 'projecting' or 'butt'")
+        self.cap_style = cap_style
+        
+    def draw(self, gc, state):
+        pen = state["pen"]
+        pen.SetCap(line_caps[self.cap_style])
+        gc.SetPen(pen)
+
         
 class FillColor:
     def __init__(self, color):
-        self.color = color
+        self.color = _normalize_color(color)
         
     def draw(self, gc, state):
         brush = state["brush"]
@@ -65,6 +115,23 @@ class Line:
         gc.DrawLines(self.points)
 
 
+class Spline:
+    def __init__(self, *points):
+        self.points = tuple(points)
+
+    def draw(self, gc, state):
+        gc.DrawSpline(self.points)
+
+
+class Polygon:
+    def __init__(self, *points):
+        self.points = tuple(points)
+
+    def draw(self, gc, state):
+        # XXX should we be able to set the fill rule?
+        gc.DrawPolygon(self.points)
+
+
 class Circle:
     def __init__(self, (x, y), r):
         self.x = x
@@ -74,6 +141,35 @@ class Circle:
     def draw(self, gc, state):
         r = self.r
         gc.DrawEllipse(self.x-r, self.y-r, 2*r, 2*r)
+
+
+class Ellipse:
+    def __init__(self, (x, y), r1, r2):
+        self.x = x
+        self.y = y
+        self.r1 = r1
+        self.r2 = r2
+        
+    def draw(self, gc, state):
+        r1 = self.r1
+        r2 = self.r2
+        gc.DrawEllipse(self.x-r1, self.y-r2, 2*r1, 2*r2)
+
+
+class Arc:
+    def __init__(self, (x, y), r1, r2, start, end):
+        self.x = x
+        self.y = y
+        self.r1 = r1
+        self.r2 = r2
+        self.start = start
+        self.end = end
+        
+    def draw(self, gc, state):
+        r1 = self.r1
+        r2 = self.r2
+        gc.DrawEllipticArc(self.x-r1, self.y-r2, 2*r1, 2*r2, self.start, 
+                           self.end)
 
 
 class Rectangle:
@@ -100,6 +196,25 @@ class Bitmap:
         w, h = self.size
         bitmap = wx.BitmapFromBuffer(w, h, self.data)
         gc.DrawBitmap(bitmap, 0, 0, w, h)
+
+
+class Font:
+    def __init__(self, size, family, style, weight, 
+                 underline=False, face="", 
+                 encoding=wx.FONTENCODING_DEFAULT):
+        self.size = size
+        self.family = family
+        self.style = style
+        self.weight = weight
+        self.underline = underline
+        self.face = face
+        self.encoding = encoding
+        
+    def draw(self, gc, state):
+        font = wx.Font(self.size, self.family, self.style,
+                       self.weight, self.underline, 
+                       self.face, self.encoding)
+        gc.SetFont(font)
 
 
 class Text:
@@ -145,23 +260,12 @@ class Scale:
         gc.Scale(self.fx, self.fy) 
 
 
-
-def _unscale_widths(l):
-    if isinstance(l, list) or isinstance(l, tuple):
-        r = []
-        for obj in l:
-            if isinstance(obj, Scale):
-                r.append(Width(1.0/obj.fx))
-                r.append(obj)
-            else:
-                r.append(_unscale_widths(obj))
-        return r
-    return l
-
-    
-def Sketch(l, *args, **kwds): # XXX highly experimental
-    return Graphics(_unscale_widths(l), *args, **kwds)
-
+# XXX missing: 
+# - SetLogicalFunction
+# - fill styles
+# - gradient fills
+# - rounded rectangle
+# - clipping
 
 def register_classes():
     from cerealizerformat import register
