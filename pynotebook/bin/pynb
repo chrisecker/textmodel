@@ -23,7 +23,7 @@ wildcard = "Pynotebook files (*.pnb)|*.pnb|" \
 class MainWindow(wx.Frame):
     ctxt_entries = ['inspector', 'open', 'save', 'save_as', 'close']
     file_entries = ['new', 'open', 'save', 'save_as', 'close']
-    edit_entries = ['copy', 'paste', 'cut', 'undo', 'redo']
+    edit_entries = ['copy', 'paste', 'cut', 'undo', 'redo', 'indent', 'dedent']
     cell_entries = ['inspector', 'insert_textcell', 'insert_pycell', 'remove_output', 
                     'split_cell']
     updaters = ()
@@ -200,6 +200,14 @@ class MainWindow(wx.Frame):
     def redo(self, event):
         "Redo\tCtrl-R"
         self.shell.redo()
+
+    def indent(self, event):
+        "Indent\tCtrl-I"
+        self.shell.handle_action('indent')
+
+    def dedent(self, event):
+        "Dedent\tCtrl-U"
+        self.shell.handle_action('dedent')
 
     def remove_output(self, event):
         "Remove output"

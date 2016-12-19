@@ -179,6 +179,40 @@ class TextView(ViewBase, Model):
         self.Refresh()
         self.notify_views('maxw_changed')
 
+    def indent_rows(self, firstrow, lastrow):
+        model = self.model
+        for line in range(lastrow, firstrow-1, -1): # indent
+            i = model.linestart(line)
+            model.insert_text(i, ' '*4)
+        info = self._dedent_rows, firstrow, lastrow
+        self.add_undo(info)
+
+    def _dedent_rows(self, firstrow, lastrow):
+        memo = []
+        model = self.model
+        for line in reversed(range(firstrow, lastrow+1)):
+            i = model.linestart(line)
+            for j in range(i, i+5):
+                if j > len(model): break
+                if model.get_text(j, j+1) != ' ': break
+            memo.append(model.remove(i, j))
+        assert len(memo) == lastrow-firstrow+1
+        return self._undo_dedent, firstrow, memo
+        
+    def dedent_rows(self, firstrow, lastrow):
+        info = self._dedent_rows(firstrow, lastrow)
+        self.add_undo(info)
+
+    def _undo_dedent(self, firstrow, memo):
+        model = self.model
+        lastrow = firstrow+len(memo)-1
+        memo = list(memo)
+        for line in reversed(range(firstrow, lastrow+1)):
+            i = model.linestart(line)
+            model.insert(i, memo[0])
+            memo = memo[1:]
+        return self._dedent_rows, firstrow, lastrow
+
     def compute_index(self, x, y):
         if y >= self.layout.height:
             return len(self.model)-1
@@ -202,17 +236,18 @@ class TextView(ViewBase, Model):
         rect = layout.get_rect(index, 0, 0)
         x = rect.x1
         y = rect.y1
+        if self.has_selection():
+            s1, s2 = sorted(self.selection)
+            e1, e2 = layout.extend_range(s1, s2)
+        else:
+            s1 = s2 = e1 = e2 = index
 
         def del_selection():
             if self.has_selection():
-                s1, s2 = sorted(self.selection)
-                s1, s2 = layout.extend_range(s1, s2)
-                self.remove(s1, s2)
+                self.remove(e1, e2)
 
         if action == 'dump_info':
-            s1, s2 = sorted(self.selection)
-            s1, s2 = layout.extend_range(s1, s2)
-            dump_range(model.texel, s1, s2)
+            dump_range(model.texel, e1, e2)
             row, col = model.index2position(index)
             print "index=", index
             print "row=", row
@@ -220,7 +255,14 @@ class TextView(ViewBase, Model):
 
         elif action == 'dump_boxes':
             layout.dump_boxes(0, 0, 0)
-            
+        elif action == 'indent':
+            row1 = model.index2position(s1)[0]
+            row2 = model.index2position(s2)[0]
+            self.indent_rows(row1, row2)
+        elif action == 'dedent':
+            row1 = model.index2position(s1)[0]
+            row2 = model.index2position(s2)[0]
+            self.dedent_rows(row1, row2)            
         elif action == 'move_word_end':
             i = index
             n = len(model)
@@ -318,6 +360,8 @@ class TextView(ViewBase, Model):
             self.redo()
         elif action == 'del_line_end':
             i = model.linestart(row)+model.linelength(row)-1
+            if i == index:
+                i += 1
             self.remove(index, i)
         elif action == 'del_word_left':
             # find the beginning of the word

@@ -68,6 +68,8 @@ class WXTextView(wx.ScrolledWindow, TextView):
             (11, True, False) : 'del_line_end',   
             (127, True, False) : 'del_word_left',   
             (1, True, False) : 'select_all',
+            (9, True, False) : 'indent',
+            (21, True, False) : 'dedent',
             }        
         
     def create_builder(self):
@@ -88,6 +90,7 @@ class WXTextView(wx.ScrolledWindow, TextView):
         ctrl = event.ControlDown()
         shift = event.ShiftDown()
         alt = event.AltDown()        
+        #print keycode, ctrl, alt
         char = event.GetUnicodeKey()        
         action = self.actions.get((keycode, ctrl, alt))
         if action is None:
