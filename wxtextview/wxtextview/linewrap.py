@@ -4,22 +4,30 @@ from .testdevice import TESTDEVICE
 from .boxes import TabulatorBox, TextBox, EmptyTextBox, NewlineBox, Row
 
 
+
 def find_bestbreak(box, w):
+    # try to break after a space
     if not isinstance(box, TextBox):
         return 0
     text = box.text
     parts = box.measure_parts(text)
 
-    # 1. try to break after a space
     for i, part in reversed(tuple(enumerate(parts))):
         if i>0 and part <= w and text[i] == ' ':
             return i+1
+    return None
 
-    # 2. brute force break
+
+def find_anybreak(box, w):
+    if not isinstance(box, TextBox):
+        return 0
+    text = box.text
+    parts = box.measure_parts(text)
+
     for i, part in enumerate(parts):
         if part > w:
             return i
-    return 0
+    return None
 
 
 def split_box(box, i):
@@ -34,7 +42,8 @@ def split_box(box, i):
     return b1, b2
 
 
-def simple_linewrap(boxes, maxw, tabstops=(), device=TESTDEVICE):
+def simple_linewrap(boxes, maxw, tabstops=(), wordwrap=True, 
+                    device=TESTDEVICE):
     assert isinstance(maxw, int)
     l = []
     rows = [l]
@@ -54,26 +63,38 @@ def simple_linewrap(boxes, maxw, tabstops=(), device=TESTDEVICE):
                 i = box.text.rindex(' ')+1
                 last = len(l)-1, i
             continue
-        # too wide -> break somewhere and start a new line
-        if last:
-            k, i = last
-            lastbox = l[k]
-            a, b = split_box(lastbox, i)
-            assert len(a)+len(b) == len(lastbox)
-            boxes = [b]+l[k+1:]+[box]+boxes
-            del l[k:]            
-            l.append(a)
-        else:
+
+        # start a new line
+        if wordwrap:
             i = find_bestbreak(box, maxw-w)
-            if i == 0:
-                if l: # create new line
-                    boxes = [box]+boxes
+            if i is None:
+                if last:
+                    k, j = last
+                    lastbox = l[k]
+                    a, b = split_box(lastbox, j)
+                    assert len(a)+len(b) == len(lastbox)
+                    boxes = [b]+l[k+1:]+[box]+boxes
+                    del l[k:]            
+                    l.append(a)
                 else:
+                    i = find_anybreak(box, maxw-w)
+                    if i is None:
+                        if l: # break the line before box
+                            boxes = [box]+boxes
+                        else: # append the box and accept a too wide line
+                            l.append(box)
+        else:
+            i = find_anybreak(box, maxw-w)
+            if i is None:
+                if l: # break the line before box
+                    boxes = [box]+boxes
+                else: # append the box and accept a too wide line
                     l.append(box)
-            else:
-                a, b = split_box(box, i)
-                l.append(a)
-                boxes = [b]+boxes
+
+        if i is not None:
+            a, b = split_box(box, i)
+            l.append(a)
+            boxes = [b]+boxes
         w = 0
         l = []
         rows.append(l)
@@ -84,9 +105,9 @@ def simple_linewrap(boxes, maxw, tabstops=(), device=TESTDEVICE):
 
 
 def test_00():
-    "find_bestbreak"
+    "find_break"
     box = TextBox("123 567 90")
-    assert find_bestbreak(box, 3) == 3
+    assert find_bestbreak(box, 3) == None
     assert find_bestbreak(box, 4) == 4
     assert find_bestbreak(box, 5) == 4
     assert find_bestbreak(box, 6) == 4
@@ -107,3 +128,9 @@ def test_01():
     assert str(simple_linewrap(boxes, 5)) == \
         "[Row[TB('aa'), TB('bb'), TB('c')], Row[TB('c'), TB('dd'), NL, "\
         "TB('ee')]]"
+
+    boxes = []
+    for text in "ff gg_hh ii jj".split('_'):
+        boxes.append(TextBox(text))
+    assert str(simple_linewrap(boxes, 5)) == \
+        "[Row[TB('ff ')], Row[TB('gg'), TB('hh ')], Row[TB('ii jj')]]"

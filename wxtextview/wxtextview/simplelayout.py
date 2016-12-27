@@ -65,7 +65,7 @@ def get_envelope(tree, i0, i):
 
 
 
-def create_paragraphs(textboxes, maxw=0, Paragraph=Paragraph, \
+def create_paragraphs(textboxes, maxw=0, wordwrap=True, Paragraph=Paragraph, \
                       device=TESTDEVICE):
     try:
         if len(textboxes):        
@@ -85,7 +85,8 @@ def create_paragraphs(textboxes, maxw=0, Paragraph=Paragraph, \
         l.append(box)
         if isinstance(box, NewlineBox) or isinstance(box, EndBox):
             if maxw>0:
-                rows = simple_linewrap(l, maxw, tabstops=(), device=device)
+                rows = simple_linewrap(l, maxw, wordwrap=wordwrap, tabstops=(), \
+                                       device=device)
             else:
                 rows = [Row(l, device)]
             r.append(Paragraph(rows, device))
