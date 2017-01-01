@@ -707,6 +707,18 @@ class NBView(_WXTextView):
         self.add_undo(infos) 
         self.adjust_viewport()
 
+    def execute_all(self):
+        self.index = 0
+        while 1:
+            try:
+                i, cell = self.find_cell()
+            except NotFound:
+                break
+            self.execute()
+
+    def reset_interpreter(self):
+        self.init_clients()
+
     def insert(self, i, textmodel):
         insidecell = False
         try:

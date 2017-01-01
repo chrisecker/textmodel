@@ -20,15 +20,34 @@ wildcard = "Pynotebook files (*.pnb)|*.pnb|" \
            "Python source (*.py)|*.py|" \
            "All files (*.*)|*.*"
 
+def action2cmd(label, action):
+    # Create a menu command from an editor action
+    def method(self, event, action=action):
+        self.shell.handle_action(action)
+    method.__doc__ = label
+    return method
+
+
+def method2cmd(label, name):
+    # Create a menu command from an editor action
+    def method(self, event, name=name):
+        fun = getattr(self.shell, name)
+        fun()
+    method.__doc__ = label
+    return method
+
+
 class MainWindow(wx.Frame):
     ctxt_entries = ['inspector', 'open', 'save', 'save_as', 'close']
     file_entries = ['new', 'open', 'save', 'save_as', 'close']
     edit_entries = ['copy', 'paste', 'cut', 'undo', 'redo', 'indent', 'dedent']
     cell_entries = ['inspector', 'insert_textcell', 'insert_pycell', 'remove_output', 
                     'split_cell']
+    interpreter_entries = ['execute', 'execute_all', 'complete', 'reset']
     updaters = ()
     def __init__(self, filename=None):
-        wx.Frame.__init__(self, None)
+        displayw, displayh = wx.GetDisplaySize()
+        wx.Frame.__init__(self, None, size=(min(600, displayw), min(800, displayh)))
         panel = wx.Panel(self, -1)
         shell = NBView(panel, -1, filename=filename, maxw=600)
         box = wx.BoxSizer(wx.VERTICAL)
@@ -64,6 +83,7 @@ class MainWindow(wx.Frame):
         menubar.Append(mk_menu(self.file_entries), '&File')
         menubar.Append(mk_menu(self.edit_entries), '&Edit')
         menubar.Append(mk_menu(self.cell_entries), '&Cell')
+        menubar.Append(mk_menu(self.interpreter_entries), '&Interpreter')
         self.updaters = updaters 
         return menubar
 
@@ -175,39 +195,24 @@ class MainWindow(wx.Frame):
                 return            
         self.Close(True)
 
-    def copy(self, event):
-        "Copy\tCtrl-C"
-        self.shell.handle_action('copy')
-    
-    def paste(self, event):
-        "Paste\tCtrl-V"
-        self.shell.handle_action('paste')
+    cut = action2cmd("Cut\tCtrl-X", "cut")
+    copy = action2cmd("Copy\tCtrl-C", "copy")
+    paste = action2cmd("Paste\tCtrl-V", "paste")
+    indent = action2cmd("Indent\tCtrl-I", "indent")
+    dedent = action2cmd("Dedent\tCtrl-U", "dedent")
+    complete = action2cmd("Complete\tTAB", "complete")
+    execute = method2cmd("Execute cell\tShift-Return", "execute")
+    execute_all = method2cmd("Execute all", "execute_all")
+    reset = method2cmd("Reset interpreter", "reset_interpreter")
 
-    def cut(self, event):
-        "Cut\tCtrl-X"
-        self.shell.handle_action('cut')
+    undo = method2cmd("Undo\tCtrl-Z", "undo")
+    redo = method2cmd("Redo\tCtrl-R", "redo")
 
     def can_undo(self):
         return self.shell.undocount() > 0
 
-    def undo(self, event):
-        "Undo\tCtrl-Z"
-        self.shell.undo()
-
     def can_redo(self):
         return self.shell.redocount() > 0
-
-    def redo(self, event):
-        "Redo\tCtrl-R"
-        self.shell.redo()
-
-    def indent(self, event):
-        "Indent\tCtrl-I"
-        self.shell.handle_action('indent')
-
-    def dedent(self, event):
-        "Dedent\tCtrl-U"
-        self.shell.handle_action('dedent')
 
     def remove_output(self, event):
         "Remove output"
