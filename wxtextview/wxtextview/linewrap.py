@@ -48,7 +48,6 @@ def simple_linewrap(boxes, maxw, tabstops=(), wordwrap=True,
     l = []
     rows = [l]
     w = 0
-        
     boxes = list(boxes[:])
     last = None
     while boxes:
@@ -67,7 +66,7 @@ def simple_linewrap(boxes, maxw, tabstops=(), wordwrap=True,
         # start a new line
         if wordwrap:
             i = find_bestbreak(box, maxw-w)
-            if i is None:
+            if not i:
                 if last:
                     k, j = last
                     lastbox = l[k]
@@ -78,20 +77,20 @@ def simple_linewrap(boxes, maxw, tabstops=(), wordwrap=True,
                     l.append(a)
                 else:
                     i = find_anybreak(box, maxw-w)
-                    if i is None:
+                    if not i:
                         if l: # break the line before box
                             boxes = [box]+boxes
                         else: # append the box and accept a too wide line
                             l.append(box)
         else:
             i = find_anybreak(box, maxw-w)
-            if i is None:
+            if not i:
                 if l: # break the line before box
                     boxes = [box]+boxes
                 else: # append the box and accept a too wide line
                     l.append(box)
 
-        if i is not None:
+        if i:
             a, b = split_box(box, i)
             l.append(a)
             boxes = [b]+boxes
