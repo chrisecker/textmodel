@@ -25,10 +25,10 @@
 
 
 class Mark:
-    def __init__(self, label, n=0, parent=None):
+    parent = None
+    def __init__(self, label, n=0):
         self.n = n
         self.label = label
-        self.parent = None
         
     def get(self):
         if not self.parent:
@@ -37,12 +37,14 @@ class Mark:
 
         
 class Group:
-    def __init__(self, childs, parent=None):
+    parent = None
+    def __init__(self, childs):
         self.childs = tuple(childs)
-        self.parent = parent
-        self.n = sum([c.n for c in childs])
+        n = 0
         for c in childs:
             c.parent = self
+            n += c.n
+        self.n = n
 
 
 def depth(tree):
@@ -58,18 +60,36 @@ def dump(tree, i0=0, d=0):
     if isinstance(tree, Mark):
         print "    "*d, i0+tree.n, tree.label
     elif isinstance(tree, Group):
-        print "    "*d, i0, "Group()"
+        print "    "*d, i0, "Group"
         for c in tree.childs:
             dump(c, i0, d+1)
             i0 += c.n
 
 
-def get_marks(tree, i0=0):
+def all_marks(tree, i0=0):
     if isinstance(tree, Mark):
         return [(i0+tree.n, tree)]
     l = []
     for child in tree.childs:
-        l.extend(get_marks(child, i0))
+        l.extend(all_marks(child, i0))
+        i0 += child.n
+    return l
+
+
+def get_marks(tree, i1, i2, i0=0):
+    if isinstance(tree, Mark):
+        j = tree.n+i0
+        if i1 <= j < i2:
+            return [(j, tree)]
+        else:
+            return []
+    l = []
+    for child in tree.childs:
+        j1 = i0
+        j2 = i0+child.n
+        if j1 < i2-1 and i1 <= j2: # test fo overlap. The -1 is
+                                   # necessary to exclude marks at i2
+            l.extend(get_marks(child, i1, i2, i0))
         i0 += child.n
     return l
     
@@ -85,46 +105,26 @@ def abspos(node):
         i += c.n 
     raise Exception() # bad tree structure 
     
-
-def strip(element):
-    n = element.n
-    while isinstance(element, Group) and len(element.childs) == 1:
-        element = element.childs[0]
-    assert n == element.n
-    return element
-    
               
 nmax = 15
 
-# XXX can be replaced by a simpler algorith based upon the assumption
-# that len(l) < 2*nmax. In other words: splitting into two groups is
-# always enough.
 
 def groups(l):
-    r = []
-    N = len(l)
-    if N == 0:
-        return r
+    # Create one or two groups out of l. It is assumed, that len(l) <=
+    # nmax+1.
+    assert len(l) <= nmax+1
+    if len(l) <= nmax:
+        return [Group(l)]
+    n = nmax // 2
+    return [Group(l[:n]), Group(l[n:])]
 
-    n = N // nmax
-    if n*nmax < N:
-        n = n+1
-    rest = n*nmax-N
-
-    a = nmax-float(rest)/n
-    b = a
-    while l:
-        i = int(b+1e-10)
-        r.append(Group(l[:i]))
-        l = l[i:]
-        b = b-i+a
-    return r             
 
 def grouped(stuff):
     while len(stuff) > nmax:
         stuff = groups(stuff)
-    g = Group(stuff)
-    return strip(g)
+    if len(stuff)>1:
+        return Group(stuff)
+    return stuff[0]
 
 
 def add_mark(tree, i, m):
@@ -220,11 +220,18 @@ class MarkBuffer:
             raise IndexError((i1, i2))
         remove(self.tree, i1, i2)
 
-    def get_marks(self):
-        return get_marks(self.tree)
+    def get_marks(self, i1, i2):
+        # get all marks between i1 and i2, where i1 is included and i2
+        # excluded
+        if i1 > i2:
+            raise IndexError((i1, i2))
+        return get_marks(self.tree, i1, i2)
+
+    def all_marks(self):
+        return all_marks(self.tree)
 
     def _get_labels(self):
-        return [(i, m.label) for (i, m) in self.get_marks()]
+        return [(i, m.label) for (i, m) in self.all_marks()]
 
     def _dump(self):
         dump(self.tree)
@@ -384,6 +391,30 @@ def test_03():
     assert b._get_labels() == [(5, 'A'), (5, 'B'), (5, 'C')]
 
 
+def test_04():
+    "get_marks"
+    b = MarkBuffer()
+    A = b.create_mark(10, 'A')
+    B = b.create_mark(20, 'B')
+    assert b.get_marks(5, 10) == []
+    assert b.get_marks(11, 20) == []
+    assert b.get_marks(10, 10) == []
+    assert b.get_marks(10, 11) == [A]
+    assert b.get_marks(10, 20) == [A]
+    assert b.get_marks(-5, 11) == [A]
+    assert b.get_marks(10, 21) == [A, B]
+
+    b = MarkBuffer()
+    m = []
+    for i in range(20):
+        m.append(b.create_mark(i, 'X%i'%i))    
+    #print [(i, m.label) for (i, m) in b.get_marks(2, 4)]
+    from random import randrange
+    for i in range(500):
+        i1 = randrange(20)
+        i2 = randrange(20-i1)+i1
+        assert b.get_marks(i1, i2) == m[i1:i2]
+
 def _benchmark_00(Buffer):
     from random import randrange
     b = Buffer()
@@ -393,7 +424,7 @@ def _benchmark_00(Buffer):
 
 def benchmark_00a():
     _benchmark_00(MarkBuffer)
-    # 3 time slower than LinearBuffer!
+    # 3 times slower than LinearBuffer!
 
 def benchmark_00b():
     _benchmark_00(LinearBuffer)
