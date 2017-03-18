@@ -7,7 +7,7 @@
 
 from . import nbtexels
 from .textmodel import textmodel
-from .textmodel import texeltree
+from .textmodel import texeltree, styles
 from .nbtexels import mk_textmodel
 
 from . import cerealizer
@@ -28,12 +28,31 @@ def register(Class, handler=None, classname = None):
 
 
 def dumps(obj):
-  s = StringIO()
-  cerealizer.Dumper(magic).dump(obj, s)
-  return s.getvalue()
+    s = StringIO()
+    cerealizer.Dumper(magic).dump(obj, s)
+    return s.getvalue()
+
+
+def _replace_styles(texel, table):
+    if texel.is_group or texel.is_container:
+        for child in texel.childs:
+            _replace_styles(child, table)
+    else:
+        if 'style' in texel.__dict__:
+            sid = id(texel.style)
+            if not sid in table:
+                table[sid] = styles.create_style(**texel.style)
+            texel.style = table[sid]
+        if isinstance(texel, texeltree.NewLine) and 'parstyle' in texel.__dict__:
+            sid = id(texel.parstyle)
+            if not sid in table:
+                table[sid] = texel.parstyle = styles.create_style(**texel.parstyle)
+            texel.parstyle = table[sid]
 
 def loads(s):
-  return cerealizer.Dumper(magic).undump(StringIO(s))
+    model =  cerealizer.Dumper(magic).undump(StringIO(s))
+    _replace_styles(model.texel, {})
+    return model
 
 
 register(texeltree.Group)
@@ -57,10 +76,10 @@ def test_00():
     model1.insert(len(model1), mk_textmodel(cell))
 
     s = dumps(model1)
-    #print repr(s)
     model2 = loads(s)
     assert str(model1.texel) == str(model2.texel)
-
+    assert model1.get_style(5) is model2.get_style(5)
+    assert model1.get_parstyle(5) is model2.get_parstyle(5)
     try:
         model2 = loads('*'+s)
         assert False
