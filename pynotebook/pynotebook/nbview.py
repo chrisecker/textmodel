@@ -3,8 +3,8 @@
 
 from .textmodel import texeltree
 from .textmodel.styles import create_style, updated_style
-from .textmodel.texeltree import Group, Text, grouped, insert, length, get_text, \
-    join, get_rightmost, NULL_TEXEL, dump
+from .textmodel.texeltree import Group, Text, grouped, insert, length, \
+    get_text, join, get_rightmost, NULL_TEXEL, dump
 from .textmodel.textmodel import TextModel
 
 from .wxtextview.boxes import Box, VGroup, VBox, Row, Rect, check_box, \
@@ -15,8 +15,8 @@ from .wxtextview.testdevice import TESTDEVICE
 from .wxtextview.wxtextview import WXTextView as _WXTextView
 from .wxtextview.simplelayout import Builder as _Builder
 
-from .nbtexels import Cell, ScriptingCell, TextCell, Graphics, find_cell, mk_textmodel, \
-    NotFound
+from .nbtexels import Cell, ScriptingCell, TextCell, Graphics, find_cell, \
+    mk_textmodel, NotFound
 from .clients import ClientPool
 from .pyclient import PythonClient
 from .nbstream import Stream, StreamRecorder
@@ -261,7 +261,7 @@ class BitmapBox(Box):
             self.device = device
         self.bitmap = bitmap
         self.width, self.height = bitmap.Size
-        self.depth = 0 # XXX ?
+        self.depth = 0
 
     def __len__(self):
         return 1
