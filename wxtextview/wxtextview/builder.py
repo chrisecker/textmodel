@@ -12,6 +12,13 @@ from .boxes import TextBox, NewlineBox, TabulatorBox, EmptyTextBox, \
 
 
 class Factory:
+    # The Factory object takes a texeltree as an outline to create a
+    # sequence of boxes. For every Texel-Class Factory has a
+    # corresponding handler method of the same name,
+    # e.g. Group_handler for Group-texels. The call signature is
+    # handler(texel, i1, i2), where i1 and i2 denotes the part of
+    # texel for which boxes are generated.
+
     TextBox = TextBox
     NewlineBox = NewlineBox
     TabulatorBox = TabulatorBox
