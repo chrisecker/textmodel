@@ -1,5 +1,23 @@
 # -*- coding: latin-1 -*-
 
+
+# Neuester Stand: Alle Tests verlaufen erfolgreich
+#
+# Neuster Stand: Löschen von Marken ist fehlerhaft. Die Korrektur
+# durch insert funktioniert in vielen Fällen nicht.
+#
+# Lösungskonzept: remove_mark sollte zwei Rückgabewerte haben, den
+# Baum und den Übertrag. Der Übertrag gibt den Wert, um den die
+# folgende Node nach rechts verschoben werden muss.
+#
+# Überlegungen dazu: Das Problem tritt immer an Grenzen auf und muss
+# an der Stelle korrigiert werden, an der die beiden angrenzenden
+# Teilbäume zusammenlaufen. Die Korrektur besteht in einem Aufruf
+# insert(r, 0, delta), d.h. in den rechten TReilbaum wird an der
+# Stelle 0 die Korrektur um Delta eingefügt. Elegant wäre, hierfür
+# eine eigene Funktion zu benutzen move_right(tree, n).
+
+
 # Neuer Stand: repariert. Sollte mehr getestet werden.
 #
 # Stand: es gibt noch ein konzeptionelles Problem. Das ist auch der
@@ -32,7 +50,7 @@ class Mark:
         
     def get(self):
         if not self.parent:
-            return None
+            return self.n
         return abspos(self)+self.n
 
         
@@ -87,8 +105,7 @@ def get_marks(tree, i1, i2, i0=0):
     for child in tree.childs:
         j1 = i0
         j2 = i0+child.n
-        if j1 < i2-1 and i1 <= j2: # test fo overlap. The -1 is
-                                   # necessary to exclude marks at i2
+        if j1 < i2 and i1 <= j2: # test fo overlap. 
             l.extend(get_marks(child, i1, i2, i0))
         i0 += child.n
     return l
@@ -122,9 +139,9 @@ def groups(l):
 def grouped(stuff):
     while len(stuff) > nmax:
         stuff = groups(stuff)
-    if len(stuff)>1:
-        return Group(stuff)
-    return stuff[0]
+    if len(stuff)==1:
+        return stuff[0]
+    return Group(stuff)
 
 
 def add_mark(tree, i, m):
@@ -153,24 +170,28 @@ def add_mark(tree, i, m):
 
 def remove_mark(tree, mark, i):
     if tree is mark:
+        if i != mark.n:
+            raise IndexError(i) # Wrong index position
         mark.parent = None
-        return []
+        return [], mark.n
     if not isinstance(tree, Group):
-        # XXX some assertions? tree.n == 0, what else? 
-        return [tree]
+        return [tree], 0 # this is ok!
     l = []
-    j = i
+    co = 0 # carry over
     for child in tree.childs:
+        if co:
+            insert(child, 0, co)
+            co = 0
         n = child.n
-        if 0 <= j <= n:
-            l.extend(remove_mark(child, mark, j))
-        else:
+        if i < 0 or n < i:
             l.append(child)
-        j -= n
+        else:
+            l1, co = remove_mark(child, mark, i)
+            l.extend(l1)
+        i -= n
     g = Group(l)
-    if g.n < tree.n:
-        insert(g, i, tree.n-g.n)
-    return [g]
+    assert co == tree.n-g.n
+    return [g], co
 
 
 def remove(tree, i1, i2):
@@ -210,7 +231,7 @@ class MarkBuffer:
     def remove_mark(self, m):
         i = m.get()
         #print "remove ", i
-        self.tree = grouped(remove_mark(self.tree, m, i))
+        self.tree = grouped(remove_mark(self.tree, m, i)[0])
 
     def insert(self, i, n):
         insert(self.tree, i, n)
@@ -339,6 +360,16 @@ def test_01():
     assert b._get_labels() == [(1, 'X1'), (2, 'X2'), (4, 'X4')]
 
 
+    b = MarkBuffer()
+    m = []
+    for i in range(6):
+        m.append(b.create_mark(10+i, 'X%i'%i))    
+    assert b._get_labels() == [(10, 'X0'), (11, 'X1'), (12, 'X2'), 
+                               (13, 'X3'), (14, 'X4'), (15, 'X5')]
+    b.remove_mark(m[0])
+    assert b._get_labels() == [(11, 'X1'), (12, 'X2'), 
+                               (13, 'X3'), (14, 'X4'), (15, 'X5')]
+    
 def test_02():
     "insert"
     b = MarkBuffer()
@@ -393,27 +424,38 @@ def test_03():
 
 def test_04():
     "get_marks"
+    global nmax
+    nmax = 5
     b = MarkBuffer()
     A = b.create_mark(10, 'A')
     B = b.create_mark(20, 'B')
     assert b.get_marks(5, 10) == []
     assert b.get_marks(11, 20) == []
     assert b.get_marks(10, 10) == []
-    assert b.get_marks(10, 11) == [A]
-    assert b.get_marks(10, 20) == [A]
-    assert b.get_marks(-5, 11) == [A]
-    assert b.get_marks(10, 21) == [A, B]
+    assert b.get_marks(10, 11) == [(10, A)]
+    assert b.get_marks(10, 20) == [(10, A)]
+    assert b.get_marks(-5, 11) == [(10, A)]
+    assert b.get_marks(10, 21) == [(10, A), (20, B)]
+    assert b.get_marks(20, 21) == [(20, B)]
 
     b = MarkBuffer()
     m = []
     for i in range(20):
-        m.append(b.create_mark(i, 'X%i'%i))    
-    #print [(i, m.label) for (i, m) in b.get_marks(2, 4)]
-    from random import randrange
-    for i in range(500):
-        i1 = randrange(20)
-        i2 = randrange(20-i1)+i1
-        assert b.get_marks(i1, i2) == m[i1:i2]
+        m.append((i, b.create_mark(i, 'X%i'%i)))    
+
+    for i1 in range(21):
+        for i2 in range(i1, 21):
+            assert b.get_marks(i1, i2) == m[i1:i2]
+            
+    b.remove_mark(m[6][1])
+    b.remove_mark(m[7][1])
+    m[6] = None
+    m[7] = None
+    for i1 in range(21):
+        for i2 in range(i1, 21):
+            _m = [x for x in m[i1:i2] if x is not None]
+            assert b.get_marks(i1, i2) == _m
+            
 
 def _benchmark_00(Buffer):
     from random import randrange
