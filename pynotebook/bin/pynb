@@ -7,13 +7,12 @@ import sys
 sys.path.insert(0, '..')
 
 import pynotebook
+from pynotebook.nbtexels import NotFound
 from pynotebook.nbview import TextModel, NBView
-from pynotebook.nbtexels import strip_output, mk_textmodel, NotFound, \
-    TextCell, ScriptingCell, split_cell
-from pynotebook.textmodel.texeltree import NULL_TEXEL, length
 from pynotebook import graphics
 import os
 import wx
+from tempfile import mkdtemp
 
 
 wildcard = "Pynotebook files (*.pnb)|*.pnb|" \
@@ -29,7 +28,7 @@ def action2cmd(label, action):
 
 
 def method2cmd(label, name):
-    # Create a menu command from an editor action
+    # Create a menu command from a method of NBView
     def method(self, event, name=name):
         fun = getattr(self.shell, name)
         fun()
@@ -37,19 +36,85 @@ def method2cmd(label, name):
     return method
 
 
+
+class TemporaryDirectory(object):
+    # http://stackoverflow.com/questions/19296146/tempfile-temporarydirectory-
+    # context-manager-in-python-2-7
+    def __init__(self, suffix="", prefix="tmp", dir=None):
+        self._closed = False
+        self.name = mkdtemp(suffix, prefix, dir)
+
+    def cleanup(self):
+        if self.name and not self._closed:
+            try:
+                self._rmtree(self.name)
+            except (TypeError, AttributeError) as ex:
+                return
+            self._closed = True
+
+    def __del__(self):
+        self.cleanup()
+
+    _listdir = staticmethod(os.listdir)
+    _path_join = staticmethod(os.path.join)
+    _isdir = staticmethod(os.path.isdir)
+    _islink = staticmethod(os.path.islink)
+    _remove = staticmethod(os.remove)
+    _rmdir = staticmethod(os.rmdir)
+
+    def _rmtree(self, path):
+        for name in self._listdir(path):
+            fullname = self._path_join(path, name)
+            try:
+                isdir = self._isdir(fullname) and not self._islink(fullname)
+            except OSError:
+                isdir = False
+            if isdir:
+                self._rmtree(fullname)
+            else:
+                try:
+                    self._remove(fullname)
+                except OSError:
+                    pass
+        try:
+            self._rmdir(path)
+        except OSError:
+            pass
+
+
+logdir = None
+logging = False
+def gen_logfile():
+    files = os.listdir(logdir.name)
+    i = 0
+    while 1:
+        name = '%.4i.pynblog' % i
+        if not name in files:
+            return os.path.join(logdir.name, name)
+        i += 1
+
+
+
 class MainWindow(wx.Frame):
     ctxt_entries = ['inspector', 'open', 'save', 'save_as', 'close']
     file_entries = ['new', 'open', 'save', 'save_as', 'close']
     edit_entries = ['copy', 'paste', 'cut', 'undo', 'redo', 'indent', 'dedent']
-    cell_entries = ['inspector', 'insert_textcell', 'insert_pycell', 'remove_output', 
-                    'split_cell']
+    cell_entries = ['inspector', 'insert_textcell', 'insert_pycell', 
+                    'remove_output', 'split_cell']
     interpreter_entries = ['execute', 'execute_all', 'complete', 'reset']
+    debug_entries = ['replay', 'rebuild_view', 'clean_model', 'dump_texels', 
+                     'dump_boxes']
     updaters = ()
     def __init__(self, filename=None):
         displayw, displayh = wx.GetDisplaySize()
-        wx.Frame.__init__(self, None, size=(min(600, displayw), min(800, displayh)))
+        wx.Frame.__init__(self, None, 
+                          size=(min(600, displayw), min(800, displayh)))
         panel = wx.Panel(self, -1)
-        shell = NBView(panel, -1, filename=filename, maxw=600)
+        if logging:
+            logfile = gen_logfile()
+        else:
+            logfile = None
+        shell = NBView(panel, -1, filename=filename, maxw=800, logfile=logfile)
         box = wx.BoxSizer(wx.VERTICAL)
         box.Add(shell, 1, wx.ALL|wx.GROW, 1)
         panel.SetSizer(box)
@@ -84,6 +149,8 @@ class MainWindow(wx.Frame):
         menubar.Append(mk_menu(self.edit_entries), '&Edit')
         menubar.Append(mk_menu(self.cell_entries), '&Cell')
         menubar.Append(mk_menu(self.interpreter_entries), '&Interpreter')
+        # XXX for debugging only:
+        menubar.Append(mk_menu(self.debug_entries), 'Debug')
         self.updaters = updaters 
         return menubar
 
@@ -146,8 +213,6 @@ class MainWindow(wx.Frame):
         "&Open File ...\tCtrl-O"
         dlg = wx.FileDialog(
             self, message="Choose a file",
-            #defaultDir=self.currentDirectory, 
-            #defaultFile="",
             wildcard=wildcard,
             style=wx.OPEN | wx.MULTIPLE | wx.CHANGE_DIR
             )
@@ -169,7 +234,7 @@ class MainWindow(wx.Frame):
     def save_as(self, event):
         "Save &As ..."
         dlg = wx.FileDialog(
-            self, message="Save file as ...", 
+            self, message="Save File as ...", 
             defaultFile="", wildcard=wildcard, 
             style=wx.SAVE|wx.OVERWRITE_PROMPT
             )
@@ -201,12 +266,21 @@ class MainWindow(wx.Frame):
     indent = action2cmd("Indent\tCtrl-I", "indent")
     dedent = action2cmd("Dedent\tCtrl-U", "dedent")
     complete = action2cmd("Complete\tTAB", "complete")
-    execute = method2cmd("Execute cell\tShift-Return", "execute")
+    execute = method2cmd("Execute Cell\tShift-Return", "execute")
     execute_all = method2cmd("Execute all", "execute_all")
-    reset = method2cmd("Reset interpreter", "reset_interpreter")
-
+    reset = method2cmd("Reset Interpreter", "reset_interpreter")
+    remove_output = method2cmd("Remove Output", "remove_output")
+    split_cell = method2cmd("Split Cell\tCtrl-B", "split_cell")
+    insert_textcell = method2cmd("Insert Text Cell", "insert_textcell")
+    insert_pycell = method2cmd("Insert Python Cell", "insert_pycell")
     undo = method2cmd("Undo\tCtrl-Z", "undo")
     redo = method2cmd("Redo\tCtrl-R", "redo")
+    dump_texels = action2cmd("Dump Texels\tESC", "dump_info")
+    dump_boxes = action2cmd("Dump all Boxes", "dump_boxes")
+
+    def between_cells(self):
+        return self.shell.between_cells()
+    can_insert_textcell = can_insert_pycell = between_cells
 
     def can_undo(self):
         return self.shell.undocount() > 0
@@ -214,74 +288,96 @@ class MainWindow(wx.Frame):
     def can_redo(self):
         return self.shell.redocount() > 0
 
-    def remove_output(self, event):
-        "Remove output"
-        self.shell.transform(strip_output)
-
-    def between_cells(self):
-        i = self.shell.index
-        insidecell = False
-        try:
-            i0, cell = self.shell.find_cell()
-            if i0 < i < i0+length(cell):
-               insidecell = True
-        except NotFound:
-            pass
-        return not insidecell
-
-    can_insert_textcell = can_insert_pycell = between_cells
-
-    def insert_textcell(self, event):
-        "Insert text cell"
-        cell = TextCell(NULL_TEXEL)
-        self.shell.insert(self.shell.index, mk_textmodel(cell))
-
-    def insert_pycell(self, event):
-        "Insert python cell"
-        cell = ScriptingCell(NULL_TEXEL, NULL_TEXEL)
-        self.shell.insert(self.shell.index, mk_textmodel(cell))
-
-    def split_cell(self, event):
-        "Break cell\tCtrl+B"
-        i = self.shell.index
-        self.shell.transform(lambda texel, i=i:split_cell(texel, i))
-
     def inspector(self, event):
-        "Format ...\tCtrl+F"
+        "Format ...\tCtrl-F"
         from pynotebook.inspector import Inspector
         inspector = Inspector(self.shell.Parent)
         inspector.model = self.shell
         inspector.Show()
         inspector.update()
+
+    def replay(self, event): 
+        "Replay"
+        "&Replay Log File ..."
+        dlg = wx.FileDialog(
+            self, message="Choose a file",
+            wildcard="Log files (*.pnb)|*.pynblog",
+            style=wx.OPEN | wx.CHANGE_DIR
+            )
+        paths = []
+        if dlg.ShowModal() == wx.ID_OK:
+            paths = dlg.GetPaths()
+        dlg.Destroy()
+
+        if paths:
+            log = self.shell.load_log(paths[0])
+            win = MainWindow()
+            win.Show()
+            win.shell.replay(log)
+        
+    def rebuild_view(self, event):
+        "Rebuild View"
+        self.shell.rebuild()
+        
+    def clean_model(self, event):
+        "Clean Model"
+        # This is a bit hacky ...
+        from pynotebook import cerealizerformat
+        # 1. replace all styles to the canonical ones
+        model = self.shell.model
+        cerealizerformat._replace_styles(model.texel, {})
+        # 2. call set_properties (with no properties given) to merge
+        # character texels of equal style
+        self.shell.set_properties(0, len(model))
  
 
 def main(argv):
-    debug = 0
-    if debug:
-        redirect = True
-    else:
-        redirect = False
-    app = wx.App(redirect=redirect)
-    win = None
+    global logging
+    logging = debug = redirect = console = False
+    filenames = []
+    for arg in argv:
+        if arg == '--redirect':
+            redirect = True
+        elif arg == '--debug':
+            debug = True
+        elif arg == '--console':
+            console = True
+        elif arg == '--logging':
+            logging = True
+        else:
+            filenames.append(arg)
     
-    for arg in argv[1:]:
-        # Arguments are notebook files. Each file is opened in a seperate
-        # window.
-        win = MainWindow(arg)
+    if debug:
+        logging = True
+        redirect = True
+    
+    if logging:
+        global logdir
+        logdir = TemporaryDirectory()
+        print "Log files are stored in path", logdir.name
+
+    app = wx.App(redirect=redirect)
+
+    win = None    
+    for name in filenames:
+        # Each file is opened in a seperate window.
+        win = MainWindow(name)
         win.Show()
     if win is None:
         win = MainWindow()
         win.Show()
 
-    if debug: 
+    if console: 
         from pynotebook.wxtextview import testing
-        testing.pyshell()    
+        testing.pyshell(namespace=dict(win=win))    
 
     app.MainLoop()
 
 # Register classes to the fileformat
 graphics.register_classes()
 
+def test_00():
+    main(['--debug'])
 
 if __name__ == '__main__':
-    main(sys.argv)
+    main(sys.argv[1:])

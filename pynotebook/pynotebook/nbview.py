@@ -16,10 +16,11 @@ from .wxtextview.wxtextview import WXTextView as _WXTextView
 from .wxtextview.simplelayout import Builder as _Builder
 
 from .nbtexels import Cell, ScriptingCell, TextCell, Graphics, find_cell, \
-    mk_textmodel, NotFound
+    mk_textmodel, NotFound, strip_output, split_cell
 from .clients import ClientPool
 from .pyclient import PythonClient
 from .nbstream import Stream, StreamRecorder
+from .nblogging import logged
 import string
 import wx
 import sys
@@ -535,14 +536,24 @@ def strip_cells(texel):
     return [texel]
 
 
+def logged(f):
+    def new_f(nbview, *args, **kwds):
+        nbview.log(f.__name__, args, kwds)
+        return f(nbview, *args, **kwds)
+    return new_f
+
 
 class NBView(_WXTextView):
     temp_range = (0, 0)
     ScriptingCell = ScriptingCell
     _maxw = 600
+    _logfile = None
     def __init__(self, parent, id=-1,
                  pos=wx.DefaultPosition, size=wx.DefaultSize, style=0, 
-                 resize=False, filename=None, maxw=None):
+                 resize=False, filename=None, maxw=None, logfile=None):
+        if logfile:
+            self._logfile = logfile
+
         if maxw is not None:
             self._maxw = maxw
         self.resize = resize
@@ -555,13 +566,17 @@ class NBView(_WXTextView):
         self.actions[(wx.WXK_RETURN, False, False)] = 'insert_newline_indented'
 
     def _load(self, filename):
-        # Only meant to be called on fresh NBViews. Therefore we do
-        # not reset cursor, selection etc.
         s = open(filename, 'rb').read()
         import cerealizerformat        
         model = cerealizerformat.loads(s)
         reset_numbers(model.texel)
-        self.model = model
+        self.set_model(model)
+
+    @logged
+    def set_model(self, model):
+        # Only meant to be called on fresh NBViews. Therefore we do
+        # not reset cursor, selection etc.
+        _WXTextView.set_model(self, model)
 
     def save(self, filename):
         import cerealizerformat
@@ -635,7 +650,28 @@ class NBView(_WXTextView):
             return ''
         return text[i+1:]
 
-    def handle_action(self, action, shift=False):
+    def handle_action(self, action, shift=False, memo=None):
+        if action != 'complete':
+            self.clear_temp()
+        if action != 'paste':
+            self.log('handle_action', (action, shift,), {})
+        else:
+            # Paste is a bit tricky to log. We have to make shure,
+            # that in the replay situation the exact same material
+            # is inserted. Therefore we figure out what has been
+            # pasted and log this as an insertion.
+            model = self.model
+            i = self.index
+            if memo is not None:
+                self.insert(i, memo)
+            else:
+                n0 = len(model)
+                _WXTextView.handle_action(self, action, shift)
+                n = len(model)-n0
+                memo = model.copy(i, i+n)
+            self.log('handle_action', (action, shift, memo), {})
+            return
+
         if action != 'complete':
             self.clear_temp()
             return _WXTextView.handle_action(self, action, shift)
@@ -686,6 +722,7 @@ class NBView(_WXTextView):
     def find_cell(self):
         return find_cell(self.model.texel, self.index)
 
+    @logged
     def execute(self):
         i0, cell = self.find_cell()
         if not isinstance(cell, ScriptingCell):
@@ -716,6 +753,7 @@ class NBView(_WXTextView):
                 break
             self.execute()
 
+    @logged
     def reset_interpreter(self):
         self.init_clients()
 
@@ -748,6 +786,80 @@ class NBView(_WXTextView):
                 _WXTextView.insert(self, i, mk_textmodel(cell))
                 _WXTextView.insert(self, i+1, textmodel)
 
+    @logged
+    def remove_output(self):
+        self.transform(strip_output)
+
+    @logged
+    def split_cell(self):
+        i = self.index
+        self.transform(lambda texel, i=i:split_cell(texel, i))
+
+    def between_cells(self):
+        i = self.index
+        insidecell = False
+        try:
+            i0, cell = self.find_cell()
+            if i0 < i < i0+length(cell):
+               insidecell = True
+        except NotFound:
+            pass
+        return not insidecell
+
+    can_insert_textcell = can_insert_pycell = between_cells
+
+    @logged
+    def insert_textcell(self):
+        "Insert text cell"
+        cell = TextCell(NULL_TEXEL)
+        self.insert(self.index, mk_textmodel(cell))
+
+    @logged
+    def insert_pycell(self):
+        "Insert python cell"
+        cell = ScriptingCell(NULL_TEXEL, NULL_TEXEL)
+        self.insert(self.index, mk_textmodel(cell))
+
+    set_index = logged(_WXTextView.set_index)
+    set_selection = logged(_WXTextView.set_selection)
+
+    ### Simple logging facility ###    
+    # It allows to record and replay everything the user
+    # enters. Logging is ment for debugging. It will be removed once
+    # all errors are fixed :-)
+
+    def log(self, descr, args, kwds):
+        if self._logfile is None: 
+            return
+        import cPickle
+        s = cPickle.dumps((descr, args, kwds))
+        f = open(self._logfile, 'ab')
+        f.write("%i\n" % len(s))
+        f.write(s)
+        f.close()
+
+    def load_log(self, filename):
+        import cPickle
+        log = []
+        f = open(filename, 'rb')
+        while 1:
+            l = f.readline()
+            if not l:
+                break
+            n = int(l)
+            s = f.read(n)
+            name, args, kwds = cPickle.loads(s)
+            log.append((name, args, kwds))
+        return log
+                
+    def replay(self, log):
+        for name, args, kwds in log:
+            f = getattr(self, name)
+            f(*args, **kwds)
+
+    def replay_logfile(self, filename):
+        log = self.load_log(filename)
+        self.replay(log)
 
 
 def init_testing(redirect=True):
