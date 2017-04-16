@@ -103,7 +103,7 @@ class MainWindow(wx.Frame):
                     'remove_output', 'split_cell']
     interpreter_entries = ['execute', 'execute_all', 'complete', 'reset']
     debug_entries = ['replay', 'rebuild_view', 'clean_model', 'dump_texels', 
-                     'dump_boxes']
+                     'dump_boxes', 'profile_insert']
     updaters = ()
     def __init__(self, filename=None):
         displayw, displayh = wx.GetDisplaySize()
@@ -329,6 +329,12 @@ class MainWindow(wx.Frame):
         # 2. call set_properties (with no properties given) to merge
         # character texels of equal style
         self.shell.set_properties(0, len(model))
+
+    def profile_insert(self, event):
+        "Profile Insert"
+        from cProfile import runctx
+        runctx("self.shell.model.insert_text(self.shell.index, 'X')", globals(), locals())
+
  
 
 def main(argv):
