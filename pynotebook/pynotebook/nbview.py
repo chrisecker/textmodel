@@ -439,7 +439,7 @@ class Builder(BuilderBase):
             print "handler=", handler
             raise
         r = tuple(l)
-        if 1: #0: #len(r)>1: # XXX 
+        if isinstance(texel, Cell):
             self.cache.set(texel, r)
         return r
 
@@ -498,21 +498,25 @@ class Builder(BuilderBase):
         #dump_range(texel, 0, length(texel))
         
         # XXX TODO: implement proper treatment of temp
-        sep1, (j1, j2, inp), sep2, (k1, k2, outp), sep3 \
-            = texeltree.iter_childs(texel)
 
-        _inp = Group(texel.childs[1:3])
-        _outp = Group([outp, sep3[-1]])
-        client = self._clients.get_matching(texel)
-        colorized = client.colorize(_inp)
-        inbox = self.create_parstack(colorized)
-        assert len(inbox) == length(_inp)
+        sep1, inp, sep2, outp, sep3 = texel.childs
+
+        try:
+            inbox = self.cache.get(inp)[0]
+        except KeyError:
+            client = self._clients.get_matching(texel)
+            colorized = client.colorize(Group([inp, sep2]))
+            inbox = self.create_parstack(colorized)
+            self.cache.set(inp, [inbox])
+            assert len(inbox) == length(inp)+1
         
         try:
             outbox = self.cache.get(outp)[0]
         except KeyError:
-            outbox = self.create_parstack(_outp)
+            outbox = self.create_parstack(Group([outp, sep3]))
             self.cache.set(outp, [outbox])
+            assert len(outbox) == length(outp)+1
+
         cell = ScriptingCellBox(inbox, outbox, number=texel.number,
                                 device=self.device)
         return [cell]
