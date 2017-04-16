@@ -365,149 +365,210 @@ class GraphicsBox(Box):
         self.device.invert_rect(x, y, self.width, self.height, dc)
 
 
+from .wxtextview.builder import BuilderBase
+from .wxtextview.boxes import calc_length
+from .textmodel.styles import EMPTYSTYLE
+import weakref
 
-class Builder(_Builder):
-    _has_temp = False # indicates whether the last change was caused
-                      # by print_temp
+class BoxesCache:
+    def __init__(self):
+        self.buffer = dict()
+        
+    def set(self, texel, boxes):
+        def callback(*args):
+            del self.buffer[texel]
+        l = []
+        for box in boxes:
+            l.append(weakref.ref(box, callback))
+        self.buffer[texel] = tuple(l)
+        
+    def get(self, texel):
+        return tuple([x() for x in self.buffer[texel]])
+
+    def clear(self):
+        self.buffer.clear()
+
+
+
+class Builder(BuilderBase):
+    parstyle = EMPTYSTYLE
 
     def __init__(self, model, clients=None, device=TESTDEVICE, maxw=0):
         if clients is None:
             clients = ClientPool()
         self._clients = clients
-        _Builder.__init__(self, model, device, maxw)
+        self.device = device
+        self.model = model
+        self._maxw = maxw
+        self.cache = BoxesCache()
 
-    def create_paragraphs(self, texel, i1, i2):
-        # Ich müsste jeden Paragraphen separat erzeugen!
-        boxes = self.create_boxes(texel, i1, i2)
-        if self._maxw:
-            maxw = max(100, self._maxw-80)
-        else:
-            maxw = 0
-        l = create_paragraphs(
-            boxes, maxw = maxw,
-            Paragraph = self.Paragraph,
-            device = self.device)
-        return l
+    def get_device(self):
+        return self.device
 
-    def create_parstack(self, texel):
-        l = self.create_paragraphs(texel, 0, length(texel))
-        return ParagraphStack(l, device=self.device)
+    def mk_style(self, style):
+        # This can overriden e.g. to implement style sheets. The
+        # default behaviour is to use the paragraph style and add the
+        # text styles.
+        r = self.parstyle.copy()
+        r.update(style)
+        return r
 
-    def rebuild(self):
-        model = self.model
-        boxes = self.create_all(model.texel)
-        self._layout = VGroup(boxes, device=self.device)
-
-    def rebuild_part(self, i1, i2, n):
-        # $n$ is the size change. Positive $n$ means inserting, negativ
-        # means removal. The new size is i1..i2+n.
-        layout = self._layout
-        model = self.model
-        texel = model.texel
-
-        # Did we insert temp text? If yes, temp should be excluded
-        # from fontification.
-
-        if n>0: 
-            self._has_temp = is_temp(self.model, i1)
-            self._temp_range = i1, i1+n
-        else:
-            self._has_temp = False
-
-        #print "rebuild_part: i1, i2=", i1, i2, "n=", n
-        #dump_range(texel, i1, i2)
-
-        j1, j2 = layout.extend_range(i1, i2)
-        k1, k2 = get_update_range(layout, j1, j2)
-        #print "k1, k2=", k1, k2
-
-        stuff = self.create_boxes(texel, k1, k2+n)
-        l = replace_boxes(layout, k1, k2, stuff)
-        self._layout = self.grouped(l)
-        return self._layout
+    def extended_texel(self):
+        return self.model.get_xtexel()
         
-    ### Handlers
-    def TextCell_handler(self, texel, i1, i2):
+    def set_maxw(self, maxw):
+        if maxw != self._maxw:
+            self._maxw = maxw
+            self.cache.clear()
+            self.rebuild()
+
+    ### Factory methods
+    def create_boxes(self, texel):
+        try:
+            return self.cache.get(texel)
+        except KeyError:
+            pass
+
+        name = texel.__class__.__name__+'_handler'
+        handler = getattr(self, name)
+        #print "calling handler", name
+        l = handler(texel)
+        try:
+            assert calc_length(l) == length(texel)
+        except:
+            print "handler=", handler
+            raise
+        r = tuple(l)
+        if 1: #0: #len(r)>1: # XXX 
+            self.cache.set(texel, r)
+        return r
+
+    def Group_handler(self, texel):
+        # Handles group texels. Note that the list of childs is
+        # traversed from right to left. This way the "Newline" which
+        # ends a line is handled before the content in the line. This
+        # is important because in order to build boxes for the line
+        # elements, we need the paragraph style which is located in
+        # the NewLine-Texel.
+        create_boxes = self.create_boxes
+        r = ()
+        for j1, j2, child in reversed(list(texeltree.iter_childs(texel))):
+            r = create_boxes(child)+r
+        return r
+
+    # XXX Remove this:
+    _cache = dict()
+    _cache_keys = []
+    def Text_handler(self, texel):
+        # cached version
+        key = texel.text, id(texel.style), id(self.parstyle), self.device
+        try:
+            return self._cache[key]
+        except: pass        
+        r = [TextBox(texel.text, self.mk_style(texel.style), 
+                     self.device)]
+        self._cache_keys.insert(0, key)        
+        if len(self._cache_keys) > 10000:
+            _key = self._cache_keys.pop()
+            del self._cache[_key]
+        self._cache[key] = r
+        return r
+
+    def Text_handler(self, texel):
+        # non caching version
+        return [TextBox(texel.text, self.mk_style(texel.style), 
+                self.device)]
+
+    def NewLine_handler(self, texel):
+        self.parstyle = texel.parstyle
+        if texel.is_endmark:
+            return [self.EndBox(self.mk_style(texel.style), self.device)]
+        return [NewlineBox(self.mk_style(texel.style), self.device)] # XXX: Hmmmm
+
+    def Tabulator_handler(self, texel):
+        return [TabulatorBox(self.mk_style(texel.style), self.device)]
+
+    def TextCell_handler(self, texel):
         textbox = self.create_parstack(Group(texel.childs[1:]))
         cell = TextCellBox(textbox, device=self.device)
         assert len(cell) == length(texel)
         return [cell]
 
-
-    def ScriptingCell_handler(self, texel, i1, i2):
-        assert i2 <= length(texel)
-        n = i2-i1
+    def ScriptingCell_handler(self, texel):
         #dump_range(texel, 0, length(texel))
         
+        # XXX TODO: implement proper treatment of temp
         sep1, (j1, j2, inp), sep2, (k1, k2, outp), sep3 \
             = texeltree.iter_childs(texel)
-        assert length(texel) == length(inp)+length(outp)+3
-        _inp = Group([inp, sep2[-1]])
+
+        _inp = Group(texel.childs[1:3])
         _outp = Group([outp, sep3[-1]])
-        if i1 < j2 and j1 < i2: 
-            client = self._clients.get_matching(texel)
-            if self._has_temp:
-                t1, t2 = self._temp_range
-                i0, tmp = find_cell(self.model.texel, t1)
-                assert tmp is texel
-                i0 += 1 
-                model = mk_textmodel(_inp)
-                old = model.remove(t1-i0, t2-i0)
-                tmp = mk_textmodel(client.colorize(model.texel))
-                model.insert(t1-i0, old)
-                colorized = model.texel
-            else:
-                colorized = client.colorize(_inp)
-            inbox = self.create_parstack(colorized)
-            assert len(inbox) == length(_inp)
-
-        if i1 < k2 and k1 < i2: 
+        client = self._clients.get_matching(texel)
+        colorized = client.colorize(_inp)
+        inbox = self.create_parstack(colorized)
+        assert len(inbox) == length(_inp)
+        
+        try:
+            outbox = self.cache.get(outp)[0]
+        except KeyError:
             outbox = self.create_parstack(_outp)
-            assert len(outbox) == length(_outp)
-
-        if j1<=i1<=i2<=k1:
-            assert j1 == i1 and i2 == j2+1
-            assert len(inbox) == n
-            return [inbox]
-
-        if k1<=i1<=i2<=k2+1:
-            assert k1 == i1 and i2 == k2+1
-            assert len(outbox) == n
-            return [outbox]
-
-        assert i1 == 0 and i2 == k2+1
+            self.cache.set(outp, [outbox])
         cell = ScriptingCellBox(inbox, outbox, number=texel.number,
                                 device=self.device)
-        assert len(cell) == n
         return [cell]
 
-    def Plot_handler(self, texel, i1, i2):
+    def Plot_handler(self, texel):
         return [PlotBox(device=self.device)]
 
-    def Graphics_handler(self, texel, i1, i2):
+    def Graphics_handler(self, texel):
         return [GraphicsBox(texel, device=self.device)]
 
-    def BitmapRGB_handler(self, texel, i1, i2):
+    def BitmapRGB_handler(self, texel):
         w, h = texel.size
         bitmap = wx.BitmapFromBuffer(w, h, texel.data)
         return [BitmapBox(bitmap, device=self.device)]
 
-    def BitmapRGBA_handler(self, texel, i1, i2):
+    def BitmapRGBA_handler(self, texel):
         w, h = texel.size
         im = wx.ImageFromData(w, h, texel.data)
         im.SetAlphaBuffer(texel.alpha)
         bitmap = wx.BitmapFromImage(im)
         return [BitmapBox(bitmap, device=self.device)]
 
-    ### Signals
+    ### Builder methods
+    def create_paragraphs(self, texel):
+        boxes = self.create_boxes(texel)
+        if self._maxw:
+            maxw = max(100, self._maxw-80)
+        else:
+            maxw = 0
+        l = create_paragraphs(
+            boxes, maxw = maxw,
+            Paragraph = Paragraph,
+            device = self.device)
+        return l
+
+    def create_parstack(self, texel):
+        l = self.create_paragraphs(texel)
+        return ParagraphStack(l, device=self.device)
+
+    def rebuild(self):
+        model = self.model
+        boxes = self.create_boxes(model.texel)
+        self._layout = VGroup(boxes, device=self.device)
+
+
+    ### Signal handlers
     def properties_changed(self, i1, i2):
-        return self.rebuild_part(i1, i2, 0)
+        self.rebuild()
 
     def inserted(self, i, n):
-        return self.rebuild_part(i, i, n)
+        self.rebuild()
 
     def removed(self, i, n):
-        return self.rebuild_part(i, i+n, -n)
+        #print "removed", i, n
+        self.rebuild()
+
 
 
 
@@ -976,7 +1037,7 @@ def test_10():
     cell = ScriptingCell(Text(u'a'), Text(u'b'))
     factory = Builder(TextModel(''))
     factory._clients.register(PythonClient())
-    boxes = factory.create_all(cell)
+    boxes = factory.create_boxes(cell)
     assert len(boxes) == 1
     cellbox = boxes[0]
     assert len(cellbox) == 5
