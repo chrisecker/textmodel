@@ -8,7 +8,8 @@ from .textmodel.texeltree import Group, Text, grouped, insert, length, \
 from .textmodel.textmodel import TextModel
 
 from .wxtextview.boxes import Box, VGroup, VBox, Row, Rect, check_box, \
-    NewlineBox, TextBox, extend_range_seperated, replace_boxes
+    NewlineBox, TextBox, extend_range_seperated, replace_boxes, ChildBox, \
+    calc_length
 from .wxtextview.simplelayout import create_paragraphs, Paragraph
 from .wxtextview.wxdevice import WxDevice
 from .wxtextview.testdevice import TESTDEVICE
@@ -29,8 +30,10 @@ import sys
 
 
 promptstyle = create_style(
-    textcolor = 'blue',
-    weight = 'bold'
+    textcolor = 'darkblue',
+    #bold = True,
+    italic = True,
+    fontsize = 8,
     )
 
 sepwidth = 20000 # a number which is just larger than the textwidth
@@ -42,6 +45,65 @@ def is_temp(model, i):
 
 class ParagraphStack(VGroup):
     pass
+
+
+class Frame(ChildBox):
+    def __init__(self, childs, fillcolor=None, linecolor=None, border=(0, 0, 0, 0), 
+                 device=None):
+        self.border = border
+        self.fillcolor = fillcolor or 'white'
+        self.linecolor = linecolor or 'white'
+        ChildBox.__init__(self, childs, device)
+
+    def from_childs(self, childs):
+        return Frame(childs, fillcolor, linecolor, border, device)
+
+    def iter_boxes(self, i, x, y):
+        border = self.border
+        x += border[0]
+        y += border[1]
+        j1 = i
+        for child in self.childs:
+            j2 = j1+len(child)
+            yield j1, j2, x, y, child
+            y += child.height+child.depth
+            j1 = j2
+
+    def layout(self):
+        w = h = d = 0
+        border = self.border
+        for child in self.childs:
+            w += child.width
+            h = max(h, child.height)
+            d = max(d, child.depth)
+        self.width = w+border[0]+border[2]
+        self.height = h+border[1]+border[3]
+        self.depth = d
+        self.length = calc_length(self.childs)
+
+    def get_index(self, x, y):
+        l = [0, len(self)]
+        for j1, j2, x1, y1, child in self.riter_boxes(0, 0, 0):
+            if y1 <= y <= y1+child.height+child.depth:
+                l.append(j1)
+                i = child.get_index(x-x1, y-y1)
+                if i is not None:
+                    l.append(i+j1)
+                if len(child):
+                    l.append(j1+len(child))
+                    l.append(j1+len(child)-1) # This is needed for rows
+        return self._select_index(l, x, y)
+
+    def draw(self, x, y, dc, styler):
+        device = self.device
+        dc.SetBrush(wx.Brush(self.fillcolor, wx.SOLID))
+        dc.SetPen(wx.Pen(self.linecolor,style=wx.SOLID))
+        dc.DrawRectangle(x, y, self.width, self.height)
+
+        for j1, j2, x1, y1, child in self.iter_boxes(0, x, y):
+            r = Rect(x1, y1, x1+child.width, y1+child.height)
+            if device.intersects(dc, r):
+                child.draw(x1, y1, dc, styler)
 
 
 
@@ -126,9 +188,14 @@ class TextCellBox(VBox):
 class ScriptingCellBox(VBox):
     input = property(lambda s:s.childs[0])
     output = property(lambda s:s.childs[1])
+    border = 8, 8, 8, 8
+    inbackground = '#f7f7f7'
+    inline = '#cfcfcf'
+    wleft = 80
+
     def __init__(self, inbox, outbox, number=0, device=None):
-        assert isinstance(inbox, ParagraphStack)
-        assert isinstance(outbox, ParagraphStack)
+        #assert isinstance(inbox, ParagraphStack)
+        #assert isinstance(outbox, ParagraphStack)
         self.number = number
         if device is not None:
             self.device=device
@@ -219,6 +286,55 @@ class ScriptingCellBox(VBox):
         assert i == len(self)
         h = self.height
         return Rect(x0, y0+h, sepwidth, y0+h+2)
+
+    if 1: # jupyter like style
+        def iter_boxes(self, i, x, y):
+            input = self.input
+            output = self.output
+            height = self.height
+            w = self.wleft
+            j1 = i+1
+            j2 = j1+len(input)
+            yield j1, j2, x+w, y, input
+            j1 = j2
+            j2 = j1+len(output)
+            y += input.height+input.depth
+            yield j1, j2, x+w, y, output
+
+        def layout(self):
+            # compute w and h
+            dh = h = w = 0
+            for j1, j2, x, y, child in self.iter_boxes(0, 0, 0):
+                w = max(x+child.width, w)
+                h = max(y+child.height, h)
+                dh = max(y+child.height+child.depth, dh)
+            self.width = w
+            self.height = h
+            self.depth = dh-h
+            self.length = j2
+
+        def draw(self, x, y, dc, styler):
+            a, b = list(self.iter_boxes(0, x, y))
+            styler.set_style(promptstyle)
+            n = self.number or ''
+            w1 = self.device.measure('Out', promptstyle)[0]
+            w2 = self.device.measure('Out [%s]:' % n, promptstyle)[0]
+
+            border = self.border
+            x1 = x+self.wleft-w2
+            x2 = x1+w1
+            y1 = a[3]+border[1]
+            y2 = b[3]+border[1]
+            
+            dc.DrawText("In", x1, y1)
+            dc.DrawText("Out", x1, y2)
+            dc.DrawText("[%s]:" % n, x2, y1)
+            dc.DrawText("[%s]:" % n, x2, y2)
+
+            VBox.draw(self, x, y, dc, styler)
+
+
+
 
  
 
@@ -444,6 +560,9 @@ class Builder(_Builder):
         assert length(texel) == length(inp)+length(outp)+3
         _inp = Group([inp, sep2[-1]])
         _outp = Group([outp, sep3[-1]])
+        border = ScriptingCellBox.border
+        inbackground = ScriptingCellBox.inbackground
+        inline = ScriptingCellBox.inline
         if i1 < j2 and j1 < i2: 
             client = self._clients.get_matching(texel)
             if self._has_temp:
@@ -453,17 +572,22 @@ class Builder(_Builder):
                 i0 += 1 
                 model = mk_textmodel(_inp)
                 old = model.remove(t1-i0, t2-i0)
-                tmp = mk_textmodel(client.colorize(model.texel))
-                model.insert(t1-i0, old)
-                colorized = model.texel
+                tmp = mk_textmodel(client.colorize(model.texel, bgcolor=inbackground))
+                tmp.insert(t1-i0, old)
+                colorized = tmp.texel
             else:
-                colorized = client.colorize(_inp)
+                colorized = client.colorize(_inp, bgcolor=inbackground)
             inbox = self.create_parstack(colorized)
+            inbox.width = max(self._maxw-ScriptingCellBox.wleft, 
+                              inbox.width-border[0]-border[2])
+            inbox = Frame([inbox], border=border, fillcolor=inbackground, 
+                          linecolor=inline)
             assert len(inbox) == length(_inp)
 
         if i1 < k2 and k1 < i2: 
             outbox = self.create_parstack(_outp)
             assert len(outbox) == length(_outp)
+            outbox = Frame([outbox], border=border) #, linecolor=inline)
 
         if j1<=i1<=i2<=k1:
             assert j1 == i1 and i2 == j2+1
@@ -476,6 +600,7 @@ class Builder(_Builder):
             return [outbox]
 
         assert i1 == 0 and i2 == k2+1
+
         cell = ScriptingCellBox(inbox, outbox, number=texel.number,
                                 device=self.device)
         assert len(cell) == n
@@ -620,7 +745,9 @@ class NBView(_WXTextView):
 
     def print_temp(self, text):
         new = TextModel(text)
-        new.set_properties(0, len(new), textcolor='blue', temp=True)
+        new.set_properties(
+            0, len(new), textcolor='blue', bgcolor=ScriptingCellBox.inbackground, 
+            temp=True)
         i = self.index
         self.model.insert(i, new)
         j1, j2 = self.temp_range

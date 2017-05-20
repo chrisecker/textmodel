@@ -5,7 +5,7 @@ from .nbstream import StreamRecorder
 from pynotebook.textmodel.textmodel import TextModel
 from pynotebook.textmodel.texeltree import Text, grouped, get_text, NL, length, dump, \
     iter_childs
-from pynotebook.textmodel.styles import create_style, EMPTYSTYLE
+from pynotebook.textmodel.styles import create_style
 
 import sys
 import traceback
@@ -35,7 +35,7 @@ def mk_breaklist(texel, i0=0):
     return [i0+length(texel)]
 
 
-def pycolorize(texel):
+def pycolorize(texel, styles=None, bgcolor='#FFFFFF'):
     model = TextModel()
     model.texel = grouped([texel, NL]) # the NL is needed by
                                        # tokenizer. We have to remove
@@ -47,22 +47,30 @@ def pycolorize(texel):
     _KEYWORD = token.NT_OFFSET + 1
     _TEXT    = token.NT_OFFSET + 2
 
-    _styles = {
-        token.NUMBER:       create_style(textcolor='#0080C0'),
-        token.OP:           create_style(textcolor='#0000C0'),
-        token.STRING:       create_style(textcolor='#004080'),
-        tokenize.COMMENT:   create_style(textcolor='#008000'),
-        token.NAME:         create_style(textcolor='#000000'),
-        token.ERRORTOKEN:   create_style(textcolor='#FF8080'),
-        _KEYWORD:           create_style(textcolor='#C00000'),
-        #_TEXT:              create_style(),
+    _colors = {
+        token.NUMBER:       '#0080C0',
+        token.OP:           '#0000C0',
+        token.STRING:       '#004080',
+        tokenize.COMMENT:   '#008000',
+        token.NAME:         '#000000',
+        token.ERRORTOKEN:   '#FF8080',
+        _KEYWORD:           '#C00000',
+        None:               '#000000', # everything else
+        #_TEXT:              
     }
+
+    if styles is not None:
+        _styles = styles
+    else:
+        _styles = {}
+        for key, fgcolor in _colors.items():
+            _styles[key] = create_style(bgcolor=bgcolor, textcolor=fgcolor)
 
     class TokenEater:
         ai = 0
         breaks = [0]+mk_breaklist(model.texel)
         l = []
-        def moveto(self, i, style=EMPTYSTYLE):
+        def moveto(self, i, style=_styles[None]):
             # move index to $i$ and create texels the text between $ai$ and $i$
             ai = self.ai
             if i<ai: 
@@ -87,12 +95,15 @@ def pycolorize(texel):
             try:
                 style = _styles[toktype]
             except:
-                style = EMPTYSTYLE
+                style = _styles[None]
             self.moveto(i1)
             self.moveto(i2, style=style)
 
     eater = TokenEater()
-    tokenize.tokenize(instream, eater)
+    try:
+        tokenize.tokenize(instream, eater)
+    except tokenize.TokenError:
+        pass
     eater.moveto(len(text))
     return grouped(eater.l[:-1]) # note that we are stripping of the last NL
 
@@ -244,7 +255,7 @@ def __transform__(obj, iserr):
             options.add(option)
         return options
 
-    def colorize(self, inputtexel):
+    def colorize(self, inputtexel, styles=None, bgcolor='white'):
         
         if 0:
             # The pycolorize function was ment for benchmarking the
@@ -257,14 +268,8 @@ def __transform__(obj, iserr):
             except:
                 return inputtexel
         else:
-            if 0:
-                colorized = pycolorize(inputtexel)
-            else:
-                try:
-                    colorized = pycolorize(inputtexel)
-                except:
-                    return inputtexel
-
+            colorized = pycolorize(inputtexel, styles=styles, bgcolor=bgcolor)
+            
         try:
             assert length(colorized) == length(inputtexel)
         except:
