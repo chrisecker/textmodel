@@ -213,6 +213,7 @@ def iter_leaves(texel): # not needed, but might be useful in future
         else:
             i2 = i1+length(elem)
             yield i1, i2, elem
+            i1 = i2
             while l and not l[-1]:
                 l.pop()
 
