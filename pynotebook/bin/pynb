@@ -114,7 +114,7 @@ class MainWindow(wx.Frame):
             logfile = gen_logfile()
         else:
             logfile = None
-        shell = NBView(panel, -1, filename=filename, maxw=800, logfile=logfile)
+        shell = NBView(panel, -1, filename=filename, maxw=600, logfile=logfile)
         box = wx.BoxSizer(wx.VERTICAL)
         box.Add(shell, 1, wx.ALL|wx.GROW, 1)
         panel.SetSizer(box)
@@ -334,6 +334,18 @@ class MainWindow(wx.Frame):
         "Profile Insert"
         from cProfile import runctx
         runctx("self.shell.model.insert_text(self.shell.index, 'X')", globals(), locals())
+        self._set_logfont()
+
+    def _set_logfont(self):
+        # Change the font of the output window to make it more readable
+        app = wx.GetApp()
+        win = app.stdioWin
+        if hasattr(win, 'text'):
+            text = win.text
+            old_font = text.Font
+            new_font = wx.Font(old_font.GetPointSize(), wx.FONTFAMILY_MODERN, 
+                               old_font.GetStyle(), old_font.GetWeight())
+            text.SetFont(new_font)
 
  
 
@@ -375,7 +387,7 @@ def main(argv):
 
     if console: 
         from pynotebook.wxtextview import testing
-        testing.pyshell(namespace=dict(win=win))    
+        testing.pyshell(namespace=dict(win=win)) 
 
     app.MainLoop()
 
