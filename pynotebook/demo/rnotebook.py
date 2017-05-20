@@ -31,7 +31,11 @@ from pygments import highlight
 
 class TexelFormatter(Formatter):
     encoding = 'utf-8'
+    def __init__(self, bgcolor):
+        self.bgcolor = bgcolor
+
     def format(self, tokensource, outfile): 
+        bgcolor = self.bgcolor
         self.model = model = TextModel()
         for token, text in tokensource:
             if token is Token.Keyword:
@@ -46,6 +50,7 @@ class TexelFormatter(Formatter):
                 style = dict(textcolor='red')                    
             else:
                 style = dict()
+            style['bgcolor'] = bgcolor
             new = TextModel(text, **style)
             model.append(new)
 
@@ -92,15 +97,17 @@ class RClient(Client):
                 break
         return options
 
-    def colorize(self, inputtexel):
+    def colorize(self, inputtexel, styles=None, bgcolor='white'):
         text = get_text(inputtexel)
         assert len(text) == length(inputtexel)
-        formatter = TexelFormatter()
+        formatter = TexelFormatter(bgcolor)
         highlight(text, SLexer(), formatter)
-        if len(formatter.model) < length(inputtexel):
+        model = formatter.model
+        while len(model) < length(inputtexel):
             # XXX when does this happen? What does it mean?
-            return inputtexel # fallback: don't colorize
+            model.insert_text(len(model), '\n')
         model = formatter.model[0:length(inputtexel)]
+        assert len(model) == length(inputtexel)
         return model.texel
 
 
