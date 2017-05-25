@@ -204,7 +204,11 @@ def iter_leaves(texel): # not needed, but might be useful in future
     """Iterate through all leaf-elements """
     l = [[texel]]
     i1 = 0
-    while l:
+    while 1:
+        while l and not l[-1]:
+            l.pop()
+        if not l:
+            break
         ll = l[-1]
         elem = ll[0]
         del ll[0]
@@ -214,8 +218,6 @@ def iter_leaves(texel): # not needed, but might be useful in future
             i2 = i1+length(elem)
             yield i1, i2, elem
             i1 = i2
-            while l and not l[-1]:
-                l.pop()
 
 
 def groups(l):
