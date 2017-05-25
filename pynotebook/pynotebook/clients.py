@@ -23,7 +23,7 @@ class Client:
         """Returns a tuple of completions. """
         pass
 
-    def colorize(self, texel):
+    def colorize(self, texel, styles=None, bgcolor='white'):
         """Colorizes $texel$ to make it more readable. """
         return texel
 
