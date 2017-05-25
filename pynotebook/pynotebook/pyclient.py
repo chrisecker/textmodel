@@ -102,8 +102,9 @@ def pycolorize(texel, styles=None, bgcolor='#FFFFFF'):
     eater = TokenEater()
     try:
         tokenize.tokenize(instream, eater)
-    except tokenize.TokenError:
+    except (tokenize.TokenError, IndentationError):
         pass
+
     eater.moveto(len(text))
     return grouped(eater.l[:-1]) # note that we are stripping of the last NL
 
