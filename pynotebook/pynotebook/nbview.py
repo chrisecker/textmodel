@@ -8,8 +8,8 @@ from .textmodel.texeltree import Group, Text, grouped, insert, length, \
 from .textmodel.textmodel import TextModel
 
 from .wxtextview.boxes import Box, VGroup, VBox, Row, Rect, check_box, \
-    NewlineBox, TextBox, extend_range_seperated, replace_boxes, ChildBox, \
-    calc_length
+    NewlineBox, TextBox, TabulatorBox, extend_range_seperated, replace_boxes, \
+    ChildBox, calc_length
 from .wxtextview.simplelayout import create_paragraphs, Paragraph
 from .wxtextview.wxdevice import WxDevice
 from .wxtextview.testdevice import TESTDEVICE
@@ -337,9 +337,10 @@ class ScriptingCellBox(VBox):
             y2 = b[3]+border[1]
             
             dc.DrawText("In", x1, y1)
-            dc.DrawText("Out", x1, y2)
             dc.DrawText("[%s]:" % n, x2, y1)
-            dc.DrawText("[%s]:" % n, x2, y2)
+            if b[4].length > 1:
+                dc.DrawText("Out", x1, y2)
+                dc.DrawText("[%s]:" % n, x2, y2)
 
             VBox.draw(self, x, y, dc, styler)
 
