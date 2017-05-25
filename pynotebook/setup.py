@@ -10,8 +10,8 @@ with open('README') as file:
     long_description = file.read()
 
 setup(name='pynotebook',
-      version='0.2.2',
-      description = 'A notebook interface for wxpython',
+      version='0.2.3',
+      description = 'A wx-python based notebook environment for interactive computing',
       long_description = long_description,
       author='C. Ecker',
       author_email='textmodelview@gmail.com',
@@ -19,6 +19,18 @@ setup(name='pynotebook',
       license='BSD',
       packages=['pynotebook', 'pynotebook/textmodel', 'pynotebook/wxtextview'],
       scripts=['bin/pynb'],
-      platforms = ['any'],
+      platforms = "Linux, Mac OS X, Windows",
+      keywords = ['Interactive', 'Interpreter', 'Notebook', 'Shell', 'WXPython'],
+      classifiers = [
+        'Intended Audience :: Developers',
+        'Intended Audience :: System Administrators',
+        'Intended Audience :: Science/Research',
+        'License :: OSI Approved :: BSD License',
+        'Programming Language :: Python',
+        'Programming Language :: Python :: 2.7',
+      ],
+      install_requires=[
+          'wxpython',
+      ],
      )
 
