@@ -96,11 +96,12 @@ def gen_logfile():
 
 
 class MainWindow(wx.Frame):
+    set_width = ['Set width', 'set_w1', 'set_w2', 'set_w3']
     ctxt_entries = ['inspector', 'open', 'save', 'save_as', 'close']
     file_entries = ['new', 'open', 'save', 'save_as', 'close']
     edit_entries = ['copy', 'paste', 'cut', 'undo', 'redo', 'indent', 'dedent']
     cell_entries = ['inspector', 'insert_textcell', 'insert_pycell', 
-                    'remove_output', 'split_cell']
+                    'remove_output', 'split_cell', set_width]
     interpreter_entries = ['execute', 'execute_all', 'complete', 'reset']
     debug_entries = ['replay', 'rebuild_view', 'clean_model', 'dump_texels', 
                      'dump_boxes', 'profile_insert']
@@ -135,15 +136,21 @@ class MainWindow(wx.Frame):
         def mk_menu(entries, self=self, updaters=updaters):
             menu = wx.Menu()
             for entry in entries:
-                fun = getattr(self, entry)
-                title = fun.__doc__
-                item = menu.Append(-1, title)
-                self.Bind(wx.EVT_MENU, fun, item)
-                if hasattr(self, 'can_'+entry):
-                    fun = getattr(self, 'can_'+entry)
-                    def update(fun=fun, item=item, menu=menu):
-                        menu.Enable(item.Id, fun())
-                    updaters.append(update)
+                if entry is None:
+                    menu.AppendSeperator()
+                elif type(entry) is list:                    
+                    submenu = mk_menu(entry[1:])
+                    menu.AppendSubMenu(submenu, entry[0])
+                else:
+                    fun = getattr(self, entry)
+                    title = fun.__doc__
+                    item = menu.Append(-1, title)
+                    self.Bind(wx.EVT_MENU, fun, item)
+                    if hasattr(self, 'can_'+entry):
+                        fun = getattr(self, 'can_'+entry)
+                        def update(fun=fun, item=item, menu=menu):
+                            menu.Enable(item.Id, fun())
+                        updaters.append(update)
             return menu
         menubar.Append(mk_menu(self.file_entries), '&File')
         menubar.Append(mk_menu(self.edit_entries), '&Edit')
@@ -259,6 +266,18 @@ class MainWindow(wx.Frame):
             if result != wx.ID_YES:
                 return            
         self.Close(True)
+
+    def set_w1(self, event):
+        "30 characters"
+        self.shell.set_maxw(30*12)
+
+    def set_w2(self, event):
+        "50 characters"
+        self.shell.set_maxw(50*12)
+
+    def set_w3(self, event):
+        "80 characters"
+        self.shell.set_maxw(80*12)
 
     cut = action2cmd("Cut\tCtrl-X", "cut")
     copy = action2cmd("Copy\tCtrl-C", "copy")
