@@ -17,6 +17,20 @@ def set_nmax(n):
     nmax = n
 
 EMPTYSTYLE = {}
+style_pool = {():EMPTYSTYLE}
+
+def hash_style(style):
+    return tuple(sorted(style.items()))
+
+
+def as_style(d):
+    global style_pool
+    key = hash_style(d)
+    try:
+        return style_pool[key]
+    except KeyError:
+        style_pool[key] = d
+        return d
 
 
 # ---- Tree objects ----
@@ -44,6 +58,10 @@ class Single(Texel):
         clone.style = style
         return clone
 
+    def __setstate__(self, state):
+        self.__dict__ = state
+        self.style = as_style(self.style)
+
 
 class Text(Texel):
     is_text = 1
@@ -54,6 +72,11 @@ class Text(Texel):
 
     def __repr__(self):
         return "T(%s)" % repr(self.text)
+
+    def __setstate__(self, state):
+        self.__dict__ = state
+        self.style = as_style(self.style)
+
 T = Text
 
 
@@ -117,6 +140,10 @@ class NewLine(Single):
         clone.parstyle = style
         return clone
 
+    def __setstate__(self, state):
+        self.__dict__ = state
+        self.style = as_style(self.style)
+        self.parstyle = as_style(self.parstyle)
 
 
 class Tabulator(Single):
@@ -947,4 +974,23 @@ def test_07():
     assert compute_hull(fraction, n-1, n) == (0, n)
 
 
+def test_08():
+    "pickle"
+    s1 = as_style(dict(color='red'))
+    s2 = as_style(dict(color='blue'))
+    t1 = T("012345678", style=s1)
+    t2 = T("ABC", style=s2)
+    g = G((t1, t2))
+    from cPickle import dumps, loads 
+    t1_ = loads(dumps(t1))
+    assert t1.style is t1_.style
+    assert t1.text == t1_.text    
+    g_ = loads(dumps(g))
+    t1_, t2_ = g_.childs
+    assert not t1_ is t1
+    assert not t2_ is t2
+    assert t1.style is t1_.style
+    assert t2.style is t2_.style
+    assert t1.text == t1_.text    
+    assert t2.text == t2_.text    
     
