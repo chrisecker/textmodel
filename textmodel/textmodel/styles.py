@@ -3,7 +3,7 @@
 from . import texeltree
 from .texeltree import G, T, length, grouped, provides_childs, iter_childs, \
     is_root_efficient, is_list_efficient, is_homogeneous, calc_length, \
-    get_pieces, fuse, EMPTYSTYLE, NL, NewLine
+    get_pieces, fuse, EMPTYSTYLE, NL, NewLine, style_pool, hash_style
 
 
 debug = 0
@@ -28,14 +28,6 @@ class StyleIterator:
                 self.n += n
         except StopIteration:
             self.finished = True
-
-
-
-style_pool = {():EMPTYSTYLE}
-
-
-def hash_style(style):
-    return tuple(sorted(style.items()))
 
 
 def create_style(**kwds):
