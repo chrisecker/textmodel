@@ -864,9 +864,11 @@ class NBView(_WXTextView):
             return ''
         return text[i+1:]
 
+    tabcount = 0
     def handle_action(self, action, shift=False, memo=None):
         if action != 'complete':
             self.clear_temp()
+            self.tabcount = 0
         if action != 'paste':
             self.log('handle_action', (action, shift,), {})
         else:
@@ -887,8 +889,9 @@ class NBView(_WXTextView):
             return
 
         if action != 'complete':
-            self.clear_temp()
             return _WXTextView.handle_action(self, action, shift)
+
+        # complete #
         try:
             i0, cell = self.find_cell()
         except NotFound:
@@ -896,13 +899,18 @@ class NBView(_WXTextView):
         index = self.index
         if index <= i0 or index >= i0+length(cell):
             return
-        if self.has_temp():
-            self.clear_temp()
-            maxoptions = 2000
-        else:
-            maxoptions = 200
         word = self.get_word(index)
         client = self._clients.get_matching(cell)
+
+        if self.has_temp():
+            self.clear_temp()
+            # help
+            s = client.help(word)
+            self.print_temp('\n'+s+'\n')
+            self.index = index        
+            self.adjust_viewport()
+            return
+        maxoptions = 200
         options = client.complete(word, maxoptions)
         if not options:
             self.print_temp( "\n[No completion]\n")
@@ -938,6 +946,7 @@ class NBView(_WXTextView):
 
     @logged
     def execute(self):
+        self.clear_temp()
         i0, cell = self.find_cell()
         if not isinstance(cell, ScriptingCell):
             self.index = i0+length(cell)
