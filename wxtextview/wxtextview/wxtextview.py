@@ -232,8 +232,8 @@ class WXTextView(wx.ScrolledWindow, TextView):
             x = r.x2-width
             firstcol = ceil(x/float(fw))
         if (firstcol, firstrow) != self.GetViewStart():
-            wx.CallAfter(self.Scroll, firstcol, firstrow)
-            # doesn't work when called directly. What the heck???
+            self.Update() # important update first!
+            self.Scroll(firstcol, firstrow)
 
     def keep_cursor_on_screen(self):
         pass # not implemented
