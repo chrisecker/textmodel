@@ -281,6 +281,40 @@ def __transform__(obj, iserr):
             return inputtexel
         return colorized
 
+    def help(self, word):
+        import __builtin__
+        ns = {}
+        ns.update(__builtin__.__dict__)
+        ns.update(self.namespace)        
+        try:
+            obj = locate(word, ns)
+        except NameError:
+            return u"No help available for '%s'" % word
+        import pydoc
+        try:
+            return pydoc.plain(pydoc.render_doc(obj, "Help on %s"))
+        except Exception, e:
+            try:
+                return unicode(e)
+            except UnicodeDecodeError:
+                return str(e)
+
+
+
+def locate(path, ns):
+    parts = path.split('.')
+    try:
+        obj = ns[parts[0]]
+    except KeyError:
+        raise NameError, path
+
+    for part in parts[1:]:
+        try:
+            obj = getattr(obj, part)
+        except AttributeError:
+            raise NameError, path
+    return obj
+
 
 
 
