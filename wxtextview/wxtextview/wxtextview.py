@@ -94,6 +94,9 @@ class WXTextView(wx.ScrolledWindow, TextView):
         char = event.GetUnicodeKey()        
         action = self.actions.get((keycode, ctrl, alt))
         if action is None:
+            if ctrl or alt:
+                event.Skip()
+                return
             action = unichr(keycode)
         self.handle_action(action, shift)
         
