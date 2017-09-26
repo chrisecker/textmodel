@@ -3,6 +3,7 @@
 
 import wx
 import cPickle
+import string
 
 from ..textmodel import TextModel
 from ..textmodel.styles import updated_style
@@ -26,6 +27,7 @@ class WXTextView(wx.ScrolledWindow, TextView):
                                    pos, size,
                                    style|wx.WANTS_CHARS)
         TextView.__init__(self)
+        self.DisableKeyboardScrolling()
         self.Bind(wx.EVT_PAINT, self.on_paint)
         self.Bind(wx.EVT_ERASE_BACKGROUND, lambda event: None)
         self.Bind(wx.EVT_CHAR, self.on_char)
@@ -90,13 +92,8 @@ class WXTextView(wx.ScrolledWindow, TextView):
         ctrl = event.ControlDown()
         shift = event.ShiftDown()
         alt = event.AltDown()        
-        #print keycode, ctrl, alt
-        char = event.GetUnicodeKey()        
         action = self.actions.get((keycode, ctrl, alt))
         if action is None:
-            if ctrl or alt:
-                event.Skip()
-                return
             action = unichr(keycode)
         self.handle_action(action, shift)
         
