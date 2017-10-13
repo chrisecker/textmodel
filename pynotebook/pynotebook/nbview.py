@@ -2,19 +2,19 @@
 
 
 from .textmodel import texeltree
-from .textmodel.styles import create_style, updated_style
+from .textmodel.textmodel import TextModel
+from .textmodel.styles import create_style, updated_style, EMPTYSTYLE
 from .textmodel.texeltree import Group, Text, grouped, insert, length, \
     get_text, join, get_rightmost, NULL_TEXEL, dump, iter_leaves
-from .textmodel.textmodel import TextModel
 
 from .wxtextview.boxes import Box, VGroup, VBox, Row, Rect, check_box, \
     NewlineBox, TextBox, TabulatorBox, extend_range_seperated, replace_boxes, \
     ChildBox, calc_length
 from .wxtextview.simplelayout import create_paragraphs, Paragraph
-from .wxtextview.wxdevice import WxDevice
 from .wxtextview.testdevice import TESTDEVICE
+from .wxtextview.builder import BuilderBase
+from .wxtextview.wxdevice import WxDevice
 from .wxtextview.wxtextview import WXTextView as _WXTextView
-from .wxtextview.simplelayout import Builder as _Builder
 
 from .nbtexels import Cell, ScriptingCell, TextCell, Graphics, find_cell, \
     mk_textmodel, NotFound, strip_output, split_cell
@@ -25,26 +25,14 @@ from .nblogging import logged
 import string
 import wx
 import sys
+import weakref
 
 
 
 
 sepwidth = 20000 # a number which is just larger than the textwidth
 wleft = 80 # width of left column
-
-def is_temp(model, i):
-    return model.get_style(i).get('temp', False)
-
-def find_temp(tree):
-    j1 = j2 = None
-    for i1, i2, texel in iter_leaves(tree):
-        if texel.style.get('temp'):
-            if j1 is None:
-                j1 = i1
-                j2 = i2
-            else:
-                j2 = max(j2, i2)
-    return j1, j2
+tempstyle = dict(textcolor='blue', temp=True)
 
 
 class ParagraphStack(VGroup):
@@ -164,10 +152,12 @@ class TextCellBox(VBox):
             VBox.draw_selection(self, i1, i2, x, y, dc)
 
     def responding_child(self, i, x0, y0):
-        # Index position n+1 usually is managed by a child object. We
-        # want the next object to be responsible, so we have to change
-        # the return behaviour.
+        # As default behaviour a VBox manages all index positions 0 to
+        # n. Here we want position n to be managed by the next object. 
         if i == len(self):
+            # Index i is between this box and the next box. We return
+            # None to signal that the next box should be the
+            # responding box.
             return None, i, x0, y0
         return VBox.responding_child(self, i, x0, y0)
 
@@ -261,11 +251,26 @@ class ScriptingCellBox(VBox):
 
     def draw(self, x, y, dc, styler):
         a, b = list(self.iter_boxes(0, x, y))
-        styler.set_style(self.promptstyle)
+        promptstyle = self.promptstyle
+        styler.set_style(promptstyle)
         n = self.number or ''
-        dc.DrawText("In[%s]:" % n, x, a[3])
-        dc.DrawText("Out[%s]:" % n, x, b[3])
+        w1 = self.device.measure('Out', promptstyle)[0]
+        w2 = self.device.measure('Out [%s]:' % n, promptstyle)[0]
+
+        border = self.border
+        x1 = x+wleft-w2
+        x2 = x1+w1
+        y1 = a[3]+border[1]
+        y2 = b[3]+border[1]
+
+        dc.DrawText("In", x1, y1)
+        dc.DrawText("[%s]:" % n, x2, y1)
+        if b[4].length > 1:
+            dc.DrawText("Out", x1, y2)
+            dc.DrawText("[%s]:" % n, x2, y2)
+
         VBox.draw(self, x, y, dc, styler)
+
 
     def draw_selection(self, i1, i2, x, y, dc):
         if i1<=0 and i2>=self.length:
@@ -297,90 +302,11 @@ class ScriptingCellBox(VBox):
         h = self.height
         return Rect(x0, y0+h, sepwidth, y0+h+2)
 
-    if 1: # jupyter like style
-        def iter_boxes(self, i, x, y):
-            input = self.input
-            output = self.output
-            height = self.height
-            j1 = i+1
-            j2 = j1+len(input)
-            yield j1, j2, x+wleft, y, input
-            j1 = j2
-            j2 = j1+len(output)
-            y += input.height+input.depth
-            yield j1, j2, x+wleft, y, output
-
-        def layout(self):
-            # compute w and h
-            dh = h = w = 0
-            for j1, j2, x, y, child in self.iter_boxes(0, 0, 0):
-                w = max(x+child.width, w)
-                h = max(y+child.height, h)
-                dh = max(y+child.height+child.depth, dh)
-            self.width = w
-            self.height = h
-            self.depth = dh-h
-            self.length = j2
-
-        def draw(self, x, y, dc, styler):
-            a, b = list(self.iter_boxes(0, x, y))
-            promptstyle = self.promptstyle
-            styler.set_style(promptstyle)
-            n = self.number or ''
-            w1 = self.device.measure('Out', promptstyle)[0]
-            w2 = self.device.measure('Out [%s]:' % n, promptstyle)[0]
-
-            border = self.border
-            x1 = x+wleft-w2
-            x2 = x1+w1
-            y1 = a[3]+border[1]
-            y2 = b[3]+border[1]
-            
-            dc.DrawText("In", x1, y1)
-            dc.DrawText("[%s]:" % n, x2, y1)
-            if b[4].length > 1:
-                dc.DrawText("Out", x1, y2)
-                dc.DrawText("[%s]:" % n, x2, y2)
-
-            VBox.draw(self, x, y, dc, styler)
 
 
 
 
  
-
-def reset_numbers(texel):
-    if isinstance(texel, ScriptingCell):
-        texel.number = 0
-    elif texel.is_group:
-        for child in texel.childs:
-            reset_numbers(child)
-
-
-def get_update_range(box, i1, i2):
-    # Extend i1, i2 to the index range to be updated. E.g. a change in
-    # an input field will lead to an update of the whole input
-    # field. It is assumed, that extend range has been called before.
-
-    if i2<=0 or i1>=len(box):
-        return i1, i2
-    if isinstance(box, ScriptingCellBox):
-        (j1, j2, inbox), (k1, k2, outbox) = box.iter_childs()
-        if k1<=i1<=i2<=k1:    
-            return k1, k2
-        if j1<=i1<=i2<=j1:
-            return j1, j2
-        return min(i1, 0), max(i2, len(box))
-    if isinstance(box, TextCellBox):
-        return min(i1, 0), max(i2, len(box))
-
-    for j1, j2, child in box.iter_childs():
-        if i1 < j2 and j1 < i2: # overlap
-            k1, k2 = get_update_range(child, i1-j1, i2-j1)
-            i1 = min(i1, k1+j1)
-            i2 = max(i2, k2+j1)
-    return i1, i2
-            
 
 
 class BitmapBox(Box):
@@ -445,9 +371,10 @@ class GraphicsBox(Box):
         gc.Clip(x, y, self.width, self.height)
         gc.Translate(x, y)
         pen = wx.Pen(colour='black', style=wx.USER_DASH)
-        brush = wx.Brush(colour='transparent')
+        brush = wx.TRANSPARENT_BRUSH #wx.Brush(colour='transparent')
         font = wx.SystemSettings.GetFont(wx.SYS_DEFAULT_GUI_FONT)
-        state = dict(pen=pen, brush=brush, font=font)
+        matrix = gc.CreateMatrix()
+        state = dict(pen=pen, brush=brush, font=font, matrix=matrix)
         gc.SetPen(pen)
         gc.SetBrush(brush)
         gc.SetFont(font)
@@ -492,28 +419,46 @@ class GraphicsBox(Box):
         self.device.invert_rect(x, y, self.width, self.height, dc)
 
 
-from .wxtextview.builder import BuilderBase
-from .wxtextview.boxes import calc_length
-from .textmodel.styles import EMPTYSTYLE
-import weakref
 
 class BoxesCache:
     def __init__(self):
         self.buffer = dict()
         
-    def set(self, texel, boxes):
+    def set(self, key, box):
         def callback(*args):
-            del self.buffer[texel]
-        l = []
-        for box in boxes:
-            l.append(weakref.ref(box, callback))
-        self.buffer[texel] = tuple(l)
+            del self.buffer[key]        
+        self.buffer[key] = weakref.ref(box, callback)
         
-    def get(self, texel):
-        return tuple([x() for x in self.buffer[texel]])
+    def get(self, key):
+        return self.buffer[key]()
 
     def clear(self):
         self.buffer.clear()
+
+
+
+def reset_numbers(texel):
+    if isinstance(texel, ScriptingCell):
+        texel.number = 0
+    elif texel.is_group:
+        for child in texel.childs:
+            reset_numbers(child)
+
+
+def is_temp(model, i):
+    return model.get_style(i).get('temp', False)
+
+
+def find_temp(tree):
+    j1 = j2 = None
+    for i1, i2, texel in iter_leaves(tree):
+        if texel.style.get('temp'):
+            if j1 is None:
+                j1 = i1
+                j2 = i2
+            else:
+                j2 = max(j2, i2)
+    return j1, j2
 
 
 
@@ -551,11 +496,6 @@ class Builder(BuilderBase):
 
     ### Factory methods
     def create_boxes(self, texel):
-        try:
-            return self.cache.get(texel)
-        except KeyError:
-            pass
-
         name = texel.__class__.__name__+'_handler'
         handler = getattr(self, name)
         #print "calling handler", name
@@ -565,10 +505,7 @@ class Builder(BuilderBase):
         except:
             print "handler=", handler
             raise
-        r = tuple(l)
-        if isinstance(texel, Cell):
-            self.cache.set(texel, r)
-        return r
+        return tuple(l)
 
     def Group_handler(self, texel):
         # Handles group texels. Note that the list of childs is
@@ -582,6 +519,11 @@ class Builder(BuilderBase):
         for j1, j2, child in reversed(list(texeltree.iter_childs(texel))):
             r = create_boxes(child)+r
         return r
+
+    def Text_handler(self, texel):
+        # non caching version
+        return [TextBox(texel.text, self.mk_style(texel.style), 
+                self.device)]
 
     _cache = dict()
     _cache_keys = []
@@ -599,12 +541,7 @@ class Builder(BuilderBase):
             del self._cache[_key]
         self._cache[key] = r
         return r
-
-    def Text_handler(self, texel):
-        # non caching version
-        return [TextBox(texel.text, self.mk_style(texel.style), 
-                self.device)]
-
+    
     def NewLine_handler(self, texel):
         self.parstyle = texel.parstyle
         if texel.is_endmark:
@@ -615,22 +552,26 @@ class Builder(BuilderBase):
         return [TabulatorBox(self.mk_style(texel.style), self.device)]
 
     def TextCell_handler(self, texel):
-        textbox = self.create_parstack(Group(texel.childs[1:]))
-        cell = TextCellBox(textbox, device=self.device)
+        try:
+            cell = self.cache.get(texel)
+        except KeyError:
+            textbox = self.create_parstack(Group(texel.childs[1:]))
+            cell = TextCellBox(textbox, device=self.device)
+            self.cache.set(texel, cell)
         assert len(cell) == length(texel)
         return [cell]
 
     def ScriptingCell_handler(self, texel):
-        #dump_range(texel, 0, length(texel))
         sep1, inp, sep2, outp, sep3 = texel.childs
 
         border = ScriptingCellBox.border
         inbackground = ScriptingCellBox.inbackground
         inline = ScriptingCellBox.inline
 
+        key = inp, 'input'
         try:
-            inbox = self.cache.get(inp)[0]
-        except KeyError:
+            inbox = self.cache.get(key)
+        except KeyError:        
             client = self._clients.get_matching(texel)
             model = mk_textmodel(Group([inp, sep2]))
 
@@ -643,14 +584,15 @@ class Builder(BuilderBase):
                 colorized.insert(t1, temp)
             inbox = self.create_parstack(colorized.texel)
             inbox.width = max(self._maxw+border[0]+border[1], inbox.width)
-            self.cache.set(inp, [inbox])
+            self.cache.set(key, inbox)
             assert len(inbox) == length(inp)+1
-        
+
+        key = outp, 'out'
         try:
-            outbox = self.cache.get(outp)[0]
+            outbox = self.cache.get(key)
         except KeyError:
             outbox = self.create_parstack(Group([outp, sep3]))
-            self.cache.set(outp, [outbox])
+            self.cache.set(key, outbox)
             assert len(outbox) == length(outp)+1
 
         cell = ScriptingCellBox(
@@ -704,8 +646,8 @@ class Builder(BuilderBase):
             # space at the top and at the bottom.
             self._layout = Frame([vgroup], border=(0, 10, 0, 10))
         else:
-            # Here we avoid VGroup(...) because I don't like how it draws the caret.
-            # XXX is this a bug?
+            # Here we avoid VGroup(...) because I don't like how it
+            # draws the caret. Might be a bug!??
             self._layout = vgroup
 
     ### Signal handlers
@@ -736,7 +678,7 @@ def common(s1, s2):
 
 
 def strip_cells(texel):
-    # Helper: remove some top-level Cells from texel
+    # Helper: replace all cells in texel by their content
     if texel.is_group:
         l = []
         for child in group.childs:
@@ -831,10 +773,15 @@ class NBView(_WXTextView):
             maxw=self._maxw)
 
     def print_temp(self, text):
-        new = TextModel(text)
-        new.set_properties(
-            0, len(new), textcolor='blue', bgcolor=ScriptingCellBox.inbackground, 
-            temp=True)
+        # Notes: 
+        #  - temp has to be removed before other temp can be produced
+        #  - temp does not generate undo information
+        #  - temp must be removed before any undo operation
+        if self.has_temp():
+            raise Exception("Temp already set")
+        properties = tempstyle.copy()
+        properties['bgcolor'] = ScriptingCellBox.inbackground
+        new = TextModel(text, **properties)
         i = self.index
         self.model.insert(i, new)
         j1, j2 = self.temp_range
@@ -854,6 +801,7 @@ class NBView(_WXTextView):
         return not j1 == j2
 
     def get_word(self, j):
+        # get word which ends at *j*
         model = self.model
         row, col = model.index2position(j)
         text = model.get_text(model.linestart(row), j)
@@ -864,15 +812,13 @@ class NBView(_WXTextView):
             return ''
         return text[i+1:]
 
-    tabcount = 0
     def handle_action(self, action, shift=False, memo=None):
         if action != 'complete':
             self.clear_temp()
-            self.tabcount = 0
         if action != 'paste':
             self.log('handle_action', (action, shift,), {})
         else:
-            # Paste is a bit tricky to log. We have to make shure,
+            # Paste is a bit tricky to log. We have to make sure,
             # that in the replay situation the exact same material
             # is inserted. Therefore we figure out what has been
             # pasted and log this as an insertion.
@@ -891,7 +837,7 @@ class NBView(_WXTextView):
         if action != 'complete':
             return _WXTextView.handle_action(self, action, shift)
 
-        # complete #
+        # complete or help#
         try:
             i0, cell = self.find_cell()
         except NotFound:
@@ -902,14 +848,18 @@ class NBView(_WXTextView):
         word = self.get_word(index)
         client = self._clients.get_matching(cell)
 
+        # If we already have temp, we show the user help, otherwise we
+        # complete
         if self.has_temp():
+            # ** help **
             self.clear_temp()
-            # help
             s = client.help(word)
             self.print_temp('\n'+s+'\n')
             self.index = index        
             self.adjust_viewport()
             return
+
+        # ** complete **
         maxoptions = 200
         options = client.complete(word, maxoptions)
         if not options:
@@ -917,9 +867,10 @@ class NBView(_WXTextView):
         else:
             completion = reduce(common, options)[len(word):]
             if completion and len(options) != maxoptions:
-                self.model.insert_text(index, completion)
-                info = self._remove, index, index+len(completion)
-                self.add_undo(info)
+                self.insert_text(index, completion)
+                #self.model.insert_text(index, completion)
+                #info = self._remove, index, index+len(completion)
+                #self.add_undo(info)
                 index += len(completion)
             else:
                 options = list(sorted(options))
@@ -954,10 +905,9 @@ class NBView(_WXTextView):
         n = length(cell)
         client = self._clients.get_matching(cell)
         stream = Stream()
-        client.execute(cell.childs[1], stream.output)
+        result = client.execute(cell.childs[1], stream.output)
         new = self.ScriptingCell(cell.childs[1], stream.model.texel, 
                                  client.counter)
-
         assert i0>=0
         assert i0+n<=len(self.model)
         infos = []
@@ -966,6 +916,7 @@ class NBView(_WXTextView):
         infos.append((self._remove, i0, i0+length(new)))
         self.add_undo(infos) 
         self.adjust_viewport()
+        return result
 
     def execute_all(self):
         self.index = 0
@@ -1008,6 +959,14 @@ class NBView(_WXTextView):
                 cell = self.ScriptingCell(NULL_TEXEL, NULL_TEXEL)
                 _WXTextView.insert(self, i, mk_textmodel(cell))
                 _WXTextView.insert(self, i+1, textmodel)
+
+    def undo(self):
+        self.clear_temp()
+        _WXTextView.undo(self)
+                
+    def redo(self):
+        self.clear_temp()
+        _WXTextView.redo(self)
 
     @logged
     def remove_output(self):
