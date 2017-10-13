@@ -52,13 +52,15 @@ class Inspector(wx.Frame, ViewBase):
         sizer4.Add(self.fgcolor, 1, wx.ALL, 5)
         self.fgcolor.Bind(
             csel.EVT_COLOURSELECT,
-            lambda e:self.set_properties(textcolor=self.fgcolor.GetValue()))
+            lambda e:self.set_properties(
+                textcolor=self.fgcolor.GetValue().GetAsString()))
 
         self.bgcolor = csel.ColourSelect(panel, -1)
         sizer4.Add(self.bgcolor, 1, wx.ALL, 5)
         self.bgcolor.Bind(
             csel.EVT_COLOURSELECT,
-            lambda e:self.set_properties(bgcolor=self.bgcolor.GetValue()))
+            lambda e:self.set_properties(
+                bgcolor=self.bgcolor.GetValue().GetAsString()))
 
         sizer3.Add(sizer4, 0, wx.EXPAND, 5)
 
