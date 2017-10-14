@@ -715,6 +715,7 @@ class NBView(_WXTextView):
                              style=style)
         if filename is not None:
             self._load(filename)
+        self.actions[(wx.WXK_F1, False, False)] = 'help'
         self.actions[(wx.WXK_TAB, False, False)] = 'complete'
         self.actions[(wx.WXK_RETURN, False, False)] = 'insert_newline_indented'
 
@@ -791,6 +792,7 @@ class NBView(_WXTextView):
             self.temp_range = j1, i+len(new)
 
     def clear_temp(self):
+        self.complete_count = 0
         j1, j2 = self.temp_range
         if j1 != j2:
             self.model.remove(j1, j2)
@@ -812,9 +814,10 @@ class NBView(_WXTextView):
             return ''
         return text[i+1:]
 
+    complete_count = 0
     def handle_action(self, action, shift=False, memo=None):
-        if action != 'complete':
-            self.clear_temp()
+        complete_count = self.complete_count
+        self.clear_temp()
         if action != 'paste':
             self.log('handle_action', (action, shift,), {})
         else:
@@ -833,10 +836,14 @@ class NBView(_WXTextView):
                 memo = model.copy(i, i+n)
             self.log('handle_action', (action, shift, memo), {})
             return
+        if action == 'complete_or_help':
+            if complete_count > 0:
+                action = 'help'
+            else:
+                action = 'complete'
 
-        if action != 'complete':
+        if action not in ('complete', 'help'):
             return _WXTextView.handle_action(self, action, shift)
-
         # complete or help#
         try:
             i0, cell = self.find_cell()
@@ -848,38 +855,30 @@ class NBView(_WXTextView):
         word = self.get_word(index)
         client = self._clients.get_matching(cell)
 
-        # If we already have temp, we show the user help, otherwise we
-        # complete
-        if self.has_temp():
-            # ** help **
-            self.clear_temp()
+        if action == 'help':
             s = client.help(word)
             self.print_temp('\n'+s+'\n')
-            self.index = index        
-            self.adjust_viewport()
-            return
 
-        # ** complete **
-        maxoptions = 200
-        options = client.complete(word, maxoptions)
-        if not options:
-            self.print_temp( "\n[No completion]\n")
-        else:
-            completion = reduce(common, options)[len(word):]
-            if completion and len(options) != maxoptions:
-                self.insert_text(index, completion)
-                #self.model.insert_text(index, completion)
-                #info = self._remove, index, index+len(completion)
-                #self.add_undo(info)
-                index += len(completion)
+        elif action == 'complete':
+            maxoptions = 50
+            options = client.complete(word, maxoptions)
+            if not options or list(options) == [word]:
+                self.print_temp( "\n[No completion]\n")
+                self.complete_count = 1
             else:
-                options = list(sorted(options))
-                s = ', '.join(options)
-                if len(options) == maxoptions:
-                    s += ' ... '
-                self.print_temp('\n'+s+'\n')
+                completion = reduce(common, options)[len(word):]
+                if completion and len(options) != maxoptions:
+                    self.insert_text(index, completion)
+                    index += len(completion)
+                else:
+                    options = list(sorted(options))
+                    s = ', '.join(options)
+                    if len(options) == maxoptions:
+                        s += ' ... '
+                    self.print_temp('\n'+s+'\n')
         self.index = index
-
+        self.adjust_viewport()
+        
     def on_char(self, event):
         keycode = event.GetKeyCode()
         ctrl = event.ControlDown()

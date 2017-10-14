@@ -102,7 +102,7 @@ class MainWindow(wx.Frame):
     edit_entries = ['copy', 'paste', 'cut', 'undo', 'redo', 'indent', 'dedent']
     cell_entries = ['inspector', 'insert_textcell', 'insert_pycell', 
                     'remove_output', 'split_cell', set_width]
-    interpreter_entries = ['execute', 'execute_all', 'complete', 'reset']
+    interpreter_entries = ['execute', 'execute_all', 'complete', 'help', 'reset']
     debug_entries = ['replay', 'rebuild_view', 'clean_model', 'dump_texels', 
                      'dump_styles', 'dump_boxes', 'profile_insert']
     updaters = ()
@@ -310,6 +310,7 @@ class MainWindow(wx.Frame):
     indent = action2cmd("Indent\tCtrl-I", "indent")
     dedent = action2cmd("Dedent\tCtrl-U", "dedent")
     complete = action2cmd("Complete\tTAB", "complete")
+    help = action2cmd("Help\tF1", "help")
     execute = method2cmd("Execute Cell\tShift-Return", "execute")
     execute_all = method2cmd("Execute all", "execute_all")
     reset = method2cmd("Reset Interpreter", "reset_interpreter")
@@ -323,7 +324,7 @@ class MainWindow(wx.Frame):
     dump_boxes = action2cmd("Dump all Boxes", "dump_boxes")
 
     def dump_styles(self, event):
-        "dump styles"
+        "Dump styles"
         from pynotebook.textmodel.texeltree import length
  
         def _dump_styles(texel, i=0):
