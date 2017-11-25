@@ -1,0 +1,540 @@
+#!/usr/bin/env python
+
+# simple notebook app
+
+
+import sys
+sys.path.insert(0, '..')
+
+import pynotebook
+from pynotebook.nbtexels import NotFound
+from pynotebook.nbview import TextModel, NBView
+from pynotebook import graphics
+import os
+import wx
+from tempfile import mkdtemp
+
+
+wildcard = "Pynotebook files (*.pnb)|*.pnb|" \
+           "Python source (*.py)|*.py|" \
+           "All files (*.*)|*.*"
+
+def action2cmd(label, action):
+    # Create a menu command from an editor action
+    def method(self, event, action=action):
+        self.shell.handle_action(action)
+    method.__doc__ = label
+    return method
+
+
+def method2cmd(label, name):
+    # Create a menu command from a method of NBView
+    def method(self, event, name=name):
+        fun = getattr(self.shell, name)
+        fun()
+    method.__doc__ = label
+    return method
+
+
+
+class TemporaryDirectory(object):
+    # http://stackoverflow.com/questions/19296146/tempfile-temporarydirectory-
+    # context-manager-in-python-2-7
+    def __init__(self, suffix="", prefix="tmp", dir=None):
+        self._closed = False
+        self.name = mkdtemp(suffix, prefix, dir)
+
+    def cleanup(self):
+        if self.name and not self._closed:
+            try:
+                self._rmtree(self.name)
+            except (TypeError, AttributeError) as ex:
+                return
+            self._closed = True
+
+    def __del__(self):
+        self.cleanup()
+
+    _listdir = staticmethod(os.listdir)
+    _path_join = staticmethod(os.path.join)
+    _isdir = staticmethod(os.path.isdir)
+    _islink = staticmethod(os.path.islink)
+    _remove = staticmethod(os.remove)
+    _rmdir = staticmethod(os.rmdir)
+
+    def _rmtree(self, path):
+        for name in self._listdir(path):
+            fullname = self._path_join(path, name)
+            try:
+                isdir = self._isdir(fullname) and not self._islink(fullname)
+            except OSError:
+                isdir = False
+            if isdir:
+                self._rmtree(fullname)
+            else:
+                try:
+                    self._remove(fullname)
+                except OSError:
+                    pass
+        try:
+            self._rmdir(path)
+        except OSError:
+            pass
+
+
+logdir = None
+logging = False
+def gen_logfile():
+    files = os.listdir(logdir.name)
+    i = 0
+    while 1:
+        name = '%.4i.pynblog' % i
+        if not name in files:
+            return os.path.join(logdir.name, name)
+        i += 1
+
+
+
+class MainWindow(wx.Frame):
+    set_width = ['Set width', 'set_w1', 'set_w2', 'set_w3']
+    ctxt_entries = ['inspector', 'open', 'save', 'save_as', 'close']
+    file_entries = ['new', 'open', 'save', 'save_as', 'close']
+    edit_entries = ['copy', 'paste', 'cut', 'undo', 'redo', 'indent', 'dedent']
+    cell_entries = ['inspector', 'insert_textcell', 'insert_pycell', 
+                    'remove_output', 'split_cell', set_width]
+    interpreter_entries = ['execute', 'execute_all', 'complete', 'help', 'reset']
+    debug_entries = ['replay', 'rebuild_view', 'clean_model', 'dump_texels', 
+                     'dump_styles', 'dump_boxes', 'profile_insert']
+    updaters = ()
+    def __init__(self, filename=None):
+        displayw, displayh = wx.GetDisplaySize()
+        wx.Frame.__init__(self, None, 
+                          size=(min(600, displayw), min(800, displayh)))
+        icon = logo.GetIcon()
+        self.SetIcon(icon)
+        panel = wx.Panel(self, -1)
+        if logging:
+            logfile = gen_logfile()
+        else:
+            logfile = None
+        shell = NBView(panel, -1, filename=filename, maxw=65*12, logfile=logfile)
+        box = wx.BoxSizer(wx.VERTICAL)
+        box.Add(shell, 1, wx.ALL|wx.GROW, 1)
+        panel.SetSizer(box)
+        panel.SetAutoLayout(True)
+        shell.Bind(wx.EVT_RIGHT_DOWN, self.right_click)
+        shell.SetFocus()
+        self.shell = shell
+        self.filename = filename
+        self.SetMenuBar(self.make_menubar())
+        sb = wx.StatusBar(self)
+        self.SetStatusBar(sb)
+        self.Bind(wx.EVT_IDLE, self.update)
+        shell.mainwindow = self # XXX remove this
+     
+    def make_menubar(self):
+        menubar = wx.MenuBar()
+        updaters = []
+        accel = []
+
+        def extract_accel(s):
+            # Extract accelerator information from menu
+            # labels. Currently only extracts simple accelerators of
+            # the form 'Ctrl+A'. Many accelerators are not parsed
+            # correctly, such as 'Shift-Return'. This is ok for now,
+            # as these are already handled in nbview.  Extracting
+            # accelerators became necessary with wxpython 3.0 on. I
+            # think it is a bug.
+            if not '\t' in s: return
+            a, b = s.split("\t", 2)
+            if not '-' in b: return
+            modifier, key = b.split('-', 2)
+            m = dict(Ctrl=wx.ACCEL_CTRL, Alt=wx.ACCEL_ALT)
+            if not modifier in m: return
+            return m[modifier], ord(key)
+        
+        def mk_menu(entries, self=self, updaters=updaters, accel=accel):
+            menu = wx.Menu()
+            for entry in entries:
+                if entry is None:
+                    menu.AppendSeperator()
+                elif type(entry) is list:                    
+                    submenu = mk_menu(entry[1:])
+                    menu.AppendSubMenu(submenu, entry[0])
+                else:
+                    fun = getattr(self, entry)
+                    title = fun.__doc__
+                    item = menu.Append(-1, title)
+                    self.Bind(wx.EVT_MENU, fun, item)
+                    shortcut = extract_accel(title)
+                    if shortcut is not None:
+                        accel.append(shortcut+(item.Id,))
+                    if hasattr(self, 'can_'+entry):
+                        fun = getattr(self, 'can_'+entry)
+                        def update(fun=fun, item=item, menu=menu):
+                            menu.Enable(item.Id, fun())
+                        updaters.append(update)
+            return menu
+        menubar.Append(mk_menu(self.file_entries), '&File')
+        menubar.Append(mk_menu(self.edit_entries), '&Edit')
+        menubar.Append(mk_menu(self.cell_entries), '&Cell')
+        menubar.Append(mk_menu(self.interpreter_entries), '&Interpreter')
+        # XXX for debugging only:
+        menubar.Append(mk_menu(self.debug_entries), 'Debug')
+
+        self.SetAcceleratorTable(wx.AcceleratorTable(accel))
+        self.updaters = updaters 
+        return menubar
+
+    def make_ctxtmenu(self):
+        menu = wx.Menu()
+        for entry in self.ctxt_entries:
+            fun = getattr(self, entry)
+            active = True
+            try:
+                statefun = getattr(self, 'can_'+entry)
+                active = statefun()
+            except AttributeError:
+                pass                        
+            title = fun.__doc__
+            item = menu.Append(-1, title)
+            menu.Enable(item.Id, active)
+            menu.Bind(wx.EVT_MENU, fun, item)
+        return menu
+
+    def right_click( self, event):
+        menu = self.make_ctxtmenu()
+        self.PopupMenu(menu, event.Position)
+        menu.Destroy() # destroy to avoid mem leak
+
+    def changed(self):
+        return self.shell.undocount()>0
+
+    def update(self, event):
+        # update filename in window title
+        if self.filename:
+            path, name = os.path.split(self.filename)
+            title = name
+        else:
+            title = '<unnamed>'
+        if self.changed():
+            title = title+' *'
+        self.SetTitle(title)
+
+        # update menus
+        for updater in self.updaters:
+            updater()
+
+        # update statusbar
+        i = self.shell.index
+        row, col = self.shell.model.index2position(i)
+        try:
+            i, cell = self.shell.find_cell()
+        except NotFound:
+            self.StatusBar.SetStatusText('')
+            return
+        row0, col0 = self.shell.model.index2position(i)
+        self.StatusBar.SetStatusText('Line: %i, Position: %i' % (row-row0, col))
+
+    def new(self, event):
+        "&New Notebook\tCtrl-N"
+        win = MainWindow()
+        win.Show()
+
+    def open(self, event):
+        "&Open File ...\tCtrl-O"
+        dlg = wx.FileDialog(
+            self, message="Choose a file",
+            wildcard=wildcard,
+            style=wx.OPEN | wx.MULTIPLE | wx.CHANGE_DIR
+            )
+        if dlg.ShowModal() == wx.ID_OK:
+            paths = dlg.GetPaths()
+            for path in paths:
+                win = MainWindow(path)
+                win.Show()
+        dlg.Destroy()
+
+    def save(self, event):
+        "&Save\tCtrl-S"
+        if self.filename is None:
+            self.save_as(event)
+        else:
+            self.shell.save(self.filename)
+            self.shell.clear_undo()
+            
+    def save_as(self, event):
+        "Save &As ..."
+        dlg = wx.FileDialog(
+            self, message="Save File as ...", 
+            defaultFile="", wildcard=wildcard, 
+            style=wx.SAVE|wx.OVERWRITE_PROMPT
+            )
+        if dlg.ShowModal() == wx.ID_OK:
+            path = dlg.GetPath()
+            self.shell.save(path)
+            self.filename = path
+            self.shell.clear_undo()
+
+        dlg.Destroy()
+
+    def close(self, event):
+        "&Close\tCtrl-W"
+        if self.changed():
+            dlg = wx.MessageDialog(
+                self, 'There are unsaved changes. Do you really want to close?',
+                'Close window',
+                wx.YES_NO | wx.NO_DEFAULT | wx.CANCEL | wx.ICON_INFORMATION
+            )
+            result = dlg.ShowModal()
+            dlg.Destroy()
+            if result != wx.ID_YES:
+                return            
+        self.Close(True)
+
+    def set_w1(self, event):
+        "40 characters"
+        self.shell.set_maxw(40*12)
+
+    def set_w2(self, event):
+        "60 characters"
+        self.shell.set_maxw(60*12)
+
+    def set_w3(self, event):
+        "80 characters"
+        self.shell.set_maxw(80*12)
+
+    cut = action2cmd("Cut\tCtrl-X", "cut")
+    copy = action2cmd("Copy\tCtrl-C", "copy")
+    paste = action2cmd("Paste\tCtrl-V", "paste")
+    indent = action2cmd("Indent\tCtrl-I", "indent")
+    dedent = action2cmd("Dedent\tCtrl-U", "dedent")
+    complete = action2cmd("Complete\tTAB", "complete")
+    help = action2cmd("Help\tF1", "help")
+    execute = method2cmd("Execute Cell\tShift-Return", "execute")
+    execute_all = method2cmd("Execute all", "execute_all")
+    reset = method2cmd("Reset Interpreter", "reset_interpreter")
+    remove_output = method2cmd("Remove Output", "remove_output")
+    split_cell = method2cmd("Split Cell\tCtrl-B", "split_cell")
+    insert_textcell = method2cmd("Insert Text Cell\tCtrl-T", "insert_textcell")
+    insert_pycell = method2cmd("Insert Python Cell", "insert_pycell")
+    undo = method2cmd("Undo\tCtrl-Z", "undo")
+    redo = method2cmd("Redo\tCtrl-R", "redo")
+    dump_texels = action2cmd("Dump Texels\tESC", "dump_info")
+    dump_boxes = action2cmd("Dump all Boxes", "dump_boxes")
+
+    def dump_styles(self, event):
+        "Dump styles"
+        from pynotebook.textmodel.texeltree import length
+ 
+        def _dump_styles(texel, i=0):
+            if texel.is_single or texel.is_text:
+                print i, ":", i+length(texel), id(texel.style), texel.__class__.__name__
+            else:
+                for child in texel.childs:
+                    _dump_styles(child, i)
+                    i += length(child)
+        _dump_styles(self.shell.model.texel)
+
+    def between_cells(self):
+        return self.shell.between_cells()
+    can_insert_textcell = can_insert_pycell = between_cells
+
+    def can_undo(self):
+        return self.shell.undocount() > 0
+
+    def can_redo(self):
+        return self.shell.redocount() > 0
+
+    def inspector(self, event):
+        "Format ...\tCtrl-F"
+        from pynotebook.inspector import Inspector
+        inspector = Inspector(self.shell.Parent)
+        inspector.model = self.shell
+        inspector.Show()
+        inspector.update()
+
+    def replay(self, event): 
+        "Replay"
+        "&Replay Log File ..."
+        dlg = wx.FileDialog(
+            self, message="Choose a file",
+            wildcard="Log files (*.pnb)|*.pynblog",
+            style=wx.OPEN | wx.CHANGE_DIR
+            )
+        paths = []
+        if dlg.ShowModal() == wx.ID_OK:
+            paths = dlg.GetPaths()
+        dlg.Destroy()
+
+        if paths:
+            log = self.shell.load_log(paths[0])
+            win = MainWindow()
+            win.Show()
+            win.shell.replay(log)
+        
+    def rebuild_view(self, event):
+        "Rebuild View"
+        self.shell.rebuild()
+        
+    def clean_model(self, event):
+        "Clean Model"
+        # This is a bit hacky ...
+        from pynotebook import cerealizerformat
+        # 1. replace all styles to the canonical ones
+        model = self.shell.model
+        cerealizerformat._replace_styles(model.texel, {})
+        # 2. call set_properties (with no properties given) to merge
+        # character texels of equal style
+        self.shell.set_properties(0, len(model))
+
+    def profile_insert(self, event):
+        "Profile Insert"
+        from cProfile import runctx
+        runctx("self.shell.model.insert_text(self.shell.index, 'X')", globals(), locals())
+        self._set_logfont()
+
+    def _set_logfont(self):
+        # Change the font of the output window to make it more readable
+        app = wx.GetApp()
+        win = app.stdioWin
+        if hasattr(win, 'text'):
+            text = win.text
+            old_font = text.Font
+            new_font = wx.Font(old_font.GetPointSize(), wx.FONTFAMILY_MODERN, 
+                               old_font.GetStyle(), old_font.GetWeight())
+            text.SetFont(new_font)
+
+ 
+
+def main(argv):
+    global logging
+    logging = debug = redirect = console = False
+    filenames = []
+    for arg in argv:
+        if arg == '--redirect':
+            redirect = True
+        elif arg == '--debug':
+            debug = True
+        elif arg == '--console':
+            console = True
+        elif arg == '--logging':
+            logging = True
+        else:
+            filenames.append(arg)
+    
+    if debug:
+        logging = True
+        redirect = True
+    
+    if logging:
+        global logdir
+        logdir = TemporaryDirectory()
+        print "Log files are stored in path", logdir.name
+
+    app = wx.App(redirect=redirect)
+
+    win = None    
+    for name in filenames:
+        # Each file is opened in a seperate window.
+        win = MainWindow(name)
+        win.Show()
+    if win is None:
+        win = MainWindow()
+        win.Show()
+
+    if console: 
+        from pynotebook.wxtextview import testing
+        testing.pyshell(namespace=dict(win=win)) 
+
+    app.MainLoop()
+
+# Register classes to the fileformat
+graphics.register_classes()
+
+
+from wx.lib.embeddedimage import PyEmbeddedImage
+
+logo = PyEmbeddedImage(
+    "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"
+    "soTA4GD12syZGUCGrwZX5CxnduIc5uWf6Cuk1suiuBkBkhYs8JuxOW8fYPbUuqLHbg9MpW67"
+    "ugVvGjFvsPw6+ambzhUI60t/fJuKAJi/4VSAlDKouTUxhUAIYTcN1yDd5nhDSGtd2C8CSE2f"
+    "qEn5Os1uGBcgRGdNtwVblPpTACnDhNQesmhqvRxgfYHDDykJW7AEsASwYAlwVwlgbYvzAe58"
+    "CUfTApim06qEfIG66psAgouA0yLSS/qVOuaTAIZhHAask45ewnWtZqdPAhzZu/0zlKq0qPRm"
+    "9JvXlk6J2uO1AMnrysjLnug0DGeBRafnMF2ubICEFdt9q3Lil5TYHvjxT6uFEJpFq9ux/xvT"
+    "cPZb/ELnkz6FoBlvfMa6BT93Gs5r8RatHghgGqs/31Xs1tXDzXpAyoZyTOXSbLY2uVLTJ1v0"
+    "Nkv+9suVF59b/g8PX/GLAPVIfPtgYFBYh/8UUouxaG6sbTJKr1Zd+FnOS71qFr1fxcLnQ/wj"
+    "wOvrviIzvm7rUOqmc+s13TaOH+Cdoy1ZcZqG8UHlqcNxkf2GGIf+bxdrX3sMv3rAzLX/y6qE"
+    "vwNgwcYzP9c0/RWEfErcy4f4lEIpc6dpGG8sHtc5D2Ba1ibeSn7Bk+kK9xEXl0ZhYVpdbig4"
+    "FaQUXTWpjRVSPiOE7CukDLv7OTerlFL7lWl+ZBqu95RShzMmRlwGmJ93goxJnu0q/3/q6IVg"
+    "+Sj0hAAAAABJRU5ErkJggg==")
+
+
+def test_00():
+    main(['--debug'])
+
+if __name__ == '__main__':
+    main(sys.argv[1:])
