@@ -29,8 +29,5 @@ setup(name='pynotebook',
         'Programming Language :: Python',
         'Programming Language :: Python :: 2.7',
       ],
-      install_requires=[
-          'wxpython',
-      ],
      )
 
