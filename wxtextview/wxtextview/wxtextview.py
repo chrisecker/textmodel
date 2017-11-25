@@ -27,7 +27,10 @@ class WXTextView(wx.ScrolledWindow, TextView):
                                    pos, size,
                                    style|wx.WANTS_CHARS)
         TextView.__init__(self)
-        self.DisableKeyboardScrolling()
+        try:
+            # This attribute only exists in some newer versions of wx (>= 3.0 ?) 
+            wx.ScrolledWindow.DisableKeyboardScrolling(self)
+        except AttributeError: pass
         self.Bind(wx.EVT_PAINT, self.on_paint)
         self.Bind(wx.EVT_ERASE_BACKGROUND, lambda event: None)
         self.Bind(wx.EVT_CHAR, self.on_char)
