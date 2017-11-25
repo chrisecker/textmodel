@@ -353,7 +353,6 @@ def copy_brush(brush):
 
 
 class GraphicsBox(Box):
-    # XXX experimental!
     def __init__(self, texel, device=None):
         if device is not None:
             self.device = device
@@ -371,10 +370,12 @@ class GraphicsBox(Box):
         gc.Clip(x, y, self.width, self.height)
         gc.Translate(x, y)
         pen = wx.Pen(colour='black', style=wx.USER_DASH)
-        brush = wx.TRANSPARENT_BRUSH #wx.Brush(colour='transparent')
+        brush = copy_brush(wx.TRANSPARENT_BRUSH)
         font = wx.SystemSettings.GetFont(wx.SYS_DEFAULT_GUI_FONT)
-        matrix = gc.CreateMatrix()
-        state = dict(pen=pen, brush=brush, font=font, matrix=matrix)
+        matrix = gc.CreateMatrix() # transforms paths
+        trafo = gc.GetTransform() # transforms the canvas
+        state = dict(pen=pen, brush=brush, font=font, matrix=matrix,
+                     trafo=trafo)
         gc.SetPen(pen)
         gc.SetBrush(brush)
         gc.SetFont(font)
@@ -405,11 +406,8 @@ class GraphicsBox(Box):
             dc.SetPen(wx.RED_PEN)
             dc.DrawRectangle(x, y, self.width, self.height)
             print >>sys.stderr, e
-
         draw = None
-        #del gc
-        #del draw
-
+        
     def get_index(self, x, y):
         if x>self.width/2.0:
             return 1
@@ -528,7 +526,7 @@ class Builder(BuilderBase):
     _cache = dict()
     _cache_keys = []
     def Text_handler(self, texel):
-        # cached version
+        # caching version
         key = texel.text, id(texel.style), id(self.parstyle), self.device
         try:
             return self._cache[key]
@@ -579,7 +577,8 @@ class Builder(BuilderBase):
             if t1 is not None:
                 temp = model.remove(t1, t2)
 
-            colorized = mk_textmodel(client.colorize(model.texel, bgcolor=inbackground))
+            colorized = mk_textmodel(
+                client.colorize(model.texel, bgcolor=inbackground))
             if t1 is not None:
                 colorized.insert(t1, temp)
             inbox = self.create_parstack(colorized.texel)
@@ -596,7 +595,8 @@ class Builder(BuilderBase):
             assert len(outbox) == length(outp)+1
 
         cell = ScriptingCellBox(
-            Frame([inbox], border=border, fillcolor=inbackground, linecolor=inline), 
+            Frame([inbox], border=border, fillcolor=inbackground,
+                  linecolor=inline), 
             Frame([outbox], border=border), 
             number=texel.number,
             device=self.device)

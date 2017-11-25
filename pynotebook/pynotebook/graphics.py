@@ -3,13 +3,24 @@
 #
 # graphics.py
 #
-# Graphics interface based on the graphics capabilities of wx. Known
-# limitation of wx are:
 #
-#  - line widths can only be integer numbers
-#  - when zoomed in there is no way of drawing fixed width lines
+# This module defines graphics operations which are used in connection
+# with the 'Graphics'-Texel. Each instance of an operations definies a
+# certain graphical object (e.g. a line or circle) or sets certain
+# drawing properties (.e.g. line color or fill color).
 #
-#  TODO: take a closer look an GraphicsPath. -> Can it help?
+# Lists of graphic operations represent a vector graphic. They can be
+# saved, loaded or displayed.
+
+
+# XXX missing: 
+# - SetLogicalFunction
+# - fill styles
+# - gradient fills
+# - rounded rectangle
+# - clipping
+# - spline
+
 
 import wx
 from .nbtexels import Graphics
@@ -17,12 +28,12 @@ from .nbtexels import Graphics
 
 
 def _normalize_color(color):
-    if isinstance(color, wx.Color):
+    if isinstance(color, wx.Colour):
         return color.asTuple()+(color.Alpha(), )
     elif isinstance(color, str):
-        c = wx.Color()
+        c = wx.Colour()
         c.SetFromString(color)
-        return c.asTuple()+(c.Alpha(), )
+        return tuple(c,)+(c.Alpha(), )
     elif isinstance(color, list) or isinstance(color, tuple):
         return tuple(color)
     else:
@@ -50,6 +61,8 @@ class LineWidth:
 
 
 class LineDashes:
+    # Dashes is a list of length values. Example: [5, 5] will draw a
+    # line of length 5, a space of length 5, a line of length 5, ...
     def __init__(self, dashes):
         self.dashes = dashes
         
@@ -95,16 +108,20 @@ class FillColor:
     def draw(self, gc, state):
         brush = state["brush"]
         brush.SetColour(self.color)
+        brush.SetStyle(wx.BRUSHSTYLE_SOLID)
         gc.SetBrush(brush) 
 
 
-class Dot:
+class Dot: # remove this?
     def __init__(self, (x, y)):
         self.x = x
         self.y = y
 
     def draw(self, gc, state):
-        gc.DrawEllipse(self.x-5, self.y-5, 10, 10)
+        p = gc.CreatePath()
+        p.AddCircle(self.x, self.y, 5)
+        p.Transform(state['matrix'])
+        gc.DrawPath(p)
 
 
 class Line:
@@ -112,24 +129,40 @@ class Line:
         self.points = tuple(points)
 
     def draw(self, gc, state):
-        gc.DrawLines(self.points)
+        points = self.points
+        if len(points)<2:
+            return
+        p = gc.CreatePath()
+        for point in points:
+            p.AddLineToPoint(point)
+        p.Transform(state['matrix'])
+        gc.DrawPath(p)
 
 
-class Spline:
-    def __init__(self, *points):
-        self.points = tuple(points)
-
-    def draw(self, gc, state):
-        gc.DrawSpline(self.points)
+# class Spline:
+#     def __init__(self, *points):
+#         self.points = tuple(points)
+#
+#     def draw(self, gc, state):
+#         gc.DrawSpline(self.points)
+#         # XXX TODO
 
 
 class Polygon:
     def __init__(self, *points):
         self.points = tuple(points)
+        # XXX should we be able to set the fill rule?
 
     def draw(self, gc, state):
-        # XXX should we be able to set the fill rule?
-        gc.DrawPolygon(self.points)
+        points = self.points
+        if len(points)<2:
+            return
+        p = gc.CreatePath()
+        for point in points:
+            p.AddLineToPoint(point)
+        p.CloseSubpath()
+        p.Transform(state['matrix'])
+        gc.DrawPath(p)
 
 
 class Circle:
@@ -139,8 +172,10 @@ class Circle:
         self.r = r
         
     def draw(self, gc, state):
-        r = self.r
-        gc.DrawEllipse(self.x-r, self.y-r, 2*r, 2*r)
+        p = gc.CreatePath()
+        p.AddCircle(self.x, self.y, self.r)
+        p.Transform(state['matrix'])
+        gc.DrawPath(p)
 
 
 class Ellipse:
@@ -151,25 +186,28 @@ class Ellipse:
         self.r2 = r2
         
     def draw(self, gc, state):
-        r1 = self.r1
-        r2 = self.r2
-        gc.DrawEllipse(self.x-r1, self.y-r2, 2*r1, 2*r2)
+        p = gc.CreatePath()
+        p.AddEllipse(self.x, self.y, self.r1, self.r2)
+        p.Transform(state['matrix'])
+        gc.DrawPath(p)
 
+        
 
 class Arc:
-    def __init__(self, (x, y), r1, r2, start, end):
+    def __init__(self, (x, y), r, start, end):
         self.x = x
         self.y = y
-        self.r1 = r1
-        self.r2 = r2
+        self.r = r
         self.start = start
         self.end = end
+        # XXX do we need clockwise?
         
     def draw(self, gc, state):
-        r1 = self.r1
-        r2 = self.r2
-        gc.DrawEllipticArc(self.x-r1, self.y-r2, 2*r1, 2*r2, self.start, 
-                           self.end)
+        p = gc.CreatePath()
+        p.AddArc(self.x, self.y, self.r, self.start, self.end)
+        p.Transform(state['matrix'])
+        gc.DrawPath(p)
+
 
 
 class Rectangle:
@@ -184,19 +222,12 @@ class Rectangle:
         w = max(self.x1, self.x2)-x
         y = min(self.y1, self.y2)
         h = max(self.y1, self.y2)-y        
-        gc.DrawRectangle(x, y, w, h) 
+        p = gc.CreatePath()
+        p.AddRectangle(x, y, w, h)
+        p.Transform(state['matrix'])
+        gc.DrawPath(p)
 
-
-class Bitmap:
-    def __init__(self, data, size):
-        self.data = data
-        self.size = size
-
-    def draw(self, gc, state):
-        w, h = self.size
-        bitmap = wx.BitmapFromBuffer(w, h, self.data)
-        gc.DrawBitmap(bitmap, 0, 0, w, h)
-
+        
 
 class Font:
     def __init__(self, size, family, style, weight, 
@@ -229,7 +260,9 @@ class Text:
         w, h = gc.GetTextExtent(self.text)
         dx = 0.5*w*(self.align[0]-1)
         dy = 0.5*h*(self.align[1]-1)
+        gc.SetTransform(state['matrix'])
         gc.DrawText(self.text, x+dx, y+dy)
+        gc.SetTransform(state['trafo'])
 
 
 class Translate:
@@ -238,7 +271,8 @@ class Translate:
         
     def draw(self, gc, state):
         dx, dy = self.offset
-        gc.Translate(dx, dy)
+        state['matrix'].Translate(dx, dy) 
+        #gc.Translate(dx, dy)
 
 
 class Rotate:
@@ -246,7 +280,7 @@ class Rotate:
         self.angle = angle
         
     def draw(self, gc, state):
-        gc.Rotate(self.angle) 
+        state['matrix'].Rotate(self.angle) 
 
 
 class Scale:
@@ -257,15 +291,9 @@ class Scale:
         self.fy = fy
         
     def draw(self, gc, state):
-        gc.Scale(self.fx, self.fy) 
+        state['matrix'].Scale(self.fx, self.fy)
 
 
-# XXX missing: 
-# - SetLogicalFunction
-# - fill styles
-# - gradient fills
-# - rounded rectangle
-# - clipping
 
 def register_classes():
     from cerealizerformat import register
@@ -301,7 +329,7 @@ def test_00():
     from .nbview import mk_textmodel
     ns = init_testing(False)
     model = ns['model']
-    model.insert(len(model), mk_textmodel(Graphics([Dot(0, 0)])))
+    model.insert(len(model), mk_textmodel(Graphics([Circle((0, 0), 5)])))
     segments = [
         (0, 0), (0, 10), (10, 10), (10, 0)
     ]

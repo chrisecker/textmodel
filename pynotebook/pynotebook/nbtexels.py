@@ -135,6 +135,15 @@ class BitmapRGB(Single):
     def __setstate__(self, data):
         self.size, self.data = _bitmap_loader(data)[:2]
 
+    def draw(self, gc, state):
+        w, h = self.size
+        bitmap = wx.BitmapFromBuffer(w, h, self.data)
+        m = gc.CreateMatrix()
+        gc.SetTransform(m)
+        gc.ConcatTransform(state['trafo'])
+        gc.ConcatTransform(state['matrix'])
+        gc.DrawBitmap(bitmap, 0, 0, w, h)
+        gc.SetTransform(state['trafo'])
 
 
 class BitmapRGBA(Single):
@@ -152,6 +161,17 @@ class BitmapRGBA(Single):
     def __setstate__(self, data):
         self.size, self.data, self.alpha = _bitmap_loader(data)
 
+    def draw(self, gc, state):
+        w, h = self.size
+        im = wx.ImageFromData(w, h, self.data)
+        im.SetAlphaBuffer(self.alpha)
+        bitmap = wx.BitmapFromImage(im)
+        m = gc.CreateMatrix()
+        gc.SetTransform(m)
+        gc.ConcatTransform(state['trafo'])
+        gc.ConcatTransform(state['matrix'])
+        gc.DrawBitmap(bitmap, 0, 0, w, h)
+        gc.SetTransform(state['trafo'])
 
 
 class Graphics(Single):
