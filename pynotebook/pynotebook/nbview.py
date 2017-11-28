@@ -338,7 +338,6 @@ class BitmapBox(Box):
 
 def copy_pen(pen):
     new = wx.Pen(pen.Colour, pen.Width, pen.Style)
-    new.SetCap(pen.Cap)
     new.Cap = pen.Cap
     new.Dashes = pen.Dashes
     new.Join = pen.Join
@@ -388,6 +387,7 @@ class GraphicsBox(Box):
             if type(item) is list or type(item) is tuple:
                 oldbrush = copy_brush(state['brush'])
                 oldpen = copy_pen(state['pen'])
+                oldmatrix = gc.CreateMatrix(*state['matrix'].Get())
                 gc.PushState()
                 for child in item:
                     draw(child)
@@ -396,6 +396,7 @@ class GraphicsBox(Box):
                 gc.SetBrush(oldbrush)
                 state['brush'] = oldbrush
                 state['pen'] = oldpen
+                state['matrix'] = oldmatrix
             else:
                 item.draw(gc, state)
 
@@ -510,8 +511,8 @@ class Builder(BuilderBase):
         # traversed from right to left. This way the "Newline" which
         # ends a line is handled before the content in the line. This
         # is important because in order to build boxes for the line
-        # elements, we need the paragraph style which is located in
-        # the NewLine-Texel.
+        # elements, we need to know the paragraph style which is
+        # located in the NewLine-Texel.
         create_boxes = self.create_boxes
         r = ()
         for j1, j2, child in reversed(list(texeltree.iter_childs(texel))):
@@ -523,21 +524,21 @@ class Builder(BuilderBase):
         return [TextBox(texel.text, self.mk_style(texel.style), 
                 self.device)]
 
-    _cache = dict()
-    _cache_keys = []
+    _textcache = dict()
+    _textcache_keys = []
     def Text_handler(self, texel):
         # caching version
         key = texel.text, id(texel.style), id(self.parstyle), self.device
         try:
-            return self._cache[key]
+            return self._textcache[key]
         except: pass        
         r = [TextBox(texel.text, self.mk_style(texel.style), 
                      self.device)]
-        self._cache_keys.insert(0, key)        
-        if len(self._cache_keys) > 10000:
-            _key = self._cache_keys.pop()
-            del self._cache[_key]
-        self._cache[key] = r
+        self._textcache_keys.insert(0, key)        
+        if len(self._textcache_keys) > 10000:
+            _key = self._textcache_keys.pop()
+            del self._textcache[_key]
+        self._textcache[key] = r
         return r
     
     def NewLine_handler(self, texel):
@@ -717,7 +718,9 @@ class NBView(_WXTextView):
             self._load(filename)
         self.actions[(wx.WXK_F1, False, False)] = 'help'
         self.actions[(wx.WXK_TAB, False, False)] = 'complete'
+        self.actions[(wx.WXK_RETURN, True, False)] = 'execute'
         self.actions[(wx.WXK_RETURN, False, False)] = 'insert_newline_indented'
+        self.actions[(2, True, False)] = 'split_cell'
 
     def _load(self, filename):
         s = open(filename, 'rb').read()
@@ -732,7 +735,7 @@ class NBView(_WXTextView):
         # not reset cursor, selection etc.
         _WXTextView.set_model(self, model)
 
-    def save(self, filename):
+    def save(self, filename):        
         import cerealizerformat
         s = cerealizerformat.dumps(self.model)
         open(filename, 'wb').write(s)
@@ -741,7 +744,9 @@ class NBView(_WXTextView):
         self._clients = ClientPool()        
         client = PythonClient()
         client.namespace['__shell__'] = self
-        self._clients.register(client)        
+        self._clients.register(client)
+        # Hack to be able to load file created with older versions:
+        self._clients.add(client, 'direct python')
 
     _resize_pending = False
     _new_size = None
@@ -842,6 +847,14 @@ class NBView(_WXTextView):
             else:
                 action = 'complete'
 
+        if action == 'split_cell':
+            return self.split_cell()
+        elif action == 'execute':
+            try:
+                self.execute()
+            except NotFound:
+                pass
+            return
         if action not in ('complete', 'help'):
             return _WXTextView.handle_action(self, action, shift)
         # complete or help#
