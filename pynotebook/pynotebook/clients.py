@@ -31,10 +31,17 @@ class Client:
 
 class ClientPool:
     def __init__(self):
-        self._clients = {}
+        self.clients = {}
 
+    def add(self, client, name):
+        self.clients[name] = client
+        
     def register(self, client):
-        self._clients[client.name] = client
+        self.add(client, client.name)
 
+    def get(self, name):
+        return self.clients[name]
+    
     def get_matching(self, texel):
-        return self._clients[texel.client_name]
+        return self.get(texel.client_name)
+
