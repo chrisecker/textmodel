@@ -120,7 +120,7 @@ class FakeFile:
 
 
 class PythonClient(Client):
-    name = 'direct python'
+    name = 'python'
     can_abort = True
     aborted = False
 
@@ -259,9 +259,8 @@ def __transform__(obj, iserr):
     def colorize(self, inputtexel, styles=None, bgcolor='white'):
         
         if 0:
-            # The pycolorize function was ment for benchmarking the
-            # textmodel. It is quite inefficient. Here, we should use
-            # an optimized variant instead.
+            # The pycolorize function in texetmodel was ment for
+            # benchmarking the textmodel - it is quite inefficient!
             text = get_text(inputtexel).encode('utf-8')
             from .textmodel.textmodel import pycolorize as _pycolorize
             try:
