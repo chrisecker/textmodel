@@ -80,7 +80,8 @@ def _split_cell(texel, i):
             else:
                 r1.append(child)
                 r2.append(child)
-        return [texel.set_childs(r1), texel.set_childs(r2)]        
+        return [strip_output(texel.set_childs(r1)),
+                texel.set_childs(r2)]        
     return [texel]
 
 def split_cell(texel, i):
