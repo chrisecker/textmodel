@@ -1,4 +1,4 @@
-recursive-include pynb/pynotebook *.py
+recursive-include pnb/pynotebook *.py
 exclude pynotebook/jsonformat.py
 exclude pynotebook/xmlformat.py
 exclude pynotebook/wxgraphics.py

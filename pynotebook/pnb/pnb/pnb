@@ -3,13 +3,12 @@
 # simple notebook app
 
 
-import sys
-sys.path.insert(0, '..')
 
 import pynotebook
 from pynotebook.nbtexels import NotFound
 from pynotebook.nbview import TextModel, NBView
 from pynotebook import graphics
+import sys
 import os
 import wx
 from tempfile import mkdtemp
