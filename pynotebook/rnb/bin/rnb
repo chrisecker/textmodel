@@ -11,6 +11,7 @@ from pynotebook.pyclient import FakeFile
 from pynotebook.nbstream import StreamRecorder
 from pynotebook.nbtexels import ScriptingCell as _ScriptingCell
 from pynotebook.nbview import TextModel, NBView
+from pynotebook.nblogging import TemporaryDirectory, gen_logfile
 from pynotebook.textformat import fromtext
 from pynotebook.textmodel import TextModel
 from pynotebook.textmodel.texeltree import get_text, length
@@ -160,61 +161,9 @@ def method2cmd(label, name):
 
 
 
-class TemporaryDirectory(object):
-    # http://stackoverflow.com/questions/19296146/tempfile-temporarydirectory-
-    # context-manager-in-python-2-7
-    def __init__(self, suffix="", prefix="tmp", dir=None):
-        self._closed = False
-        self.name = mkdtemp(suffix, prefix, dir)
-
-    def cleanup(self):
-        if self.name and not self._closed:
-            try:
-                self._rmtree(self.name)
-            except (TypeError, AttributeError) as ex:
-                return
-            self._closed = True
-
-    def __del__(self):
-        self.cleanup()
-
-    _listdir = staticmethod(os.listdir)
-    _path_join = staticmethod(os.path.join)
-    _isdir = staticmethod(os.path.isdir)
-    _islink = staticmethod(os.path.islink)
-    _remove = staticmethod(os.remove)
-    _rmdir = staticmethod(os.rmdir)
-
-    def _rmtree(self, path):
-        for name in self._listdir(path):
-            fullname = self._path_join(path, name)
-            try:
-                isdir = self._isdir(fullname) and not self._islink(fullname)
-            except OSError:
-                isdir = False
-            if isdir:
-                self._rmtree(fullname)
-            else:
-                try:
-                    self._remove(fullname)
-                except OSError:
-                    pass
-        try:
-            self._rmdir(path)
-        except OSError:
-            pass
-
 
 logdir = None
 logging = False
-def gen_logfile():
-    files = os.listdir(logdir.name)
-    i = 0
-    while 1:
-        name = '%.4i.pynblog' % i
-        if not name in files:
-            return os.path.join(logdir.name, name)
-        i += 1
 
 
 
@@ -235,7 +184,7 @@ class MainWindow(wx.Frame):
                           size=(min(600, displayw), min(800, displayh)))
         panel = wx.Panel(self, -1)
         if logging:
-            logfile = gen_logfile()
+            logfile = gen_logfile(logdir.name, 'rnblog')
         else:
             logfile = None
         shell = RNBView(panel, -1, filename=filename, maxw=600, logfile=logfile)
@@ -256,7 +205,25 @@ class MainWindow(wx.Frame):
     def make_menubar(self):
         menubar = wx.MenuBar()
         updaters = []
-        def mk_menu(entries, self=self, updaters=updaters):
+        accel = []
+
+        def extract_accel(s):
+            # Extract accelerator information from menu
+            # labels. Currently only extracts simple accelerators of
+            # the form 'Ctrl+A'. Many accelerators are not parsed
+            # correctly, such as 'Shift-Return'. This is ok for now,
+            # as these are already handled in nbview.  Extracting
+            # accelerators became necessary with wxpython 3.0 on. I
+            # think it is a bug.
+            if not '\t' in s: return
+            a, b = s.split("\t", 2)
+            if not '-' in b: return
+            modifier, key = b.split('-', 2)
+            m = dict(Ctrl=wx.ACCEL_CTRL, Alt=wx.ACCEL_ALT)
+            if not modifier in m: return
+            return m[modifier], ord(key)
+        
+        def mk_menu(entries, self=self, updaters=updaters, accel=accel):
             menu = wx.Menu()
             for entry in entries:
                 if entry is None:
@@ -269,6 +236,9 @@ class MainWindow(wx.Frame):
                     title = fun.__doc__
                     item = menu.Append(-1, title)
                     self.Bind(wx.EVT_MENU, fun, item)
+                    shortcut = extract_accel(title)
+                    if shortcut is not None:
+                        accel.append(shortcut+(item.Id,))
                     if hasattr(self, 'can_'+entry):
                         fun = getattr(self, 'can_'+entry)
                         def update(fun=fun, item=item, menu=menu):
@@ -281,6 +251,8 @@ class MainWindow(wx.Frame):
         menubar.Append(mk_menu(self.interpreter_entries), '&Interpreter')
 	if debug:
             menubar.Append(mk_menu(self.debug_entries), 'Debug')
+            
+        self.SetAcceleratorTable(wx.AcceleratorTable(accel))
         self.updaters = updaters 
         return menubar
 

@@ -2,12 +2,17 @@ recursive-include pynotebook *.py
 exclude pynotebook/jsonformat.py
 exclude pynotebook/xmlformat.py
 exclude pynotebook/wxgraphics.py
+exclude pynotebook/wxtextview/countermarktree.py
+exclude pynotebook/wxtextview/counter.py
+exclude pynotebook/wxtextview/markbuffer.py
+
+
 include demo/plot_demo.py
 #include demo/custom_output.py
 include demo/rnotebook.py
-include demo/ball.pnb
-include demo/clock.pnb
-include demo/plotting.pnb
+#include demo/ball.pnb
+#include demo/clock.pnb
+#include demo/plotting.pnb
 include LICENSE
 include CHANGES
 

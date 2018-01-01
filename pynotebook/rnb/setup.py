@@ -7,7 +7,7 @@ with open('README') as file:
     long_description = file.read()
 
 setup(name='rnb',
-      version='0.2.4rc1',
+      version='0.2.4',
       description = 'An experimental notebook application for the r programming language.',
       long_description = long_description,
       author='C. Ecker',

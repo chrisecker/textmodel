@@ -10,61 +10,26 @@ pynotebook
 Introduction
 ------------
 
-Pynotebook is a an interactive shell for python, similar to the python
-command line but much nicer to work with. Notebooks can contain python
-code together with output and documentation. Notebooks are a pleasant
-way to develop and document python code and to store ideas.
+Pynotebook is a library for creating notebook applications in
+wxpython. A notebook is a document which can contain program code,
+text and graphics.  Notebooks are a pleasant way to develop and
+document code and to store ideas.
+
+Unlike other python notebook interfaces such as jupyter or spyder, pnb
+is very lightweight and can be easily to embeded in wxpython
+applications.
+
+Although python is the native language for pynotebook, it is
+relatively easy to extend it to other scripting languages.
+
+Applications using the Pynotebook library are
+
+- `pnb application <https://pypi.python.org/pypi/pnb>`_ (a python notebook application) and
+- `rnb <https://pypi.python.org/pypi/rnb>`_ (an experimental notebook for the r programming language)
 
 
 
-
-Features
---------
-
-Most notable features are:
-
-- syntax highlighting
-- command completion (tab-key)
-- built-in graphics
-- plotting via matplotlib
-- BSD-license
-
-
-Pynotebook does not need a webbrowser, c extensions or anything except
-python and `wxPython <https://wxpython.org/>`_. Pynotebook runs
-completely out of the box and is therefore easy to embed and
-distribute.
-
-
-
-Installation:
--------------
-
-Do in a console:
-
-:: 
-
-  python ./setup.py build
-
-and then as root:
-
-::
-
-  python ./setup.py install
-
-This will install the pynb application and the pynotebook module. 
-
-To open a notebook:
-
-::
-
-        pynb demo/ball.pnb
-
-Contact
--------
+Links
+-----
 - `github page <https://github.com/chrisecker/textmodel/tree/master/pynotebook>`_
-- `pypi page <https://pypi.python.org/pypi/pynotebook/>`_
-
-You can also contact me by `email <textmodelview@gmail.com>`_.
-
 
