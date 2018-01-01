@@ -681,7 +681,7 @@ def strip_cells(texel):
     # Helper: replace all cells in texel by their content
     if texel.is_group:
         l = []
-        for child in group.childs:
+        for child in texel.childs:
             l.extend(strip_cells(child))
         return groupes(l)
     if isinstance(texel, Cell):
