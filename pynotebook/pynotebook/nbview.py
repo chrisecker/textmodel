@@ -616,8 +616,7 @@ class Builder(BuilderBase):
 
     def BitmapRGBA_handler(self, texel):
         w, h = texel.size
-        im = wx.ImageFromData(w, h, texel.data)
-        im.SetAlphaBuffer(texel.alpha)
+        im = wx.ImageFromDataWithAlpha(w, h, texel.data, texel.alpha)
         bitmap = wx.BitmapFromImage(im)
         return [BitmapBox(bitmap, device=self.device)]
 
@@ -831,14 +830,14 @@ class NBView(_WXTextView):
             # is inserted. Therefore we figure out what has been
             # pasted and log this as an insertion.
             model = self.model
-            i = self.index
+            index = self.index
             if memo is not None:
-                self.insert(i, memo)
+                self.insert(index, memo)
             else:
                 n0 = len(model)
                 _WXTextView.handle_action(self, action, shift)
                 n = len(model)-n0
-                memo = model.copy(i, i+n)
+                memo = model.copy(index, index+n)
             self.log('handle_action', (action, shift, memo), {})
             return
         if action == 'complete_or_help':
@@ -862,12 +861,19 @@ class NBView(_WXTextView):
             i0, cell = self.find_cell()
         except NotFound:
             return
+        
+        if not isinstance(cell, ScriptingCell):
+            return        
         index = self.index
-        if index <= i0 or index >= i0+length(cell):
+        if index <= i0 or index > i0+length(cell.input)+1:
             return
+        
         word = self.get_word(index)
         client = self._clients.get_matching(cell)
-
+        
+        if client is None:
+            return
+        
         if action == 'help':
             s = client.help(word)
             self.print_temp('\n'+s+'\n')
