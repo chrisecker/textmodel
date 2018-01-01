@@ -179,31 +179,62 @@ class TextView(ViewBase, Model):
         self.Refresh()
         self.notify_views('maxw_changed')
 
-    def indent_rows(self, firstrow, lastrow):
+    def indent_rows(self, firstrow, lastrow, n=4):
         model = self.model
+        has_selection = self.has_selection()
+        if has_selection:
+            s1, s2 = self.selection
+        else:
+            s1 = s2 = 0
+        index = self.index
         for line in range(lastrow, firstrow-1, -1): # indent
             i = model.linestart(line)
-            model.insert_text(i, ' '*4)
-        info = self._dedent_rows, firstrow, lastrow
+            model.insert_text(i, ' '*n)
+            if index >= i:
+                index += n
+            if s1 >= i:
+                s1 += n
+            if s2 >= i:
+                s2 += n
+        self.index = index
+        if has_selection:
+            self.selection = (s1, s2)            
+        info = self._dedent_rows, firstrow, lastrow, n
         self.add_undo(info)
 
-    def _dedent_rows(self, firstrow, lastrow):
+    def _dedent_rows(self, firstrow, lastrow, n):
+        has_selection = self.has_selection()
+        if has_selection:
+            s1, s2 = self.selection
+        else:
+            s1 = s2 = 0
+        index = self.index
         memo = []
         model = self.model
         for line in reversed(range(firstrow, lastrow+1)):
             i = model.linestart(line)
-            for j in range(i, i+5):
+            for j in range(i, i+n+1):
                 if j > len(model): break
                 if model.get_text(j, j+1) != ' ': break
             memo.append(model.remove(i, j))
+            if index > i:
+                index = i+max(0, index-j)
+            if s1 > i:
+                s1 = i+max(0, s1-j)
+            if s2 > i:
+                s2 = i+max(0, s2-j)
+        self.index = index
+        if has_selection:
+            self.selection = (s1, s2)
+            
         assert len(memo) == lastrow-firstrow+1
-        return self._undo_dedent, firstrow, memo
+        return self._undo_dedent, firstrow, memo, n
         
-    def dedent_rows(self, firstrow, lastrow):
-        info = self._dedent_rows(firstrow, lastrow)
+    def dedent_rows(self, firstrow, lastrow, n=4):
+        info = self._dedent_rows(firstrow, lastrow, n)
         self.add_undo(info)
 
-    def _undo_dedent(self, firstrow, memo):
+    def _undo_dedent(self, firstrow, memo, n):
         model = self.model
         lastrow = firstrow+len(memo)-1
         memo = list(memo)
@@ -211,7 +242,7 @@ class TextView(ViewBase, Model):
             i = model.linestart(line)
             model.insert(i, memo[0])
             memo = memo[1:]
-        return self._dedent_rows, firstrow, lastrow
+        return self._dedent_rows, firstrow, lastrow, n
 
     def compute_index(self, x, y):
         if y >= self.layout.height:
