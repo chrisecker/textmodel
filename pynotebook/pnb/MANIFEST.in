@@ -1,13 +1,9 @@
-recursive-include pnb/pynotebook *.py
-exclude pynotebook/jsonformat.py
-exclude pynotebook/xmlformat.py
-exclude pynotebook/wxgraphics.py
-include demo/plot_demo.py
-#include demo/custom_output.py
-include demo/rnotebook.py
+include bin/pnb
 include demo/ball.pnb
 include demo/clock.pnb
 include demo/plotting.pnb
+include demo/graphics.pnb
 include LICENSE
-include CHANGES
+include README
+
 

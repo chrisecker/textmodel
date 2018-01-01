@@ -27,7 +27,7 @@ Most notable features are:
 - syntax highlighting
 - command completion (tab-key)
 - introspection (F1-key)
-- built-in graphics
+- built-in vector graphics
 - plotting via matplotlib
 - BSD-license
 
@@ -39,9 +39,9 @@ completely out of the box.
 
 Links
 -----
-- `github page <https://github.com/chrisecker/textmodel/tree/master/pynotebook>`_
 - `pynotebook module <https://pypi.python.org/pypi/pynotebook>`_
+- `R-Notebook <https://pypi.python.org/pypi/rnb>`_
+- `github page <https://github.com/chrisecker/textmodel/tree/master/pynotebook>`_
 
-You can also contact me by `email <textmodelview@gmail.com>`_.
 
 
