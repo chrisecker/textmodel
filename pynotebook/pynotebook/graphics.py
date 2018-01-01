@@ -108,7 +108,7 @@ class FillColor:
     def draw(self, gc, state):
         brush = state["brush"]
         brush.SetColour(self.color)
-        brush.SetStyle(wx.BRUSHSTYLE_SOLID)
+        brush.SetStyle(wx.SOLID)
         gc.SetBrush(brush) 
 
 
