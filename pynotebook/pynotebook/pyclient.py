@@ -2,10 +2,10 @@
 
 from .clients import Client, Aborted
 from .nbstream import StreamRecorder
-from pynotebook.textmodel.textmodel import TextModel
-from pynotebook.textmodel.texeltree import Text, grouped, get_text, NL, length, dump, \
+from .textmodel.textmodel import TextModel
+from .textmodel.texeltree import Text, grouped, get_text, NL, length, dump, \
     iter_childs
-from pynotebook.textmodel.styles import create_style
+from .textmodel.styles import create_style
 
 import sys
 import traceback
@@ -116,6 +116,9 @@ class FakeFile:
 
     def write(self, s):
         self.fun(s)
+
+    def flush(self):
+        pass
 
 
 
@@ -402,14 +405,14 @@ def test_04():
 
 def test_05():
     "colorize (3)"
-    from pynotebook.textmodel import textmodel
+    from .textmodel import textmodel
     text = open(textmodel.__file__.replace('.pyc', '.py')).read()
     textmodel = TextModel(text)
     client = PythonClient()    
     client.colorize(textmodel.texel)
     
 def benchmark():
-    from pynotebook.textmodel import texeltree
+    from .textmodel import texeltree
     text = open(texeltree.__file__.replace('.pyc', '.py')).read()
     textmodel = TextModel(text)
     client = PythonClient()    
