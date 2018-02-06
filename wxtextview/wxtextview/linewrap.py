@@ -5,8 +5,8 @@ from .boxes import TabulatorBox, TextBox, EmptyTextBox, NewlineBox, Row
 
 
 
-def find_bestbreak(box, w):
-    # try to break after a space
+def find_goodbreak(box, w):
+    # Try to break after a space. Otherwise, return None.
     if not isinstance(box, TextBox):
         return 0
     text = box.text
@@ -45,6 +45,7 @@ def split_box(box, i):
 def simple_linewrap(boxes, maxw, tabstops=(), wordwrap=True, 
                     device=TESTDEVICE):
     assert isinstance(maxw, int)
+    print "maxw=", maxw
     l = []
     rows = [l]
     w = 0
@@ -64,40 +65,43 @@ def simple_linewrap(boxes, maxw, tabstops=(), wordwrap=True,
             continue
 
         # start a new line
+        split_at_i = True
+        i = None
         if wordwrap:
-            i = find_bestbreak(box, maxw-w)
-            if not i:
-                if last:
-                    k, j = last
-                    lastbox = l[k]
-                    a, b = split_box(lastbox, j)
-                    assert len(a)+len(b) == len(lastbox)
-                    boxes = [b]+l[k+1:]+[box]+boxes
-                    del l[k:]            
-                    l.append(a)
-                else:
-                    i = find_anybreak(box, maxw-w)
-                    if not i:
-                        if l: # break the line before box
-                            boxes = [box]+boxes
-                        else: # append the box and accept a too wide line
-                            l.append(box)
+            i = find_goodbreak(box, maxw-w)
         else:
             i = find_anybreak(box, maxw-w)
-            if not i:
-                if l: # break the line before box
-                    boxes = [box]+boxes
-                else: # append the box and accept a too wide line
-                    l.append(box)
+        if i is None:
+            if last:
+                k, j = last
+                lastbox = l[k]
+                a, b = split_box(lastbox, j)
+                assert len(a)+len(b) == len(lastbox)
+                boxes = [b]+l[k+1:]+[box]+boxes
+                del l[k:]            
+                l.append(a)
+                split_at_i = False
+            else:
+                i = find_anybreak(box, maxw-w)
 
-        if i:
-            a, b = split_box(box, i)
-            l.append(a)
-            boxes = [b]+boxes
+        if split_at_i:
+            if i == 0:
+                if len(l):
+                    boxes = [box]+boxes
+                else:
+                    l.append(box)
+            else:
+                a, b = split_box(box, i)
+                l.append(a)                    
+                boxes = [b]+boxes
+            
+        # start a new line
         w = 0
         l = []
         rows.append(l)
         last = None
+        
+    # Remove the last row, if it is empty. 
     if not rows[-1]:
         rows = rows[:-1]
     return [Row(l, device) for l in rows]
@@ -106,15 +110,15 @@ def simple_linewrap(boxes, maxw, tabstops=(), wordwrap=True,
 def test_00():
     "find_break"
     box = TextBox("123 567 90")
-    assert find_bestbreak(box, 3) == None
-    assert find_bestbreak(box, 4) == 4
-    assert find_bestbreak(box, 5) == 4
-    assert find_bestbreak(box, 6) == 4
-    assert find_bestbreak(box, 7) == 4
-    assert find_bestbreak(box, 8) == 8
-    assert find_bestbreak(box, 9) == 8
-    assert find_bestbreak(box, 10) == 8
-    assert find_bestbreak(box, 11) == 8 # XXX Hmm?
+    assert find_goodbreak(box, 3) == None
+    assert find_goodbreak(box, 4) == 4
+    assert find_goodbreak(box, 5) == 4
+    assert find_goodbreak(box, 6) == 4
+    assert find_goodbreak(box, 7) == 4
+    assert find_goodbreak(box, 8) == 8
+    assert find_goodbreak(box, 9) == 8
+    assert find_goodbreak(box, 10) == 8
+    assert find_goodbreak(box, 11) == 8 # XXX Hmm?
 
 
 def test_01():
@@ -123,7 +127,7 @@ def test_01():
         boxes.append(TextBox(text))
         if text == 'dd':
             boxes.append(NewlineBox())
-    
+
     assert str(simple_linewrap(boxes, 5)) == \
         "[Row[TB('aa'), TB('bb'), TB('c')], Row[TB('c'), TB('dd'), NL, "\
         "TB('ee')]]"
@@ -131,5 +135,6 @@ def test_01():
     boxes = []
     for text in "ff gg_hh ii jj".split('_'):
         boxes.append(TextBox(text))
+    print str(simple_linewrap(boxes, 5))
     assert str(simple_linewrap(boxes, 5)) == \
         "[Row[TB('ff ')], Row[TB('gg'), TB('hh ')], Row[TB('ii jj')]]"
