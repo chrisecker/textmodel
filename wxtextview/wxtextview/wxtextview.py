@@ -36,7 +36,6 @@ class WXTextView(wx.ScrolledWindow, TextView):
         self.Bind(wx.EVT_CHAR, self.on_char)
         self.Bind(wx.EVT_SIZE, self.on_size)
         self.Bind(wx.EVT_LEFT_DOWN, self.on_leftdown)
-        self.Bind(wx.EVT_LEFT_UP, self.on_leftup)
         self.Bind(wx.EVT_LEFT_DCLICK, self.on_leftdclick)
         self.Bind(wx.EVT_MOTION, self.on_motion)
         self.Bind(wx.EVT_KILL_FOCUS, self.on_focus)
@@ -192,11 +191,6 @@ class WXTextView(wx.ScrolledWindow, TextView):
         if i is not None:
             self.set_index(i, extend=event.ShiftDown())
         self.SetFocus()
-        self.CaptureMouse()
-
-    def on_leftup(self, event):
-        if self.HasCapture():
-            self.ReleaseMouse()
 
     def on_leftdclick(self, event):
         # Mark word
