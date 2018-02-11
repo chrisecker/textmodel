@@ -41,7 +41,7 @@ logging = False
 
 
 class MainWindow(wx.Frame):
-    set_width = ['Set width', 'set_w1', 'set_w2', 'set_w3']
+    set_width = ['Set width', 'increase_maxw', 'decrease_maxw', 'set_w1', 'set_w2', 'set_w3']
     ctxt_entries = ['inspector', 'open', 'save', 'save_as', 'close']
     file_entries = ['new', 'open', 'save', 'save_as', 'close']
     edit_entries = ['copy', 'paste', 'cut', 'undo', 'redo', 'indent', 'dedent']
@@ -54,7 +54,7 @@ class MainWindow(wx.Frame):
     def __init__(self, filename=None):
         displayw, displayh = wx.GetDisplaySize()
         wx.Frame.__init__(self, None, 
-                          size=(min(600, displayw), min(800, displayh)))
+                          size=(min(760, displayw), min(800, displayh)))
         icon = logo.GetIcon()
         self.SetIcon(icon)
         panel = wx.Panel(self, -1)
@@ -62,7 +62,7 @@ class MainWindow(wx.Frame):
             logfile = gen_logfile(logdir.name, 'pynblog')
         else:
             logfile = None
-        shell = NBView(panel, -1, filename=filename, maxw=65*12, logfile=logfile)
+        shell = NBView(panel, -1, filename=filename, maxw=50*12, logfile=logfile)
         box = wx.BoxSizer(wx.VERTICAL)
         box.Add(shell, 1, wx.ALL|wx.GROW, 1)
         panel.SetSizer(box)
@@ -90,9 +90,9 @@ class MainWindow(wx.Frame):
             # accelerators became necessary with wxpython 3.0 on. I
             # think it is a bug.
             if not '\t' in s: return
-            a, b = s.split("\t", 2)
+            a, b = s.split("\t", 1)
             if not '-' in b: return
-            modifier, key = b.split('-', 2)
+            modifier, key = b.split('-', 1)
             m = dict(Ctrl=wx.ACCEL_CTRL, Alt=wx.ACCEL_ALT)
             if not modifier in m: return
             return m[modifier], ord(key)
@@ -236,16 +236,28 @@ class MainWindow(wx.Frame):
                 return            
         self.Close(True)
 
+        
+    def increase_maxw(self, event):
+        "Increase width\tCtrl-+"
+        self.shell.set_maxw(self.shell.maxw+20)
+
+    def decrease_maxw(self, event):
+        "Decrease width\tCtrl--"
+        self.shell.set_maxw(self.shell.maxw-20)
+
+    def can_decrease_maxw(self):
+        return self.shell.maxw>50
+    
     def set_w1(self, event):
-        "40 characters"
-        self.shell.set_maxw(40*12)
+        "Set to 600 pixels"
+        self.shell.set_maxw(50*12)
 
     def set_w2(self, event):
-        "60 characters"
+        "Set to 720 pixels"
         self.shell.set_maxw(60*12)
 
     def set_w3(self, event):
-        "80 characters"
+        "Set to 960 pixels"
         self.shell.set_maxw(80*12)
 
     cut = action2cmd("Cut\tCtrl-X", "cut")

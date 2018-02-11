@@ -170,6 +170,9 @@ class TextView(ViewBase, Model):
         self.rebuild()
         return self._set_texel, old
 
+    def get_maxw(self):
+        return self._maxw
+    
     def set_maxw(self, maxw):
         if maxw == self._maxw:
             return

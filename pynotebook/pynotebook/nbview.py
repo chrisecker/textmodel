@@ -6,7 +6,7 @@ from .textmodel.textmodel import TextModel
 from .textmodel.styles import create_style, updated_style, EMPTYSTYLE
 from .textmodel.texeltree import Group, Text, grouped, insert, length, \
     get_text, join, get_rightmost, NULL_TEXEL, dump, iter_leaves
-
+from .textmodel.properties import overridable_property
 from .wxtextview.boxes import Box, VGroup, VBox, Row, Rect, check_box, \
     NewlineBox, TextBox, TabulatorBox, extend_range_seperated, replace_boxes, \
     ChildBox, calc_length
@@ -463,14 +463,13 @@ def find_temp(tree):
 
 class Builder(BuilderBase):
     parstyle = EMPTYSTYLE
-
     def __init__(self, model, clients=None, device=TESTDEVICE, maxw=0):
         if clients is None:
             clients = ClientPool()
         self._clients = clients
         self.device = device
         self.model = model
-        self._maxw = maxw
+        self._maxw = maxw # width of page
         self.cache = BoxesCache()
 
     def get_device(self):
@@ -486,7 +485,10 @@ class Builder(BuilderBase):
 
     def extended_texel(self):
         return self.model.get_xtexel()
-        
+
+    def maxw(self):
+        return self._maxw
+
     def set_maxw(self, maxw):
         if maxw != self._maxw:
             self._maxw = maxw
@@ -583,7 +585,9 @@ class Builder(BuilderBase):
             if t1 is not None:
                 colorized.insert(t1, temp)
             inbox = self.create_parstack(colorized.texel)
-            inbox.width = max(self._maxw+border[0]+border[1], inbox.width)
+            # change width so that boxes are always drawn with the
+            # same width
+            inbox.width = max(self._maxw-wleft, inbox.width)
             self.cache.set(key, inbox)
             assert len(inbox) == length(inp)+1
 

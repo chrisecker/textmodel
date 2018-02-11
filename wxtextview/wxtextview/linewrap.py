@@ -45,7 +45,6 @@ def split_box(box, i):
 def simple_linewrap(boxes, maxw, tabstops=(), wordwrap=True, 
                     device=TESTDEVICE):
     assert isinstance(maxw, int)
-    print "maxw=", maxw
     l = []
     rows = [l]
     w = 0
