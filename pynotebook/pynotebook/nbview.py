@@ -4,8 +4,8 @@
 from .textmodel import texeltree
 from .textmodel.textmodel import TextModel
 from .textmodel.styles import create_style, updated_style, EMPTYSTYLE
-from .textmodel.texeltree import Group, Text, grouped, insert, length, \
-    get_text, join, get_rightmost, NULL_TEXEL, dump, iter_leaves
+from .textmodel.texeltree import Group, Text, groups, grouped, insert, \
+    length, get_text, join, get_rightmost, NULL_TEXEL, dump, iter_leaves
 from .textmodel.properties import overridable_property
 from .wxtextview.boxes import Box, VGroup, VBox, Row, Rect, check_box, \
     NewlineBox, TextBox, TabulatorBox, extend_range_seperated, replace_boxes, \
@@ -687,7 +687,7 @@ def strip_cells(texel):
         l = []
         for child in texel.childs:
             l.extend(strip_cells(child))
-        return groupes(l)
+        return groups(l)
     if isinstance(texel, Cell):
         return join(*[[c] for c in texel.childs]) 
     return [texel]
