@@ -266,7 +266,7 @@ class MainWindow(wx.Frame):
     indent = action2cmd("Indent\tCtrl-I", "indent")
     dedent = action2cmd("Dedent\tCtrl-U", "dedent")
     complete = action2cmd("Complete\tTAB", "complete")
-    help = action2cmd("Help\tF1", "help")
+    help = action2cmd("Help\tCtrl-H", "help")
     execute = method2cmd("Execute Cell\tShift-Return", "execute")
     execute_all = method2cmd("Execute all", "execute_all")
     reset = method2cmd("Reset Interpreter", "reset_interpreter")

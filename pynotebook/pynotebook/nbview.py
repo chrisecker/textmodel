@@ -719,12 +719,12 @@ class NBView(_WXTextView):
                              style=style)
         if filename is not None:
             self._load(filename)
-        self.actions[(wx.WXK_F1, False, False)] = 'help'
         self.actions[(wx.WXK_TAB, False, False)] = 'complete'
         self.actions[(wx.WXK_RETURN, True, False)] = 'execute'
         self.actions[(wx.WXK_RETURN, False, False)] = 'insert_newline_indented'
         self.actions[(2, True, False)] = 'split_cell'
-
+        self.actions[(8, True, False)] = 'help'
+  
     def _load(self, filename):
         s = open(filename, 'rb').read()
         import cerealizerformat        

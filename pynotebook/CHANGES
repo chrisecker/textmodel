@@ -1,3 +1,7 @@
+Version 0.2.5
+~~~~~~~~~~~~~
+- bugfixes (line wrap, word selection, page width)
+
 Version 0.2.4
 ~~~~~~~~~~~~~
 - seperate release of pnb and rnb
