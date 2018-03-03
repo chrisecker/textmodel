@@ -40,6 +40,16 @@ def _normalize_color(color):
         raise ValueError('Not a valid color specification: %s' % repr(color))
 
 
+# Some versions of wx (accidentally) use degrees instead of
+# radians. The following factor is used to correct this. It has the
+# value None and is set later to either 1.0 or pi/180.0
+#
+# Calculation is could be done here in principle, using a
+# MeasuringContext. However, this always gives memory violations.
+_rotation_correction = None
+
+
+    
 class LineColor:
     def __init__(self, color):
         self.color = _normalize_color(color)
@@ -280,7 +290,22 @@ class Rotate:
         self.angle = angle
         
     def draw(self, gc, state):
-        state['matrix'].Rotate(self.angle) 
+        global _rotation_correction
+        if _rotation_correction is None:
+            # Determine rotation correction factor.
+            m = gc.CreateMatrix()
+            m.Rotate(360)
+            if m.Get()[0]<-0.28:
+                # radians
+                _rotation_correction = 1
+            else:
+                # degrees
+                import math
+                _rotation_correction = math.pi/180
+        else:
+            _rotation_correction = 1
+
+        state['matrix'].Rotate(self.angle*_rotation_correction) 
 
 
 class Scale:
