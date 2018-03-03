@@ -751,6 +751,9 @@ class NBView(_WXTextView):
         # Hack to be able to load file created with older versions:
         self._clients.add(client, 'direct python')
 
+        # Hack to make debugging easier
+        self.pyclient = client
+
     _resize_pending = False
     _new_size = None
     def on_size(self, event):

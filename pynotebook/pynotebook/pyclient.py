@@ -205,6 +205,7 @@ def displayhook(o):
             
         is_expression = False
         self.ans = None
+        self.aborted = False
         ok = False
         try:
             try:
@@ -212,8 +213,8 @@ def displayhook(o):
                     code = compile(source, name, 'eval')
                     is_expression = True
                 except SyntaxError:
-                    sys.settrace(self.trace_fun)
                     code = compile(source, name, 'exec')
+                sys.settrace(self.trace_fun)                    
                 self.ans = eval(code, self.namespace)
                 if is_expression:
                     sys.displayhook(self.ans)
