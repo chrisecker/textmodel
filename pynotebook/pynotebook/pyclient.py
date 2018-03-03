@@ -131,6 +131,15 @@ class PythonClient(Client):
         if namespace is None:
             namespace = {}
         self.namespace = namespace
+
+        # custom values of global variables residing in module "sys":
+        self.namespace_sys = dict(
+            stdout = FakeFile(lambda s:self.namespace['output'](s)),
+            stderr = FakeFile(lambda s:self.namespace['output'] \
+                              (s, iserr=True)),
+            displayhook = lambda x:None, # will be replaced during init()
+            )
+
         self.init()
 
     def init(self):
@@ -154,13 +163,21 @@ def __transform__(obj, iserr):
         obj.canvas.draw()
         data = obj.canvas.tostring_rgb()
         size = obj.canvas.get_width_height()
-        return nbtexels.BitmapRGB(data, size)
-        
+        return nbtexels.BitmapRGB(data, size)        
     return obj
-        """
+
+def displayhook(o):
+    if o is None:
+        return
+    import __builtin__
+    __builtin__._ = None
+    output(o)
+    __builtin__._ = o
+"""
         code = compile(source, "init", 'exec')
-        ans = eval(code, self.namespace)
-        self.namespace["ans"] = ans
+        self.ans = eval(code, self.namespace)
+        self.namespace_sys['displayhook'] = self.namespace['displayhook']
+        del self.namespace['displayhook']
         
     def abort(self):
         self.aborted = True
@@ -180,39 +197,36 @@ def __transform__(obj, iserr):
         self.namespace['__output__'] = output
         self.counter += 1
         name = 'In[%s]' % self.counter
-        bkstdout, bkstderr = sys.stdout, sys.stderr
-        stdout = sys.stdout = FakeFile(lambda s:self.namespace['output'](s))
-        stderr = sys.stderr = FakeFile(lambda s:self.namespace['output'](s, iserr=True))
-        self.ok = False
-        self.expression = False
+        
+        sys_backup = {}        
+        for key, value in self.namespace_sys.items():
+            sys_backup[key] = getattr(sys, key)
+            setattr(sys, key, value)
+            
+        is_expression = False
+        self.ans = None
+        ok = False
         try:
             try:
                 try:
                     code = compile(source, name, 'eval')
-                    self.expression = True
+                    is_expression = True
                 except SyntaxError:
                     sys.settrace(self.trace_fun)
                     code = compile(source, name, 'exec')
-                ans = eval(code, self.namespace)
-                self.namespace['ans'] = ans
-                self.ok = True
+                self.ans = eval(code, self.namespace)
+                if is_expression:
+                    sys.displayhook(self.ans)
+                ok = True
             except Exception, e:
                 self.show_traceback(name)
-                self.namespace['ans'] = None
-            if self.expression and self.ok:
-                ans = self.namespace['ans']
-                # Note that we do not output the repr() of ans but ans
-                # itself. This allow us to do substitutions,
-                # e.g. replace matplotlib figures by their graphical
-                # representation.
-                try:
-                    self.namespace['output'](ans)
-                except Exception, e:
-                    self.show_traceback(name)
         finally:
-            sys.stdout, sys.stderr = bkstdout, bkstderr
-            sys.settrace(None)
-
+            # restore global values
+            sys.settrace(None)            
+            for key, value in sys_backup.items():
+                self.namespace_sys[key] = getattr(sys, key)
+                setattr(sys, key, value)
+                 
     def show_syntaxerror(self, filename):
         # stolen from "idle" by  G. v. Rossum
         type, value, sys.last_traceback = sys.exc_info()
@@ -327,13 +341,16 @@ def test_00():
 
     stream = StreamRecorder()
     client._execute("12+2", stream.output)
-    assert client.namespace['ans'] == 14
+    print "ans=", repr(client.ans)
+    print stream.messages
+    
+    assert client.ans == 14
     assert stream.messages == [(14, False)]
 
     stream = StreamRecorder()
     client._execute("12+(", stream.output)
     assert 'SyntaxError' in str(stream.messages)
-    assert client.namespace['ans'] == None
+    assert client.ans == None
 
     stream = StreamRecorder()
     client._execute("asdasds", stream.output)
@@ -343,17 +360,17 @@ def test_00():
 
     stream = StreamRecorder()
     client._execute("a=1", stream.output)
-    assert client.namespace['ans'] == None
+    assert client.ans == None
     assert stream.messages == []
 
     stream = StreamRecorder()
     client._execute("a", stream.output)
-    assert client.namespace['ans'] == 1
+    assert client.ans == 1
     assert stream.messages == [(1, False)]
 
     stream = StreamRecorder()
     client._execute("a+1", stream.output)
-    assert client.namespace['ans'] == 2
+    assert client.ans == 2
     assert stream.messages == [(2, False)]
 
     stream = StreamRecorder()
@@ -363,7 +380,7 @@ def test_00():
 def test_01():
     "complete"
     client = PythonClient()
-    assert client.complete('a') == set(['abs', 'all', 'and', 'ans', 'any', 
+    assert client.complete('a') == set(['abs', 'all', 'and', 'any', 
                                         'apply', 'as', 'assert'])
     assert client.complete('ba') == set(['basestring'])
     assert client.complete('cl') == set(['classmethod', 'class'])
