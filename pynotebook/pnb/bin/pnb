@@ -54,7 +54,7 @@ class MainWindow(wx.Frame):
     def __init__(self, filename=None):
         displayw, displayh = wx.GetDisplaySize()
         wx.Frame.__init__(self, None, 
-                          size=(min(760, displayw), min(800, displayh)))
+                          size=(min(635, displayw), min(800, displayh)))
         icon = logo.GetIcon()
         self.SetIcon(icon)
         panel = wx.Panel(self, -1)
