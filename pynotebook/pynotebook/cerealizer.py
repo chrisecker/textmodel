@@ -163,7 +163,7 @@ class Dumper(object):
     
   def undump(self, s):
     txt = s.read(len(self.magic)+1)
-    if txt != self.magic+"\n": 
+    if txt != self.magic+"\n" and txt != self.magic+"\r": 
       if txt == "":
         raise EndOfFile("")
       raise NotCerealizerFileError('Wrong file format:\n"%s"' % txt)
