@@ -175,6 +175,45 @@ class Polygon:
         gc.DrawPath(p)
 
 
+        
+class Path:
+    """A path represents shapes like lines, curves, arcs and more.
+
+*data* ist a list of drawing commands which are each specified as
+ tuples with coordinate values. Currently there are four commands: 
+  - M (move to point)
+  - L (line to point)
+  - Q (Bezier curve to point)
+  - Z (close path)
+    """
+    def __init__(self, *data):
+        self.data = data
+        
+    def draw(self, gc, state):
+        wxpath = gc.CreatePath()
+        x = y = 0
+        for item in self.data:
+            cmd = item[0]
+            points = item[1:]
+            if cmd == 'M':
+                x, y = points
+                wxpath.MoveToPoint(x, y)
+            elif cmd == 'L':
+                x, y = points
+                wxpath.AddLineToPoint(x, y)
+            elif cmd == 'Q':
+                cx, cy, x, y = points
+                wxpath.AddQuadCurveToPoint(cx, cy, x, y)
+            elif cmd == 'Z':
+                wxpath.CloseSubpath()
+            else:
+                raise Exception("Unknown path command: '%s'" % cmd)
+        wxpath.Transform(state['matrix'])            
+        gc.DrawPath(wxpath)
+
+
+
+    
 class Circle:
     def __init__(self, (x, y), r):
         self.x = x
