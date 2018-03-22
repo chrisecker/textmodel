@@ -369,11 +369,17 @@ class TextView(ViewBase, Model):
             l = s[:len(s)-len(s.lstrip())]
             self.insert(index, self._TextModel('\n'+l, **style))
         elif action == 'backspace':
-            del_selection()
-            i = self.index
-            if i>0:
-                j1, j2 = layout.extend_range(i-1, i)
-                self.remove(j1, j2)
+            if self.has_selection():
+                j1, j2 = layout.extend_range(s1-1, s2)
+                if j2 != e2:
+                    self.remove(e1, e2)
+                else:
+                    self.remove(j1, j2)
+            else:
+                i = self.index
+                if i>0:
+                    j1, j2 = layout.extend_range(i-1, i)
+                    self.remove(j1, j2)
         elif action == 'copy':
             self.copy()
         elif action == 'paste':
@@ -396,6 +402,7 @@ class TextView(ViewBase, Model):
             i = model.linestart(row)+model.linelength(row)-1
             if i == index:
                 i += 1
+            self.to_clipboard(model[index:i])
             self.remove(index, i)
         elif action == 'del_word_left':
             # find the beginning of the word
@@ -416,12 +423,32 @@ class TextView(ViewBase, Model):
         self.Refresh()
 
     def copy(self):
-        raise NotImplemented()
+        if not self.has_selection():
+            return        
+        s1, s2 = self.get_selected()[0] # XXX Assuming just one region
+        part = self.model[s1:s2]
+        self.to_clipboard(part)
 
     def paste(self):
-        raise NotImplemented()
+        if self.has_selection():
+            for s1, s2 in self.get_selected():
+                self.model.remove(s1, s2)
+                self.index = s1
+        textmodel = self.read_clipboard()
+        if textmodel is not None:
+            self.insert(self.index, textmodel)
+                
 
     def cut(self):
+        if self.has_selection():
+            self.copy()
+            for s1, s2 in self.get_selected():
+                self.remove(s1, s2)
+         
+    def to_clipboard(self, textmodel):
+        raise NotImplemented()
+
+    def read_clipboard(self):
         raise NotImplemented()
          
     def select_word(self, x, y):

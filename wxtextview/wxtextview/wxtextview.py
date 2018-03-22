@@ -98,17 +98,13 @@ class WXTextView(wx.ScrolledWindow, TextView):
         if action is None:
             action = unichr(keycode)
         self.handle_action(action, shift)
-        
-    def copy(self):
-        if not self.has_selection():
-            return        
-        s1, s2 = self.get_selected()[0] # XXX Assuming just one region
-        part = self.model[s1:s2]
-        text = part.get_text()
+
+    def to_clipboard(self, textmodel):
+        text = textmodel.get_text()
         plain = wx.TextDataObject()
         plain.SetText(text)
         pickled = wx.CustomDataObject("pytextmodel")
-        pickled.SetData(cPickle.dumps(part))
+        pickled.SetData(cPickle.dumps(textmodel))
         data = wx.DataObjectComposite()
         data.Add(plain)
         data.Add(pickled)
@@ -116,11 +112,7 @@ class WXTextView(wx.ScrolledWindow, TextView):
         wx.TheClipboard.SetData(data)
         wx.TheClipboard.Close()
 
-    def paste(self):
-        if self.has_selection():
-            for s1, s2 in self.get_selected():
-                self.model.remove(s1, s2)
-                self.index = s1
+    def read_clipboard(self):
         if wx.TheClipboard.IsOpened():  # may crash, otherwise
             return
         pickled = wx.CustomDataObject("pytextmodel")
@@ -134,15 +126,8 @@ class WXTextView(wx.ScrolledWindow, TextView):
             textmodel = self._TextModel(plain.GetText())
 
         wx.TheClipboard.Close()
-        if textmodel is not None:
-            self.insert(self.index, textmodel)
+        return textmodel
 
-    def cut(self):
-        if self.has_selection():
-            self.copy()
-            for s1, s2 in self.get_selected():
-                self.remove(s1, s2)
-         
     def on_paint(self, event):
         self._update_scroll()
         self.keep_cursor_on_screen()
