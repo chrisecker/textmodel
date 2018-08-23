@@ -99,6 +99,17 @@ class Frame(ChildBox):
 
 
 
+def draw_bracket(x, y, h, dc):
+    dc.SetPen(wx.Pen("darkblue", 1))
+    dc.DrawLines([
+        (x+10, y),
+        (x+6, y),
+        (x+6, y+h-8),
+        (x+10, y+h-8),
+    ])
+        
+
+
 class TextCellBox(VBox):
     text = property(lambda s:s.childs[0])
     def __init__(self, textbox, device=None):
@@ -177,6 +188,10 @@ class TextCellBox(VBox):
         h = self.height
         return Rect(x0, y0+h, sepwidth, y0+h+2)
 
+    def draw(self, x, y, dc, styler):
+        draw_bracket(x, y, self.height, dc)
+        VBox.draw(self, x, y, dc, styler)
+
 
 
 class ScriptingCellBox(VBox):
@@ -250,9 +265,11 @@ class ScriptingCellBox(VBox):
         return extend_range_seperated(self, i1, i2)
 
     def draw(self, x, y, dc, styler):
+        draw_bracket(x, y, self.height, dc)
         a, b = list(self.iter_boxes(0, x, y))
         promptstyle = self.promptstyle
         styler.set_style(promptstyle)
+        
         n = self.number or ''
         w1 = self.device.measure('Out', promptstyle)[0]
         w2 = self.device.measure('Out [%s]:' % n, promptstyle)[0]
@@ -1019,13 +1036,17 @@ class NBView(_WXTextView):
     def insert_textcell(self):
         "Insert text cell"
         cell = TextCell(NULL_TEXEL)
-        self.insert(self.index, mk_textmodel(cell))
+        i = self.index
+        self.insert(i, mk_textmodel(cell))
+        self.index = i+1
 
     @logged
     def insert_pycell(self):
         "Insert python cell"
         cell = ScriptingCell(NULL_TEXEL, NULL_TEXEL)
-        self.insert(self.index, mk_textmodel(cell))
+        i = self.index
+        self.insert(i, mk_textmodel(cell))
+        self.index = i+1
 
     set_index = logged(_WXTextView.set_index)
     set_selection = logged(_WXTextView.set_selection)
