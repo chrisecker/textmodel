@@ -133,6 +133,8 @@ def test_library(modulname, silent=False, profile=False, names=()):
 
 
 import sys
+sys.path.append("etc/") # path to contract module, needed for
+                        # debugging
 
 profile = False
 silent = False
