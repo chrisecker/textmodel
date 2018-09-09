@@ -59,7 +59,7 @@ class Single(Texel):
         return clone
 
     def __setstate__(self, state):
-        self.__dict__ = state
+        self.__dict__ = state.copy()
         self.style = as_style(self.style)
 
 
@@ -74,7 +74,7 @@ class Text(Texel):
         return "T(%s)" % repr(self.text)
 
     def __setstate__(self, state):
-        self.__dict__ = state
+        self.__dict__ = state.copy()
         self.style = as_style(self.style)
 
 T = Text
@@ -96,7 +96,11 @@ class Group(_TexelWithChilds):
         sum)
 
     def __init__(self, childs):
-        self.childs = childs
+        # NOTE: childs are assumed to be lists and not to change!
+        # Since violations of these requirements can lead to difficult
+        # to find bugs, we are making a copy of the list here,
+        # although strictly this should not be necessary.
+        self.childs = list(childs[:])
         self.compute_weights()
 
     def __repr__(self):
@@ -114,7 +118,7 @@ class Container(_TexelWithChilds):
         
     def set_childs(self, childs):
         clone = shallow_copy(self)
-        clone.childs = childs
+        clone.childs = list(childs[:])
         clone.compute_weights()
         return clone
 
