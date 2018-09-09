@@ -31,7 +31,8 @@ import weakref
 
 
 sepwidth = 20000 # a number which is just larger than the textwidth
-wleft = 80 # width of left column
+wleft = None # width of left column, is set from NBView
+scalefactor = None # set from NBView
 tempstyle = dict(textcolor='blue', temp=True)
 
 
@@ -100,7 +101,7 @@ class Frame(ChildBox):
 
 
 def draw_bracket(x, y, h, dc):
-    dc.SetPen(wx.Pen("darkblue", 1))
+    dc.SetPen(wx.Pen("darkblue", 1*scalefactor))
     dc.DrawLines([
         (x+10, y),
         (x+6, y),
@@ -721,20 +722,33 @@ def logged(f):
 class NBView(_WXTextView):
     temp_range = (0, 0)
     ScriptingCell = ScriptingCell
-    _maxw = 600
+    _maxw = 0 # will be set later
     _logfile = None
     def __init__(self, parent, id=-1,
                  pos=wx.DefaultPosition, size=wx.DefaultSize, style=0, 
                  resize=False, filename=None, maxw=None, logfile=None):
         if logfile:
             self._logfile = logfile
-
-        if maxw is not None:
-            self._maxw = maxw
-        self.do_resize = resize
         self.init_clients()
+        self.do_resize = resize
         _WXTextView.__init__(self, parent, id=id, pos=pos, size=size,
                              style=style)
+
+        # XXX Hackish method to set a width wihich scales with dpi        
+        global wleft
+        if wleft is None:
+            wleft = 8*self.Font.GetPixelSize()[0]
+
+        global scalefactor
+        if scalefactor is None:
+            font = wx.Font(9, wx.NORMAL, wx.NORMAL, wx.NORMAL)
+            scalefactor = font.GetPixelSize()[0]/(1.0*font.GetPointSize())
+
+        if maxw is None:
+            self._maxw = self.Font.GetPixelSize()[0]*60
+        else:
+            self._maxw = maxw
+
         if filename is not None:
             self._load(filename)
         self.actions[(wx.WXK_TAB, False, False)] = 'complete'
@@ -786,7 +800,7 @@ class NBView(_WXTextView):
             return
         self._resize_pending = True
         wx.CallAfter(self._adjust_size)
-        
+    
     def _adjust_size(self):
         self._resize_pending = False
         maxw = self._new_size[0]
