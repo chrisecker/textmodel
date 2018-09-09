@@ -223,7 +223,7 @@ def set_parstyles(texel, i, iterator):
                 r3.append(child)
             else:
                 r2.append(grouped(set_parstyles(child, i-j1, iterator)))
-        assert len(r2) == 1
+        assert len(r2) >= 1
         return [texel.set_childs(r1+r2+r3)]
     assert False
 
