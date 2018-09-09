@@ -48,7 +48,7 @@ class Frame(ChildBox):
         ChildBox.__init__(self, childs, device)
 
     def from_childs(self, childs):
-        return Frame(childs, fillcolor, linecolor, border, device)
+        return Frame(childs, fillcolor, linecolor, border, self.device)
 
     def iter_boxes(self, i, x, y):
         border = self.border
@@ -618,8 +618,8 @@ class Builder(BuilderBase):
 
         cell = ScriptingCellBox(
             Frame([inbox], border=border, fillcolor=inbackground,
-                  linecolor=inline), 
-            Frame([outbox], border=border), 
+                  linecolor=inline, device=self.device), 
+            Frame([outbox], border=border, device=self.device), 
             number=texel.number,
             device=self.device)
         return [cell]
@@ -665,7 +665,8 @@ class Builder(BuilderBase):
         if vgroup.length:
             # Put a frame around the cells so that there is empty
             # space at the top and at the bottom.
-            self._layout = Frame([vgroup], border=(0, 10, 0, 10))
+            self._layout = Frame([vgroup], border=(0, 10, 0, 10),
+                                 device=self.device)
         else:
             # Here we avoid VGroup(...) because I don't like how it
             # draws the caret. Might be a bug!??

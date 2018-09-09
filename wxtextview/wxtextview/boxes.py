@@ -83,7 +83,7 @@ class Box:
                      # non groups
     @staticmethod
     def create_group(l):
-        return SimpleGroupBox(l)
+        return SimpleGroupBox(l, device=self.device)
 
     def __len__(self):
         raise NotImplementedError()
