@@ -67,6 +67,7 @@ register(nbtexels.TextCell)
 register(nbtexels.ScriptingCell)
 register(nbtexels.BitmapRGB)
 register(nbtexels.BitmapRGBA)
+register(nbtexels.Graphics)
 
 
 def test_00():
