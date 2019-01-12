@@ -32,7 +32,8 @@ import weakref
 
 sepwidth = 20000 # a number which is just larger than the textwidth
 wleft = None # width of left column, is set from NBView
-scalefactor = None # set from NBView
+scalefactor = None # scale line widths on HDPI-Displays, is set from
+                   # NBView
 tempstyle = dict(textcolor='blue', temp=True)
 
 
@@ -734,18 +735,20 @@ class NBView(_WXTextView):
         _WXTextView.__init__(self, parent, id=id, pos=pos, size=size,
                              style=style)
 
-        # XXX Hackish method to set a width wihich scales with dpi        
+        # XXX Hackish method to set a width which scales with dpi
         global wleft
-        if wleft is None:
-            wleft = 8*self.Font.GetPixelSize()[0]
-
         global scalefactor
-        if scalefactor is None:
-            font = wx.Font(9, wx.NORMAL, wx.NORMAL, wx.NORMAL)
-            scalefactor = font.GetPixelSize()[0]/(1.0*font.GetPointSize())
-
+        if wleft is None:
+            dc = wx.ScreenDC()
+            dc.SetFont(self.Font)
+            scalefactor = dc.CharWidth / float(dc.Font.GetPointSize())
+            wleft = dc.GetTextExtent("123456789012345")[0]
+            
         if maxw is None:
-            self._maxw = self.Font.GetPixelSize()[0]*60
+            dc = wx.ScreenDC()
+            dc.SetFont(self.Font)
+            self._maxw = dc.GetTextExtent("123456789012345")[0]*8
+            #dc.CharWidth*40
         else:
             self._maxw = maxw
 
