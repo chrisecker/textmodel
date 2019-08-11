@@ -734,7 +734,7 @@ class NBView(_WXTextView):
         self.do_resize = resize
         _WXTextView.__init__(self, parent, id=id, pos=pos, size=size,
                              style=style)
-
+        
         # XXX Hackish method to set a width which scales with dpi
         global wleft
         global scalefactor
@@ -747,10 +747,8 @@ class NBView(_WXTextView):
         if maxw is None:
             dc = wx.ScreenDC()
             dc.SetFont(self.Font)
-            self._maxw = dc.GetTextExtent("123456789012345")[0]*8
-            #dc.CharWidth*40
-        else:
-            self._maxw = maxw
+            maxw = dc.GetTextExtent("123456789012345")[0]*8
+        self.maxw = maxw # note that this will also set builder.maxw
 
         if filename is not None:
             self._load(filename)
