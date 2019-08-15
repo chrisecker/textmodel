@@ -479,14 +479,14 @@ def takeout(texel, i1, i2):
         for j1, j2, child in iter_childs(texel):
             if j2 <= i1:
                 r1.append(child)
-            elif i1 <= j1 <= j2 <= i2:
-                k2.append(child)
             elif j1 <= i1 <= j2:
                 r, k = takeout(child, max(i1-j1, 0), min(i2-j1, length(child)))
                 r2.extend(r)
                 k1.extend(k)
+            elif i1 <= j1 <= j2 <= i2:
+                k2.append(child)
             elif j1 <= i2 <= j2:
-                r, k = takeout(child, max(i1-j1, 0), min(i2-j1, length(child)))
+                k, r = takeout(child, max(i1-j1, 0), min(i2-j1, length(child)))
                 r3.extend(r)
                 k3.extend(k)
             elif i2 <= j1:
@@ -979,6 +979,25 @@ def test_07():
 
 
 def test_08():
+    "takeout"
+    s1 = as_style(dict(color='red'))
+    s2 = as_style(dict(color='blue'))
+    t1 = T("0123456789", style=s1)
+    t2 = T("ABC", style=s2)
+    g = G((t1, t2))
+    r, k = takeout(g, 5, 12)    
+    assert get_text(grouped(r)) == "01234AB"
+    assert get_text(grouped(k)) == "56789C"
+
+    t1 = T("0123456789")
+    t2 = T("ABC")
+    g = G((t1, t2))    
+    r, k = takeout(g, 5, 12)
+    assert get_pieces(grouped(r)) == ['01234AB']
+    assert get_text(grouped(k)) == "56789C"
+
+    
+def test_09():
     "pickle"
     s1 = as_style(dict(color='red'))
     s2 = as_style(dict(color='blue'))
@@ -997,4 +1016,3 @@ def test_08():
     assert t2.style is t2_.style
     assert t1.text == t1_.text    
     assert t2.text == t2_.text    
-    
