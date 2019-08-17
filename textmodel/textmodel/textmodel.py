@@ -257,6 +257,7 @@ class TextModel(Model):
         rest, removed = takeout(self.texel, i1, i2)
         model = self.create_textmodel()
         model.texel = grouped(removed)
+        assert len(model) == i2-i1
         return model
 
     def __add__(self, other):
@@ -290,14 +291,18 @@ class TextModel(Model):
         row1, col1 = self.index2position(i1)
         row2, col2 = self.index2position(i2)
 
+        n = len(self)
         rest, kern = takeout(self.texel, i1, i2)
         self.texel = grouped(rest)
 
         model = self.create_textmodel()
         model.texel = grouped(kern)
 
-        self.notify_views('removed', i1, model)
+        assert len(model) == i2-i1
+        assert n-len(self) == i2-i1
         #assert check(self.texel)
+        
+        self.notify_views('removed', i1, model)
         return model
 
 
