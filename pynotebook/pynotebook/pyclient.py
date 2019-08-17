@@ -1,5 +1,7 @@
 # -*- coding: latin-1 -*-
 
+from __future__ import absolute_import
+from __future__ import print_function
 from .clients import Client, Aborted
 from .nbstream import StreamRecorder
 from .textmodel.textmodel import TextModel
@@ -13,6 +15,7 @@ import rlcompleter
 import types
 import token, tokenize, keyword
 import io
+import six
 
 
 debug = 0
@@ -81,7 +84,9 @@ def pycolorize(texel, styles=None, bgcolor='#FFFFFF'):
             self.l.extend([x for x in join(t, NL) if length(x)])
             self.ai = i
             
-        def __call__(self, toktype, toktext, (srow,scol), (erow,ecol), line):
+        def __call__(self, toktype, toktext, xxx_todo_changeme, xxx_todo_changeme1, line):
+            (srow,scol) = xxx_todo_changeme
+            (erow,ecol) = xxx_todo_changeme1
             if token.LPAR <= toktype and toktype <= token.OP:
                 toktype = token.OP
             elif toktype == token.NAME and keyword.iskeyword(toktext):
@@ -219,7 +224,7 @@ def displayhook(o):
                 if is_expression:
                     sys.displayhook(self.ans)
                 ok = True
-            except Exception, e:
+            except Exception as e:
                 self.show_traceback(name)
         finally:
             # restore global values
@@ -253,10 +258,10 @@ def displayhook(o):
         sys.stderr.write(''.join(info))
 
     def show_traceback(self, filename):
-        if type(sys.exc_value) == types.InstanceType:
+        if type(sys.exc_info()[1]) == types.InstanceType:
             args = sys.exc_value.args
         else:
-            args = sys.exc_value
+            args = sys.exc_info()[1]
 
         traceback.print_tb(sys.exc_traceback.tb_next, None)
         self.show_syntaxerror(filename)  
@@ -291,17 +296,17 @@ def displayhook(o):
         try:
             assert length(colorized) == length(inputtexel)
         except:
-            print "colorized:"
+            print("colorized:")
             dump(colorized)
-            print "input"
+            print("input")
             dump(inputtexel)
             return inputtexel
         return colorized
 
     def help(self, word):
-        import __builtin__
+        import six.moves.builtins
         ns = {}
-        ns.update(__builtin__.__dict__)
+        ns.update(six.moves.builtins.__dict__)
         ns.update(self.namespace)        
         try:
             obj = locate(word, ns)
@@ -310,9 +315,9 @@ def displayhook(o):
         import pydoc
         try:
             return pydoc.plain(pydoc.render_doc(obj, "Help on %s"))
-        except Exception, e:
+        except Exception as e:
             try:
-                return unicode(e)
+                return six.text_type(e)
             except UnicodeDecodeError:
                 return str(e)
 
@@ -323,13 +328,13 @@ def locate(path, ns):
     try:
         obj = ns[parts[0]]
     except KeyError:
-        raise NameError, path
+        raise NameError(path)
 
     for part in parts[1:]:
         try:
             obj = getattr(obj, part)
         except AttributeError:
-            raise NameError, path
+            raise NameError(path)
     return obj
 
 
@@ -342,8 +347,8 @@ def test_00():
 
     stream = StreamRecorder()
     client._execute("12+2", stream.output)
-    print "ans=", repr(client.ans)
-    print stream.messages
+    print("ans=", repr(client.ans))
+    print(stream.messages)
     
     assert client.ans == 14
     assert stream.messages == [(14, False)]

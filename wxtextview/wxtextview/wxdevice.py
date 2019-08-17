@@ -1,5 +1,6 @@
 # -*- coding: latin-1 -*-
 
+from __future__ import absolute_import
 import wx
 
 
@@ -27,6 +28,15 @@ def invert_rect_INV(self, x, y, w, h, dc):
     dc.DrawRectangle(x, y, w, h)
 
 
+def invert_rect_TRANSP(self, x, y, w, h, dc):
+    # wx phoenix does not seem to support xor or invert. As an
+    # alternative we draw a semitransparent green Box above the rect.
+    brush = wx.Brush((0, 100, 0, 100), style=wx.BRUSHSTYLE_SOLID)
+    dc.SetBrush(brush)
+    dc.SetPen(wx.TRANSPARENT_PEN)
+    dc.DrawRectangle(x, y, w, h)
+
+            
 def invert_rect_BLIT(self, x, y, w, h, dc):
     dc.Blit(x, y, w, h, dc, x, y, wx.SRC_INVERT)
 
@@ -148,8 +158,10 @@ class WxDevice:
         measure_parts = measure_parts_win
         buffering = True
     elif "gtk" in wx.version():
-        invert_rect = invert_rect_BLIT
+
+        #invert_rect = invert_rect_BLIT
         #invert_rect = invert_rect_INV
+        invert_rect = invert_rect_TRANSP # on phoenix + gtk
         measure = measure_gtk
         measure_parts = measure_parts_gtk
         buffering = True

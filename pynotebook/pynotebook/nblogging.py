@@ -4,6 +4,7 @@
 # the user enters. Logging is ment for debugging. It will be removed
 # once all errors are fixed :-)
 
+from __future__ import absolute_import
 import os
 from tempfile import mkdtemp
 
@@ -28,15 +29,15 @@ def get_log(object):
 
 
 def write_log(filename, object):
-    import cPickle
+    import six.moves.cPickle
     f = open(filename, 'wb')
     l = list(get_log(object))
-    cPickle.dump(l, f)
+    six.moves.cPickle.dump(l, f)
     
 
 def load_log(filename):
-    import cPickle
-    return cPickle.load(open(filename, 'rb'))
+    import six.moves.cPickle
+    return six.moves.cPickle.load(open(filename, 'rb'))
     
 
 class TemporaryDirectory(object):

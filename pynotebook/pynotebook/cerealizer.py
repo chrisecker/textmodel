@@ -116,6 +116,10 @@ same file, or a raw value (e.g. an integer).
  -    None             is saved by      'n'
 """
 
+from __future__ import absolute_import
+from __future__ import print_function
+import six
+from six.moves import range
 __all__ = ["load", "dump", "loads", "dumps", "freeze_configuration", "register"]
 VERSION = "0.6"
 import logging
@@ -125,9 +129,9 @@ logger = logging.getLogger("cerealizer")
 from cStringIO import StringIO
 from new       import instance
 
-class EndOfFile(StandardError): pass
-class NotCerealizerFileError(StandardError): pass
-class NonCerealizableObjectError(StandardError): pass
+class EndOfFile(Exception): pass
+class NotCerealizerFileError(Exception): pass
+class NonCerealizableObjectError(Exception): pass
 
 def _priority_sorter(a, b): return cmp(a[0], b[0])
 
@@ -208,7 +212,7 @@ Reads a reference from file S."""
     elif c == "r": return self.id2obj[int(s.readline())]
     elif c == "n": return None
     elif c == "b": return bool(int(s.read(1)))
-    elif c == "l": return long(s.readline())
+    elif c == "l": return int(s.readline())
     elif c == "c": return complex(s.readline())
     raise ValueError("Unknown ref code '%s'!" % c)
     
@@ -359,13 +363,13 @@ class DictHandler(Handler):
   classname = "dict\n"
   def collect(self, obj, dumper):
     if Handler.collect(self, obj, dumper):
-      for i in obj.iterkeys  (): dumper.collect(i) # Collect is not ordered
-      for i in obj.itervalues(): dumper.collect(i)
+      for i in six.iterkeys(obj): dumper.collect(i) # Collect is not ordered
+      for i in six.itervalues(obj): dumper.collect(i)
       return 1
     
   def dump_data(self, obj, dumper, s):
     s.write("%s\n" % len(obj))
-    for k, v in obj.iteritems():
+    for k, v in six.iteritems(obj):
       _HANDLERS_[v.__class__].dump_ref(v, dumper, s) # Value is saved fist
       _HANDLERS_[k.__class__].dump_ref(k, dumper, s)
       
@@ -511,16 +515,16 @@ have to write a custom Handler or a __getstate__ and __setstate__ pair).
 
 CLASSNAME is the classname used in Cerealizer files. It defaults to the full classname (module.class)
 but you may choose something shorter -- as long as there is no risk of name clash."""
-  if not _configurable: raise StandardError("Cannot register new classes after freeze_configuration has been called!")
+  if not _configurable: raise Exception("Cannot register new classes after freeze_configuration has been called!")
   if "\n" in classname: raise ValueError("CLASSNAME cannot have \\n (Cerealizer automatically add a trailing \\n for performance reason)!")
   if not handler:
     if   hasattr(Class, "__getnewargs__" ): handler = NewArgsObjHandler (Class, classname)
     elif hasattr(Class, "__getinitargs__"): handler = InitArgsObjHandler(Class, classname)
     elif hasattr(Class, "__slots__"      ): handler = SlotedObjHandler  (Class, classname)
     else:                                   handler = ObjHandler        (Class, classname)
-  if _HANDLERS_.has_key(Class): raise ValueError("Class %s has already been registred!" % Class)
+  if Class in _HANDLERS_: raise ValueError("Class %s has already been registred!" % Class)
   if not isinstance(handler, RefHandler):
-    if _HANDLERS .has_key(handler.classname): raise ValueError("A class has already been registred under the name %s!" % handler.classname[:-1])
+    if handler.classname in _HANDLERS: raise ValueError("A class has already been registred under the name %s!" % handler.classname[:-1])
     _HANDLERS [handler.classname] = handler
     if handler.__class__ is ObjHandler:
       logger.info("Registring class %s as '%s'" % (Class, handler.classname[:-1]))
@@ -546,7 +550,7 @@ and you'll be able to open old files containing OldClass serialized."""
   handler = _HANDLERS_.get(Class)
   if not handler:
     raise ValueError("Cannot register alias '%s' to Class %s: the class is not yet registred!" % (alias, Class))
-  if _HANDLERS.has_key(alias):
+  if alias in _HANDLERS:
     raise ValueError("Cannot register alias '%s' to Class %s: another class is already registred under the alias name!" % (alias, Class))
   logger.info("Registring alias '%s' for %s" % (alias, Class))
   _HANDLERS[alias + "\n"] = handler
@@ -565,10 +569,10 @@ unexpected calls to register()."""
   
 register(type(None), NoneHandler     ())
 register(str       , StrHandler      ())
-register(unicode   , UnicodeHandler  ())
+register(six.text_type   , UnicodeHandler  ())
 register(bool      , BoolHandler     ())
 register(int       , IntHandler      ())
-register(long      , LongHandler     ())
+register(int      , LongHandler     ())
 register(float     , FloatHandler    ())
 register(complex   , ComplexHandler  ())
 register(dict      , DictHandler     ())
@@ -618,5 +622,5 @@ Utility function; for each classes found in the given module, print the needed c
   s = set([c for module in modules for c in module.__dict__.values() if isinstance(c, type(D)) or  isinstance(c, type(O))])
   l = ['cerealizer.register(%s.%s)' % (c.__module__, c.__name__) for c in s]
   l.sort()
-  for i in l: print i
+  for i in l: print(i)
   

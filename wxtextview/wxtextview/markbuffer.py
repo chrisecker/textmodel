@@ -42,6 +42,9 @@
 #
 
 
+from __future__ import absolute_import
+from __future__ import print_function
+from six.moves import range
 class Mark:
     parent = None
     def __init__(self, label, n=0):
@@ -76,9 +79,9 @@ def depth(tree):
 
 def dump(tree, i0=0, d=0):
     if isinstance(tree, Mark):
-        print "    "*d, i0+tree.n, tree.label
+        print("    "*d, i0+tree.n, tree.label)
     elif isinstance(tree, Group):
-        print "    "*d, i0, "Group"
+        print("    "*d, i0, "Group")
         for c in tree.childs:
             dump(c, i0, d+1)
             i0 += c.n

@@ -1,13 +1,17 @@
 # -*- coding: latin-1 -*-
 
 
+from __future__ import absolute_import
 from .textmodel.textmodel import TextModel, dump_range
 from .textmodel.texeltree import Texel, T, G, NL, Container, Single, \
     iter_childs, dump, NULL_TEXEL, length, grouped, copy
 
 import wx
-import StringIO
 import base64    
+try:
+    from StringIO import StringIO
+except ImportError:
+    from io import StringIO
 
 
 
@@ -33,7 +37,7 @@ class TextCell(Cell):
 
 class ScriptingCell(Cell):
 
-    client_name = 'direct python'
+    client_name = 'python'
 
     input = property(lambda s:s.childs[1])
     output = property(lambda s:s.childs[3])
@@ -106,7 +110,7 @@ def _bitmap_saver(bitmap):
     im = wx.ImageFromData(w, h, bitmap.data)
     if isinstance(bitmap, BitmapRGBA):
         im.SetAlphaBuffer(bitmap.alpha)
-    output = StringIO.StringIO()
+    output = StringIO()
     im.SaveStream(output, wx.BITMAP_TYPE_PNG)
 
     r = base64.b64encode(output.getvalue())
@@ -116,7 +120,7 @@ def _bitmap_saver(bitmap):
 
 def _bitmap_loader(data):
     pngdata = base64.b64decode(data)
-    stream = StringIO.StringIO(pngdata)
+    stream = StringIO(pngdata)
     image = wx.ImageFromStream(stream, type=wx.BITMAP_TYPE_ANY)
     return (image.Width, image.Height), image.Data, image.AlphaData
 

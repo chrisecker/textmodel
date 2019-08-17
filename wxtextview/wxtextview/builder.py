@@ -1,6 +1,7 @@
 # -*- coding: latin-1 -*-
 
 
+from __future__ import print_function
 from ..textmodel import texeltree
 from ..textmodel.textmodel import TextModel
 from ..textmodel.texeltree import NewLine, Group, Text, length
@@ -58,7 +59,7 @@ class Factory:
         try:
             assert calc_length(l) == i2-i1
         except:
-            print "handler=", handler
+            print("handler=", handler)
             raise
         return tuple(l)
         

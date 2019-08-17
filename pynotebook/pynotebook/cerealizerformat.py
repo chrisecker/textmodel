@@ -5,6 +5,7 @@
 # A simple file format based on cerealizer. This is basically a secure
 # form of pickling. Is meant to be used during development.
 
+from __future__ import absolute_import
 from . import nbtexels
 from .textmodel import textmodel
 from .textmodel import texeltree, styles

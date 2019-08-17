@@ -1,6 +1,8 @@
 # -*- coding: latin-1 -*-
 
 
+from __future__ import absolute_import
+from __future__ import print_function
 from .textmodel import texeltree
 from .textmodel.textmodel import TextModel
 from .textmodel.styles import create_style, updated_style, EMPTYSTYLE
@@ -421,11 +423,11 @@ class GraphicsBox(Box):
 
         try:
             draw(texel.items)
-        except Exception, e:
+        except Exception as e:
             dc.SetBrush(wx.RED_BRUSH)
             dc.SetPen(wx.RED_PEN)
             dc.DrawRectangle(x, y, self.width, self.height)
-            print >>sys.stderr, e
+            print(e, file=sys.stderr)
         draw = None
         
     def get_index(self, x, y):
@@ -523,7 +525,7 @@ class Builder(BuilderBase):
         try:
             assert calc_length(l) == length(texel)
         except:
-            print "handler=", handler
+            print("handler=", handler)
             raise
         return tuple(l)
 
@@ -760,7 +762,7 @@ class NBView(_WXTextView):
   
     def _load(self, filename):
         s = open(filename, 'rb').read()
-        import cerealizerformat        
+        from . import cerealizerformat        
         model = cerealizerformat.loads(s)
         reset_numbers(model.texel)
         self.set_model(model)
@@ -772,7 +774,7 @@ class NBView(_WXTextView):
         _WXTextView.set_model(self, model)
 
     def save(self, filename):        
-        import cerealizerformat
+        from . import cerealizerformat
         s = cerealizerformat.dumps(self.model)
         open(filename, 'wb').write(s)
 
@@ -1075,15 +1077,15 @@ class NBView(_WXTextView):
     def log(self, descr, args, kwds):
         if self._logfile is None: 
             return
-        import cPickle
-        s = cPickle.dumps((descr, args, kwds))
+        import six.moves.cPickle
+        s = six.moves.cPickle.dumps((descr, args, kwds))
         f = open(self._logfile, 'ab')
         f.write("%i\n" % len(s))
         f.write(s)
         f.close()
 
     def load_log(self, filename):
-        import cPickle
+        import six.moves.cPickle
         log = []
         f = open(filename, 'rb')
         while 1:
@@ -1092,7 +1094,7 @@ class NBView(_WXTextView):
                 break
             n = int(l)
             s = f.read(n)
-            name, args, kwds = cPickle.loads(s)
+            name, args, kwds = six.moves.cPickle.loads(s)
             log.append((name, args, kwds))
         return log
                 

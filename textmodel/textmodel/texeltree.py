@@ -470,26 +470,26 @@ def takeout(texel, i1, i2):
     if i1 <= 0 and i2 >= length(texel): # 3. fully contained
         return [], strip2list(texel)
 
-    # Note that singles always fall under case 2 or 3. Beyond this
+    # Note that singles always fall under case 2 or 3. Beyond ths
     # point we only have G, C or T.
 
     if texel.is_group:
         r1 = []; r2 = []; r3 = []; r4 = []
         k1 = []; k2 = []; k3 = []
         for j1, j2, child in iter_childs(texel):
-            if j2 <= i1: #1
+            if j2 <= i1:
                 r1.append(child)
-            elif i1 <= j1 <= j2 <= i2: #2
-                k2.append(child)
-            elif j1 <= i1 <= j2: #3
+            elif j1 <= i1 <= j2:
                 r, k = takeout(child, max(i1-j1, 0), min(i2-j1, length(child)))
                 r2.extend(r)
                 k1.extend(k)
-            elif j1 <= i2 <= j2: #4
-                r, k = takeout(child, max(i1-j1, 0), min(i2-j1, length(child)))
+            elif i1 <= j1 <= j2 <= i2:
+                k2.append(child)
+            elif j1 <= i2 <= j2:
+                k, r = takeout(child, max(i1-j1, 0), min(i2-j1, length(child)))
                 r3.extend(r)
                 k3.extend(k)
-            elif i2 <= j1: #5
+            elif i2 <= j1:
                 r4.append(child)
         # Note that we are returning a list of elements which have
         # been in the content before. So even if texel is only root
@@ -986,37 +986,15 @@ def test_08():
     t2 = T("ABC", style=s2)
     g = G((t1, t2))
     r, k = takeout(g, 5, 12)    
-    assert get_text(grouped(r)) == "01234C"
-    assert get_text(grouped(k)) == "56789AB"
+    assert get_text(grouped(r)) == "01234AB"
+    assert get_text(grouped(k)) == "56789C"
 
     t1 = T("0123456789")
     t2 = T("ABC")
     g = G((t1, t2))    
     r, k = takeout(g, 5, 12)
-    assert get_pieces(grouped(r)) == ['01234C']
-    assert get_text(grouped(k)) == "56789AB"
-
-    t1 = T("0123456789")
-    t2 = T("ABCDEFGHIJ")
-    g = G((t1, t2))
-    t = get_text(g)
-    for i in range(20):
-        for j in range(i, 20):
-            r, k = takeout(g, i, j)
-            assert get_text(grouped(r)) == t[:i]+t[j:]
-            assert get_text(grouped(k)) == t[i:j]
-
-    t1 = T("0123456789")
-    t2 = T("ABCDEFGHIJ")
-    t3 = T("klmnopqrst")
-    t4 = T("UVWXYZ,.-*")
-    g = G((t1, t2, t3, t4))
-    t = get_text(g)
-    for i in range(len(t)):
-        for j in range(i, len(t)):
-            r, k = takeout(g, i, j)
-            assert get_text(grouped(r)) == t[:i]+t[j:]
-            assert get_text(grouped(k)) == t[i:j]
+    assert get_pieces(grouped(r)) == ['01234AB']
+    assert get_text(grouped(k)) == "56789C"
 
     
 def test_09():
@@ -1038,4 +1016,3 @@ def test_09():
     assert t2.style is t2_.style
     assert t1.text == t1_.text    
     assert t2.text == t2_.text    
-    

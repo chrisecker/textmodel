@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 from math import sqrt
 
 
@@ -27,7 +28,7 @@ class Rect:
         return self.x1, self.y1, self.x2, self.y2
 
     def __eq__(self, other):
-        return self.items() == other.items()
+        return list(self.items()) == list(other.items())
 
 
 def combine_rects(r1, r2):

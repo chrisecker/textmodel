@@ -22,6 +22,7 @@
 # - spline
 
 
+from __future__ import absolute_import
 import wx
 from .nbtexels import Graphics
 
@@ -123,7 +124,8 @@ class FillColor:
 
 
 class Dot: # remove this?
-    def __init__(self, (x, y)):
+    def __init__(self, xxx_todo_changeme):
+        (x, y) = xxx_todo_changeme
         self.x = x
         self.y = y
 
@@ -215,7 +217,8 @@ class Path:
 
     
 class Circle:
-    def __init__(self, (x, y), r):
+    def __init__(self, xxx_todo_changeme1, r):
+        (x, y) = xxx_todo_changeme1
         self.x = x
         self.y = y
         self.r = r
@@ -228,7 +231,8 @@ class Circle:
 
 
 class Ellipse:
-    def __init__(self, (x, y), r1, r2):
+    def __init__(self, xxx_todo_changeme2, r1, r2):
+        (x, y) = xxx_todo_changeme2
         self.x = x
         self.y = y
         self.r1 = r1
@@ -243,7 +247,8 @@ class Ellipse:
         
 
 class Arc:
-    def __init__(self, (x, y), r, start, end):
+    def __init__(self, xxx_todo_changeme3, r, start, end):
+        (x, y) = xxx_todo_changeme3
         self.x = x
         self.y = y
         self.r = r
@@ -260,7 +265,9 @@ class Arc:
 
 
 class Rectangle:
-    def __init__(self, (x1, y1), (x2, y2)):
+    def __init__(self, xxx_todo_changeme4, xxx_todo_changeme5):
+        (x1, y1) = xxx_todo_changeme4
+        (x2, y2) = xxx_todo_changeme5
         self.x1 = x1
         self.y1 = y1
         self.x2 = x2
@@ -360,10 +367,10 @@ class Scale:
 
 
 def register_classes():
-    from cerealizerformat import register
+    from .cerealizerformat import register
     import types
     for name, value in globals().items():
-        if type(value) is types.ClassType:
+        if type(value) is type:
             if hasattr(value, 'regname'):
                 register(value, classname=value.regname)
             else:

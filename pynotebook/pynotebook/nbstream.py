@@ -6,6 +6,7 @@
 
 from .textmodel import TextModel
 from .textmodel.texeltree import Texel
+import six
 
 
 class StreamBase:
@@ -40,10 +41,10 @@ class Stream(StreamBase):
                 properties = {'textcolor':'red'}
             else:
                 properties = {}
-            if isinstance(obj, unicode):
+            if isinstance(obj, six.text_type):
                 new = TextModel(obj, **properties)
             elif isinstance(obj, str):
-                u = unicode(obj, 'utf-8')
+                u = six.text_type(obj, 'utf-8')
                 new = TextModel(u, **properties)
             else:
                 new = TextModel(str(obj), **properties)

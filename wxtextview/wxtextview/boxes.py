@@ -1,9 +1,12 @@
 # -*- coding: latin-1 -*-
 
+from __future__ import absolute_import
+from __future__ import print_function
 from ..textmodel.texeltree import EMPTYSTYLE
 from .testdevice import TESTDEVICE
 from .rect import Rect
 from math import ceil
+from six.moves import range
 
 
 # Coordinates:
@@ -90,8 +93,8 @@ class Box:
 
     def dump_boxes(self, i, x, y, indent=0):
         """Print out a graphical representation of the tree."""
-        print " "*indent, "[%i:%i]" % (i, i+len(self)), x, y, 
-        print repr(self)[:100]
+        print(" "*indent, "[%i:%i]" % (i, i+len(self)), x, y, end=' ') 
+        print(repr(self)[:100])
         for j1, j2, x1, y1, child in self.iter_boxes(i, x, y):
             child.dump_boxes(j1, x1, y1, indent+4)
 
@@ -111,9 +114,9 @@ class Box:
         try:
             assert len(childs) == 0
         except:
-            print "box:"
+            print("box:")
             self.dump_boxes(0, 0, 0)
-            print "childs=", childs
+            print("childs=", childs)
             raise
         return [self]
 
@@ -155,7 +158,7 @@ class Box:
         x1 and y1 are the absolute positions of the child box.
         """
         if i<0 or i>len(self):
-            raise IndexError, i
+            raise IndexError(i)
         j1 = None # marker
         for j1, j2, x1, y1, child in self.riter_boxes(0, x0, y0):
             if j1 < i <= j2:
@@ -172,9 +175,9 @@ class Box:
         # empty. If two or more consecutive postions were empty, this
         # would mean that then we would have at least one position
         # without a responsible element.
-        print tuple(self.riter_boxes(0, x0, y0))
-        print j1, j2, i, child, child.can_leftappend()
-        raise Exception, (self, i, len(self))
+        print(tuple(self.riter_boxes(0, x0, y0)))
+        print(j1, j2, i, child, child.can_leftappend())
+        raise Exception(self, i, len(self))
 
     def draw(self, x, y, dc, styler):
         """Draws box and all child boxes at origin (x, y)."""
@@ -223,14 +226,14 @@ class Box:
             return child.get_cursorrect(i-j, x, y, style)
         else:
             m = self.device.measure('M', style)[1]
-            x1, y1, x2, y2 = self.get_rect(i, x0, y0).items()
+            x1, y1, x2, y2 = list(self.get_rect(i, x0, y0).items())
             return Rect(x1, y2-m, x1+2, y2)
 
     def get_index(self, x, y):
         """Returns the index which is closest to point (x, y). A return value
         of None means: no matching index position found!
         """
-        print self
+        print(self)
         raise NotImplemented # XXX
         l = [0 ,len(self)]
         for j1, j2, x1, y1, child in self.riter_boxes(0, 0, 0):
@@ -258,7 +261,7 @@ class Box:
 
         child, j, x1, y1 = self.responding_child(i, x0, y0)
         if child is None:
-            x, y = self.get_rect(i, x0, y0).items()[:2]
+            x, y = list(self.get_rect(i, x0, y0).items())[:2]
             return self, i, x, y
         return child.get_info(i-j, x1, y1)
 
@@ -292,8 +295,8 @@ class _TextBoxBase(Box):
         return self.device.measure_parts(text, self.style)
 
     def dump_boxes(self, i, x, y, indent=0):
-        print " "*indent, "[%i:%i]" % (i, i+len(self)), x, y, 
-        print self.__class__.__name__, repr(self.text)
+        print(" "*indent, "[%i:%i]" % (i, i+len(self)), x, y, end=' ') 
+        print(self.__class__.__name__, repr(self.text))
 
     ### Box-Protokoll
     def get_info(self, i, x0, y0):

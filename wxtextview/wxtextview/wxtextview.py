@@ -1,8 +1,9 @@
 # -*- coding: latin-1 -*-
 
 
+from __future__ import absolute_import
 import wx
-import cPickle
+import six.moves.cPickle
 import string
 
 from ..textmodel import TextModel
@@ -13,6 +14,8 @@ from .testdevice import TESTDEVICE
 from .simplelayout import Builder
 
 from math import ceil
+from six import unichr
+from six.moves import range
 
 
 
@@ -104,7 +107,7 @@ class WXTextView(wx.ScrolledWindow, TextView):
         plain = wx.TextDataObject()
         plain.SetText(text)
         pickled = wx.CustomDataObject("pytextmodel")
-        pickled.SetData(cPickle.dumps(textmodel))
+        pickled.SetData(six.moves.cPickle.dumps(textmodel))
         data = wx.DataObjectComposite()
         data.Add(plain)
         data.Add(pickled)
@@ -120,7 +123,7 @@ class WXTextView(wx.ScrolledWindow, TextView):
         textmodel = None
         wx.TheClipboard.Open()
         if wx.TheClipboard.GetData(pickled):            
-            textmodel = cPickle.loads(pickled.GetData())
+            textmodel = six.moves.cPickle.loads(pickled.GetData())
 
         elif wx.TheClipboard.GetData(plain):
             textmodel = self._TextModel(plain.GetText())
@@ -152,8 +155,9 @@ class WXTextView(wx.ScrolledWindow, TextView):
         x, y = self.CalcScrolledPosition((0,0)) 
         layout = self.layout
         layout.draw(x, y, dc, styler)
-        if wx.Window.FindFocus() is self: 
-            layout.draw_cursor(self.index, x, y, dc, self.model.defaultstyle)
+        
+        if wx.Window.FindFocus() is self:
+            layout.draw_cursor(self.index, x, y, dc, self.model.defaultstyle)            
         for j1, j2 in self.get_selected():
             layout.draw_selection(j1, j2, x, y, dc)
         styler = None
@@ -372,7 +376,7 @@ def test_14():
 def demo_00():
     "simple demo"
     ns = test_02()
-    import testing
+    from . import testing
     testing.pyshell(ns)    
     ns['app'].MainLoop()
 
@@ -411,7 +415,7 @@ def demo_02():
     model = TextModel(u'')
     view.set_model(model)
     frame.Show()
-    import testing
+    from . import testing
     testing.pyshell(locals())    
     app.MainLoop()
 
@@ -419,7 +423,7 @@ def demo_02():
 def demo_03():
     "line break"
     ns = test_09()
-    import testing
+    from . import testing
     testing.pyshell(ns)    
     ns['app'].MainLoop()
 
