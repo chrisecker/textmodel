@@ -145,7 +145,7 @@ class NewLine(Single):
         return clone
 
     def __setstate__(self, state):
-        self.__dict__ = state
+        self.__dict__ = state.copy()
         self.style = as_style(self.style)
         self.parstyle = as_style(self.parstyle)
 
@@ -1016,3 +1016,28 @@ def test_09():
     assert t2.style is t2_.style
     assert t1.text == t1_.text    
     assert t2.text == t2_.text    
+
+
+def test_10():
+    "set_style"
+    s1 = as_style(dict(color='red'))
+    s2 = as_style(dict(color='blue'))
+    t1 = T("012345678", style=s1)
+    t2 = t1.set_style(s2)
+    assert t1.style == dict(color='red')
+    assert t2.style == dict(color='blue')
+
+
+def test_11():
+    "set_parstyle"
+    s1 = as_style(dict(base='h1'))
+    s2 = as_style(dict(base='h2'))
+    nl1 = NL.set_parstyle(s1)
+    nl2 = NL.set_parstyle(s2)
+    print NL.parstyle
+    assert NL.parstyle == dict()
+    assert nl1.parstyle == dict(base='h1')
+    assert nl2.parstyle == dict(base='h2')
+
+
+
