@@ -950,7 +950,10 @@ class NBView(_WXTextView):
     @controlled
     def execute(self):
         self.clear_temp()
-        i0, cell = self.find_cell()
+        try:
+            i0, cell = self.find_cell()
+        except NotFound:
+            return
         if not isinstance(cell, ScriptingCell):
             self.index = i0+length(cell)
             return
