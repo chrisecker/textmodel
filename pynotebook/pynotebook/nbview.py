@@ -21,7 +21,7 @@ from .nbtexels import Cell, ScriptingCell, TextCell, Graphics, find_cell, \
 from .clients import ClientPool
 from .pyclient import PythonClient
 from .nbstream import Stream, StreamRecorder
-from .nblogging import logged
+from .controlled import controlled
 import string
 import wx
 import sys
@@ -713,12 +713,6 @@ def strip_cells(texel):
     return [texel]
 
 
-def logged(f):
-    def new_f(nbview, *args, **kwds):
-        nbview.log(f.__name__, args, kwds)
-        return f(nbview, *args, **kwds)
-    return new_f
-
 
 class NBView(_WXTextView):
     temp_range = (0, 0)
@@ -765,7 +759,7 @@ class NBView(_WXTextView):
         reset_numbers(model.texel)
         self.set_model(model)
 
-    @logged
+    @controlled
     def set_model(self, model):
         # Only meant to be called on fresh NBViews. Therefore we do
         # not reset cursor, selection etc.
@@ -953,7 +947,7 @@ class NBView(_WXTextView):
     def find_cell(self):
         return find_cell(self.model.texel, self.index)
 
-    @logged
+    @controlled
     def execute(self):
         self.clear_temp()
         i0, cell = self.find_cell()
@@ -985,7 +979,7 @@ class NBView(_WXTextView):
                 break
             self.execute()
 
-    @logged
+    @controlled
     def reset_interpreter(self):
         self.init_clients()
 
@@ -1026,11 +1020,11 @@ class NBView(_WXTextView):
         self.clear_temp()
         _WXTextView.redo(self)
 
-    @logged
+    @controlled
     def remove_output(self):
         self.transform(strip_output)
 
-    @logged
+    @controlled
     def split_cell(self):
         i = self.index
         self.transform(lambda texel, i=i:split_cell(texel, i))
@@ -1048,7 +1042,7 @@ class NBView(_WXTextView):
 
     can_insert_textcell = can_insert_pycell = between_cells
 
-    @logged
+    @controlled
     def insert_textcell(self):
         "Insert text cell"
         cell = TextCell(NULL_TEXEL)
@@ -1056,7 +1050,7 @@ class NBView(_WXTextView):
         self.insert(i, mk_textmodel(cell))
         self.index = i+1
 
-    @logged
+    @controlled
     def insert_pycell(self):
         "Insert python cell"
         cell = ScriptingCell(NULL_TEXEL, NULL_TEXEL)
@@ -1064,8 +1058,8 @@ class NBView(_WXTextView):
         self.insert(i, mk_textmodel(cell))
         self.index = i+1
 
-    set_index = logged(_WXTextView.set_index)
-    set_selection = logged(_WXTextView.set_selection)
+    set_index = controlled(_WXTextView.set_index)
+    set_selection = controlled(_WXTextView.set_selection)
 
     ### Simple logging facility ###    
     # It allows to record and replay everything the user
