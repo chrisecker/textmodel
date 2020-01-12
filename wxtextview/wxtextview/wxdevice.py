@@ -30,7 +30,17 @@ def invert_rect_INV(self, x, y, w, h, dc):
 def invert_rect_BLIT(self, x, y, w, h, dc):
     dc.Blit(x, y, w, h, dc, x, y, wx.SRC_INVERT)
 
+    
+def invert_rect_FALLBACK(self, x, y, w, h, dc):
+    gcdc = wx.GCDC(dc)
+    r = g = 0
+    b = 128    
+    color = wx.Colour(r, g, b, 50)
+    gcdc.SetBrush(wx.Brush(color))
+    gcdc.SetPen(wx.TRANSPARENT_PEN)
+    gcdc.DrawRectangle(x, y, w, h)
 
+    
 def get_font(style):
     weight = {False : wx.FONTWEIGHT_NORMAL,
               True : wx.FONTWEIGHT_BOLD}[style.get('bold', False)]
@@ -62,6 +72,8 @@ def measure_win(self, text, style):
     style = filled(style)
     font = get_font(style)
     dc = wx.MemoryDC()
+    bmp = wx.EmptyBitmap(1,1)
+    dc.SelectObject(bmp)
     dc.SetFont(font)
     w, h = dc.GetTextExtent(text)
     _cache[key] = w, h
@@ -100,6 +112,8 @@ def measure_gtk(self, text, style):
     font = get_font(style)
     # GC returns wrong font metric values in gtk! We therefore use the DC.  
     dc = wx.MemoryDC()
+    bmp = wx.EmptyBitmap(1,1)
+    dc.SelectObject(bmp)
     dc.SetFont(font)
     w, h = dc.GetTextExtent(text)
     _cache[key] = w, h
@@ -114,6 +128,8 @@ def measure_parts_win(self, text, style):
     style = filled(style)
     font = get_font(style)
     dc = wx.MemoryDC()
+    bmp = wx.EmptyBitmap(1,1)
+    dc.SelectObject(bmp)
     dc.SetFont(font)
     return dc.GetPartialTextExtents(text)
 
@@ -122,6 +138,8 @@ def measure_parts_gtk(self, text, style):
     style = filled(style)
     font = get_font(style)
     dc = wx.MemoryDC()
+    bmp = wx.EmptyBitmap(1,1)
+    dc.SelectObject(bmp)
     dc.SetFont(font)
     return dc.GetPartialTextExtents(text)
 
@@ -158,8 +176,9 @@ class WxDevice:
         measure = measure_mac
         measure_parts = measure_parts_mac
         buffering = False
+    invert_rect = invert_rect_FALLBACK
 
-
+    
 
 class DCStyler:
     last_style = None
@@ -181,4 +200,4 @@ class DCStyler:
             self.dc.SetTextBackground(wx.NamedColour(_style['bgcolor']))
             self.dc.SetTextForeground(wx.NamedColour(_style['textcolor']))
 
-
+ 
