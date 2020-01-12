@@ -718,12 +718,9 @@ class NBView(_WXTextView):
     temp_range = (0, 0)
     ScriptingCell = ScriptingCell
     _maxw = 0 # will be set later
-    _logfile = None
     def __init__(self, parent, id=-1,
                  pos=wx.DefaultPosition, size=wx.DefaultSize, style=0, 
-                 resize=False, filename=None, maxw=None, logfile=None):
-        if logfile:
-            self._logfile = logfile
+                 resize=False, filename=None, maxw=None):
         self.init_clients()
         self.do_resize = resize
         _WXTextView.__init__(self, parent, id=id, pos=pos, size=size,
@@ -1064,43 +1061,7 @@ class NBView(_WXTextView):
     set_index = controlled(_WXTextView.set_index)
     set_selection = controlled(_WXTextView.set_selection)
 
-    ### Simple logging facility ###    
-    # It allows to record and replay everything the user
-    # enters. Logging is ment for debugging. It will be removed once
-    # all errors are fixed :-)
 
-    def log(self, descr, args, kwds):
-        if self._logfile is None: 
-            return
-        import cPickle
-        s = cPickle.dumps((descr, args, kwds))
-        f = open(self._logfile, 'ab')
-        f.write("%i\n" % len(s))
-        f.write(s)
-        f.close()
-
-    def load_log(self, filename):
-        import cPickle
-        log = []
-        f = open(filename, 'rb')
-        while 1:
-            l = f.readline()
-            if not l:
-                break
-            n = int(l)
-            s = f.read(n)
-            name, args, kwds = cPickle.loads(s)
-            log.append((name, args, kwds))
-        return log
-                
-    def replay(self, log):
-        for name, args, kwds in log:
-            f = getattr(self, name)
-            f(*args, **kwds)
-
-    def replay_logfile(self, filename):
-        log = self.load_log(filename)
-        self.replay(log)
 
 
 def init_testing(redirect=True):

@@ -4,7 +4,6 @@
 import pynotebook
 from pynotebook.nbtexels import NotFound
 from pynotebook.nbview import TextModel, NBView
-from pynotebook.nblogging import TemporaryDirectory, gen_logfile
 from pynotebook import graphics
 
 import sys
@@ -35,11 +34,6 @@ def method2cmd(label, name):
 
 
 
-logdir = None
-logging = False
-
-
-
 class MainWindow(wx.Frame):
     set_width = ['Set width', 'increase_maxw', 'decrease_maxw', 'set_w1', 'set_w2', 'set_w3']
     ctxt_entries = ['inspector', 'open', 'save', 'save_as', 'close']
@@ -48,7 +42,7 @@ class MainWindow(wx.Frame):
     cell_entries = ['inspector', 'insert_textcell', 'insert_pycell', 
                     'remove_output', 'split_cell', set_width]
     interpreter_entries = ['execute', 'execute_all', 'complete', 'help', 'reset']
-    debug_entries = ['replay', 'rebuild_view', 'clean_model', 'dump_texels', 
+    debug_entries = ['rebuild_view', 'clean_model', 'dump_texels', 
                      'dump_styles', 'dump_boxes', 'profile_insert']
     updaters = ()
     def __init__(self, filename=None):
@@ -58,11 +52,7 @@ class MainWindow(wx.Frame):
         icon = logo.GetIcon()
         self.SetIcon(icon)
         panel = wx.Panel(self, -1)
-        if logging:
-            logfile = gen_logfile(logdir.name, 'pynblog')
-        else:
-            logfile = None
-        shell = NBView(panel, -1, filename=filename, maxw=50*12, logfile=logfile)
+        shell = NBView(panel, -1, filename=filename, maxw=50*12)
         box = wx.BoxSizer(wx.VERTICAL)
         box.Add(shell, 1, wx.ALL|wx.GROW, 1)
         panel.SetSizer(box)
@@ -310,25 +300,6 @@ class MainWindow(wx.Frame):
         inspector.Show()
         inspector.update()
 
-    def replay(self, event): 
-        "Replay"
-        "&Replay Log File ..."
-        dlg = wx.FileDialog(
-            self, message="Choose a file",
-            wildcard="Log files (*.pnb)|*.pynblog",
-            style=wx.OPEN | wx.CHANGE_DIR
-            )
-        paths = []
-        if dlg.ShowModal() == wx.ID_OK:
-            paths = dlg.GetPaths()
-        dlg.Destroy()
-
-        if paths:
-            log = self.shell.load_log(paths[0])
-            win = MainWindow()
-            win.Show()
-            win.shell.replay(log)
-        
     def rebuild_view(self, event):
         "Rebuild View"
         self.shell.rebuild()
@@ -367,7 +338,6 @@ def main(argv=None):
     if argv is None:
         argv = sys.argv[1:]
 
-    global logging
     global debug
     redirect = console = False
     filenames = []
@@ -378,20 +348,12 @@ def main(argv=None):
             debug = True
         elif arg == '--console':
             console = True
-        elif arg == '--logging':
-            logging = True
         else:
             filenames.append(arg)
     
     if debug:
-        logging = True
         redirect = True
     
-    if logging:
-        global logdir
-        logdir = TemporaryDirectory()
-        print "Log files are stored in directory", logdir.name
-
     app = wx.App(redirect=redirect)
 
     win = None    
