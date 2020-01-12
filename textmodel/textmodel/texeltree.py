@@ -145,7 +145,7 @@ class NewLine(Single):
         return clone
 
     def __setstate__(self, state):
-        self.__dict__ = state
+        self.__dict__ = state.copy()
         self.style = as_style(self.style)
         self.parstyle = as_style(self.parstyle)
 
