@@ -853,24 +853,6 @@ class NBView(_WXTextView):
     def handle_action(self, action, shift=False, memo=None):
         complete_count = self.complete_count
         self.clear_temp()
-        if action != 'paste':
-            self.log('handle_action', (action, shift,), {})
-        else:
-            # Paste is a bit tricky to log. We have to make sure,
-            # that in the replay situation the exact same material
-            # is inserted. Therefore we figure out what has been
-            # pasted and log this as an insertion.
-            model = self.model
-            index = self.index
-            if memo is not None:
-                self.insert(index, memo)
-            else:
-                n0 = len(model)
-                _WXTextView.handle_action(self, action, shift)
-                n = len(model)-n0
-                memo = model.copy(index, index+n)
-            self.log('handle_action', (action, shift, memo), {})
-            return
         if action == 'complete_or_help':
             if complete_count > 0:
                 action = 'help'
