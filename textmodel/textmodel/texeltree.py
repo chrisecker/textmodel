@@ -1038,4 +1038,3 @@ def test_09():
     assert t2.style is t2_.style
     assert t1.text == t1_.text    
     assert t2.text == t2_.text    
-    
