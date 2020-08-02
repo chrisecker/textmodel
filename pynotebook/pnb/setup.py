@@ -8,7 +8,7 @@ with open('README') as file:
     long_description = file.read()
 
 setup(name='pnb',
-      version='0.2.5.3',
+      version='0.2.6',
       description = 'A beautiful and lightweight notebook interface for the ' \
                     'python interpreter.',
       long_description = long_description,
