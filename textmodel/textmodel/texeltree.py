@@ -440,8 +440,8 @@ def insert(texel, i, stuff):
 def takeout(texel, i1, i2):
     """Takes out all content between *i1* and *i2*.
 
-    Returns the rest and the cut out piece (kernel), i.e.
-    G([a, b, c]).takeout(i1, i2) will return G([a, c]), b.
+    Returns the outer rest and the inner cut out piece, i.e.  G([a, b,
+    c]).takeout(1, 2) will return G([a, c]), b.
 
     *Texel* must be root efficient. Kernel and rest are guaranteed to
     be list efficient. Depths can change.
@@ -480,22 +480,24 @@ def takeout(texel, i1, i2):
     # point we only have G, C or T.
 
     if texel.is_group:
-        r1 = []; r2 = []; r3 = []; r4 = []
-        k1 = []; k2 = []; k3 = []
+        r1 = []; r2 = []; r3 = []; r4 = [] # outer rest
+        k1 = []; k2 = []; k3 = [] # inner kernel
         for j1, j2, child in iter_childs(texel):
+            # formal prove of if-conditions in notebook 26.08.2020
+            # collecting parts can still be simplified, see same entry
             if j2 <= i1:
                 r1.append(child)
-            elif j1 <= i1 <= j2:
+            elif j1 < i1:
                 r, k = takeout(child, max(i1-j1, 0), min(i2-j1, length(child)))
                 r2.extend(r)
                 k1.extend(k)
-            elif i1 <= j1 <= j2 <= i2:
+            elif j2 <= i2:
                 k2.append(child)
-            elif j1 <= i2 <= j2:
-                k, r = takeout(child, max(i1-j1, 0), min(i2-j1, length(child)))
+            elif j1 < i2:
+                r, k = takeout(child, max(i1-j1, 0), min(i2-j1, length(child)))
                 r3.extend(r)
                 k3.extend(k)
-            elif i2 <= j1:
+            else:
                 r4.append(child)
         # Note that we are returning a list of elements which have
         # been in the content before. So even if texel is only root
@@ -503,10 +505,12 @@ def takeout(texel, i1, i2):
         # the list r1, r2, r3, r4 and k1, k2, k3 is
         # homogeneous. Therefore join gives us list efficient return
         # values.
-        if not is_clean(r2):
-            dump_list(r2)
-        if not is_clean(r3):
-            dump_list(r3)
+
+        if debug:
+            if not is_clean(r2):
+                dump_list(r2)
+            if not is_clean(r3):
+                dump_list(r3)
 
         tmp = fuse(r2, r3)
         return join(r1, tmp, r4), join(k1, k2, k3)
@@ -524,11 +528,11 @@ def takeout(texel, i1, i2):
         raise IndexError((i1, i2))
 
     elif texel.is_text:
-        r1 = texel.text[:i1]
-        r2 = texel.text[i2:]
-        r3 = texel.text[i1:i2]
-        s = texel.style
-        return [Text(r1+r2, s)], [Text(r3, s)]
+        r = texel.text[:i1]
+        s = texel.text[i1:i2]
+        t = texel.text[i2:]        
+        style = texel.style
+        return [Text(r+t, style)], [Text(s, style)]
 
     assert False
 
@@ -537,14 +541,22 @@ def takeout(texel, i1, i2):
 def checked_takeout(takeout):
     def checked(texel, i1, i2):
         assert is_root_efficient(texel)
-        #rest, kernel
         __return__ = takeout(texel, i1, i2)
+        outer, inner = __return__
 
         assert is_elementlist(__return__[0])
         assert is_elementlist(__return__[1])
         assert is_homogeneous(__return__[0])
         assert is_homogeneous(__return__[1])
-        assert calc_length(__return__[0])+i2-i1 == length(texel)
+        try:
+            assert calc_length(__return__[0])+i2-i1 == length(texel)
+        except:
+            
+            print(calc_length(__return__[0])+i2-i1, length(texel))
+            print("in:", texel, i1, i2)
+            print("outer:", outer)
+            print("inner:", inner)            
+            raise
         assert calc_length(__return__[1]) == i2-i1
         #out("takeout", texel, i1, i2)
         #out(__return__[0])
@@ -1020,15 +1032,15 @@ def test_08():
     t2 = T("ABC", style=s2)
     g = G((t1, t2))
     r, k = takeout(g, 5, 12)    
-    assert get_text(grouped(r)) == "01234AB"
-    assert get_text(grouped(k)) == "56789C"
+    assert get_text(grouped(r)) == "01234C"
+    assert get_text(grouped(k)) == "56789AB"
 
     t1 = T("0123456789")
     t2 = T("ABC")
     g = G((t1, t2))    
     r, k = takeout(g, 5, 12)
-    assert get_pieces(grouped(r)) == ['01234AB']
-    assert get_text(grouped(k)) == "56789C"
+    assert get_pieces(grouped(r)) == ['01234C']
+    assert get_text(grouped(k)) == "56789AB"
 
     
 def test_09():
