@@ -11,11 +11,11 @@ from .textmodel import textmodel
 from .textmodel import texeltree, styles
 from .nbtexels import mk_textmodel
 
-from . import cerealizer
-from StringIO import StringIO
+import cerealizer
+from io import BytesIO
 
 
-magic = 'pynotebook0'
+magic = b'pynotebook0'
 
 def register(Class, handler=None, classname = None):
     # By default we want to register a class by its short name,
@@ -29,9 +29,9 @@ def register(Class, handler=None, classname = None):
 
 
 def dumps(obj):
-    s = StringIO()
-    cerealizer.Dumper(magic).dump(obj, s)
-    return s.getvalue()
+    s = BytesIO()
+    cerealizer.Dumper().dump(obj, s)
+    return magic+s.getvalue()
 
 
 def _replace_styles(texel, table):
@@ -51,7 +51,8 @@ def _replace_styles(texel, table):
             texel.parstyle = table[sid]
 
 def loads(s):
-    model =  cerealizer.Dumper(magic).undump(StringIO(s))
+    s = s[len(magic):]
+    model =  cerealizer.Dumper().undump(BytesIO(s))
     _replace_styles(model.texel, {})
     return model
 
@@ -82,7 +83,7 @@ def test_00():
     assert model1.get_style(5) is model2.get_style(5)
     assert model1.get_parstyle(5) is model2.get_parstyle(5)
     try:
-        model2 = loads('*'+s)
+        model2 = loads(b'*'+s)
         assert False
     except cerealizer.NotCerealizerFileError:
         pass
