@@ -1,4 +1,5 @@
 import six
+from sys import intern
 # -*- coding: latin-1 -*-
 
 

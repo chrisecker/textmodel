@@ -2,6 +2,7 @@
 
 
 from copy import copy as shallow_copy
+from functools import reduce
 
 
 debug = 0
@@ -73,6 +74,11 @@ class Text(Texel):
     def __repr__(self):
         return "T(%s)" % repr(self.text)
 
+    def set_style(self, style):
+        clone = shallow_copy(self)
+        clone.style = style
+        return clone
+    
     def __setstate__(self, state):
         self.__dict__ = state.copy()
         self.style = as_style(self.style)
@@ -301,8 +307,8 @@ def _join(l1, l2):
        is_clean(__return__)
        calc_length(l1)+calc_length(l2) == calc_length(__return__)
     """
-    l1 = filter(length, l1) # strip off empty elements
-    l2 = filter(length, l2) #
+    l1 = list(filter(length, l1)) # strip off empty elements
+    l2 = list(filter(length, l2)) #
     if not l1:
         return l2
     if not l2:
@@ -348,8 +354,8 @@ def _fuse(l1, l2):
        is_homogeneous(l2)
        calc_length(l1)+calc_length(l2) == calc_length(__return__)
     """
-    l1 = filter(length, l1) # strip off empty elements
-    l2 = filter(length, l2) #
+    l1 = list(filter(length, l1)) # strip off empty elements
+    l2 = list(filter(length, l2)) #
     if not l1:
         return l2
     if not l2:
@@ -785,7 +791,7 @@ def is_elementlist(l):
     """Returns True if *l* is a list of Elements.
     """
     if not type(l) in (tuple, list):
-        print "not a list or tuple", type(l), l.__class__ # XXX remove this
+        print("not a list or tuple", type(l), l.__class__) # XXX remove this
         return False
     return not False in [isinstance(x, Texel) for x in l]
 
@@ -809,18 +815,18 @@ def mindepth(l):
 
 
 def out(*args):
-    print repr(args)[1:-1]
+    print(repr(args)[1:-1])
     return True
 
 
 def dump(texel, i=0):
-    print (" "*i)+str(texel.__class__.__name__), texel.weights,
+    print((" "*i)+str(texel.__class__.__name__), texel.weights, end=' ')
     if texel.is_text:
-        print repr(texel.text), texel.style
+        print(repr(texel.text), texel.style)
     elif isinstance(texel, NewLine):
-        print texel.parstyle
+        print(texel.parstyle)
     else:
-        print
+        print()
     if texel.is_group or texel.is_container:
         for i1, i2, child in iter_childs(texel):
             dump(child, i+2)
@@ -828,10 +834,10 @@ def dump(texel, i=0):
 
 
 def dump_list(l):
-    print "Dumping list (efficient: %s)" % is_list_efficient(l)
+    print("Dumping list (efficient: %s)" % is_list_efficient(l))
     for i, element in enumerate(l):
-        print "Dumping element no. %i" % i,
-        print "(efficient: %s)" % is_efficient(element)
+        print ("Dumping element no. %i" % i, end=' ')
+        print ("(efficient: %s)" % is_efficient(element))
         dump(element)
     return True
 
@@ -1004,7 +1010,7 @@ def test_09():
     t1 = T("012345678", style=s1)
     t2 = T("ABC", style=s2)
     g = G((t1, t2))
-    from cPickle import dumps, loads 
+    from pickle import dumps, loads 
     t1_ = loads(dumps(t1))
     assert t1.style is t1_.style
     assert t1.text == t1_.text    
@@ -1034,7 +1040,7 @@ def test_11():
     s2 = as_style(dict(base='h2'))
     nl1 = NL.set_parstyle(s1)
     nl2 = NL.set_parstyle(s2)
-    print NL.parstyle
+    print(NL.parstyle)
     assert NL.parstyle == dict()
     assert nl1.parstyle == dict(base='h1')
     assert nl2.parstyle == dict(base='h2')
