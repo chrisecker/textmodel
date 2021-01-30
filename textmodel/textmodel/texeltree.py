@@ -5,7 +5,7 @@ from copy import copy as shallow_copy
 from functools import reduce
 
 
-debug = 0
+debug = 1
 nmax = 15
 
 def set_nmax(n):
@@ -533,6 +533,34 @@ def takeout(texel, i1, i2):
     assert False
 
 
+    
+def checked_takeout(takeout):
+    def checked(texel, i1, i2):
+        assert is_root_efficient(texel)
+        #rest, kernel
+        __return__ = takeout(texel, i1, i2)
+
+        assert is_elementlist(__return__[0])
+        assert is_elementlist(__return__[1])
+        assert is_homogeneous(__return__[0])
+        assert is_homogeneous(__return__[1])
+        assert calc_length(__return__[0])+i2-i1 == length(texel)
+        assert calc_length(__return__[1]) == i2-i1
+        #out("takeout", texel, i1, i2)
+        #out(__return__[0])
+        #out(__return__[1])
+        #dump_list(__return__[0])
+        assert is_clean(__return__[0])
+        assert is_clean(__return__[1])
+        assert is_list_efficient(__return__[0])
+        assert is_list_efficient(__return__[1])
+        return __return__
+    return checked
+
+if debug:
+    takeout = checked_takeout(takeout)
+
+    
 def copy(root, i1, i2):
     """Copy all content of *root* between *i1* and *i2*.
 
@@ -844,9 +872,9 @@ def dump_list(l):
 
 # ---- Testing ----
 
-if debug: # enable contract checking
-     import contract
-     contract.checkmod(__name__)
+if 0 and debug: # enable contract checking
+    import contract
+    contract.checkmod(__name__)
 
 
 def test_00():
