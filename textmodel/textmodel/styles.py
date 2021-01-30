@@ -19,12 +19,12 @@ class StyleIterator:
         self.advance(0)
         
     def advance(self, m):
-        #print "advance", m
+        #print("advance", m)
         self.total += m
         self.n -= m
         try:
             while self.n <= 0:
-                n, self.style = self.iterable.next()
+                n, self.style = next(self.iterable)
                 self.n += n
         except StopIteration:
             self.finished = True
