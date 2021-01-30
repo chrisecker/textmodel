@@ -16,11 +16,11 @@ text and graphics.  Notebooks are a pleasant way to develop and
 document code and to store ideas.
 
 Unlike other python notebook interfaces such as jupyter or spyder, pnb
-is very lightweight and can be easily to embeded in wxpython
+is very lightweight and can be easily embeded in wxpython
 applications.
 
 Although python is the native language for pynotebook, it is
-relatively easy to extend it to other scripting languages.
+possible create notebooks for other scripting languages.
 
 Applications using the Pynotebook library are
 

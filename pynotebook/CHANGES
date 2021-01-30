@@ -1,3 +1,10 @@
+Version 0.2.6
+~~~~~~~~~~~~~
+- make pynotebook work with wxpython >= 3.0
+- removed logging framework
+- better unicode handling
+- many bugfixes
+
 Version 0.2.5
 ~~~~~~~~~~~~~
 - bugfixes (line wrap, word selection, page width)
