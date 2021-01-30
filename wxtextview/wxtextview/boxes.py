@@ -84,8 +84,8 @@ class Box:
     device = TESTDEVICE
     is_group = False # we will use this as base class for groups and
                      # non groups
-    @staticmethod
-    def create_group(l):
+
+    def create_group(self, l):
         return SimpleGroupBox(l, device=self.device)
 
     def __len__(self):
