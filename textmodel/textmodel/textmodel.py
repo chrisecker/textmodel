@@ -375,7 +375,7 @@ def test_00():
         t.remove(i, i+1)
         assert isinstance(t.texel, Text)
 
-    # Groups of onyl one element should be opened
+    # Groups of only one element should be opened
     for i in range(len(text1)):
         t = TextModel(text1)
         t.texel = Group([t.texel])
@@ -388,6 +388,7 @@ def test_00():
         t1 = TextModel(text1, fontsize=20)
         t.insert(len(t), t1)
         t.remove(i, i+1)
+        #print ("removed", i, i+1, t.texel)
         assert isinstance(t.texel, Group)
         assert len(t.texel.childs) == 2
         assert isinstance(t.texel.childs[0], Text)
