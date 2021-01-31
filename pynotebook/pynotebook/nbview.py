@@ -24,6 +24,7 @@ from .clients import ClientPool
 from .pyclient import PythonClient
 from .nbstream import Stream, StreamRecorder
 from .nblogging import logged
+from functools import reduce
 import string
 import wx
 import sys
@@ -636,13 +637,12 @@ class Builder(BuilderBase):
 
     def BitmapRGB_handler(self, texel):
         w, h = texel.size
-        bitmap = wx.BitmapFromBuffer(w, h, texel.data)
+        bitmap = wx.Bitmap.FromBuffer(w, h, texel.data)
         return [BitmapBox(bitmap, device=self.device)]
 
     def BitmapRGBA_handler(self, texel):
         w, h = texel.size
-        im = wx.ImageFromDataWithAlpha(w, h, texel.data, texel.alpha)
-        bitmap = wx.BitmapFromImage(im)
+        bitmap = wx.Bitmap.FromBufferAndAlpha(w, h, texel.data, texel.alpha)
         return [BitmapBox(bitmap, device=self.device)]
 
     ### Builder methods
@@ -854,7 +854,7 @@ class NBView(_WXTextView):
         row, col = model.index2position(j)
         text = model.get_text(model.linestart(row), j)
         i = len(text)-1
-        while i>=0 and text[i] in string.letters+string.digits+"_.":
+        while i>=0 and text[i] in string.ascii_letters+string.digits+"_.":
             i -= 1
         if j == i:
             return ''
