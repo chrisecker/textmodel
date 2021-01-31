@@ -5,7 +5,7 @@ from copy import copy as shallow_copy
 from functools import reduce
 
 
-debug = 1
+debug = 0
 nmax = 15
 
 def set_nmax(n):
