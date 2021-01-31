@@ -395,7 +395,7 @@ def demo_01():
     from ..textmodel.textmodel import pycolorize
     from ..textmodel import texeltree
     filename = texeltree.__file__.replace('pyc', 'py')
-    rawtext = open(filename).read() 
+    rawtext = open(filename, 'rb').read() 
     model = pycolorize(rawtext)
     view.set_model(model)
     frame.Show()
@@ -448,6 +448,3 @@ def benchmark_00():
 
     
     
-if __name__ == '__main__':
-    from ..textmodel import alltests
-    alltests.dotests()
