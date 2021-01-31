@@ -194,3 +194,35 @@ class DCStyler:
             self.dc.SetTextForeground(wx.NamedColour(_style['textcolor']))
 
 
+def test_00():
+    def view(dc):
+        frame = wx.Frame(parent=None, title='Hello World')
+        frame.Show()
+        b = wx.Button(frame)           
+        bmp = dc.GetAsBitmap()
+        b.SetBitmap(bmp) 
+        app.MainLoop()
+
+    def prepare_dc():
+        dc = wx.MemoryDC()    
+        bmp = wx.Bitmap(100, 200)
+        dc.SelectObject(bmp)
+
+        b = wx.Brush(wx.Colour(255, 0, 0)) 
+        dc.SetBrush(b) 
+        dc.DrawCircle(100, 100, 50)
+        return dc
+        
+    import wx
+    app = wx.App()
+    device = WxDevice()
+    
+    dc = prepare_dc()
+    device.invert_rect(10, 10, 80, 80, dc)
+    #view(dc)
+
+    # just check that this does not give an exception
+    print(device.measure("asdasd", defaultstyle))
+
+    # just check that this does not give an exception
+    print(device.measure_parts("asdasd", defaultstyle))
