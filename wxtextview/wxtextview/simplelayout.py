@@ -16,8 +16,6 @@
 # When the model changes, we identify the corresponding paragraph
 # objects, rebuild them and replace them.
 
-from __future__ import absolute_import
-from __future__ import print_function
 from . import boxes
 from .boxes import HBox, VBox, VGroup, TextBox, EmptyTextBox, NewlineBox, EndBox, \
                    check_box, Box, tree_depth, replace_boxes, Row, groups, \
@@ -359,7 +357,7 @@ def test_05():
     tmp = _grouped([p1])
     assert not tmp.is_group
     print(tmp)
-    tmp.dump()
+    tmp.dump_boxes(0, 0, 0)
     assert tmp is p1
 
     p2 = Paragraph([Row([t2, NL])])
@@ -367,7 +365,7 @@ def test_05():
     assert tree_depth(p2) == 0
     
     tmp = _grouped([p1, p2])
-    tmp.dump()
+    tmp.dump_boxes(0, 0, 0)
     assert tmp.is_group
     print(tree_depth(tmp))
     assert tree_depth(tmp) == 1
