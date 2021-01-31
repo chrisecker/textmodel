@@ -71,7 +71,8 @@ class TextModel(Model):
         """Creates a new textmodel with text $text$ and uniform style."""
         return self.__class__(text, **properties)
 
-    def __init__(self, text=u'', **properties):
+    def __init__(self, text='', **properties):
+        assert type(text) == str
         style = updated_style(self.defaultstyle, properties)
         self.ENDMARK = ENDMARK.set_style(style)
         l = []
@@ -305,11 +306,13 @@ class TextModel(Model):
 
 
 
-def pycolorize(rawtext, coding='latin-1'):
+def pycolorize(rawtext, coding='latin-1'): # XXX is latin-1 ok?
     # used for benchmarking
-    import cStringIO
-    rawtext+='\n'
-    instream = cStringIO.StringIO(rawtext).readline
+    assert type(rawtext) == bytes
+    
+    from io import BytesIO
+    rawtext += b'\n' # XXX still needed in py3?
+    instream = BytesIO(rawtext).readline
 
     import token, tokenize, keyword
     _KEYWORD = token.NT_OFFSET + 1
@@ -325,25 +328,24 @@ def pycolorize(rawtext, coding='latin-1'):
         _KEYWORD:           '#C00000',
         #_TEXT:              '#000000',
     }
-    def tokeneater(toktype, toktext, xxx_todo_changeme, xxx_todo_changeme1, line):
-        (srow,scol) = xxx_todo_changeme
-        (erow,ecol) = xxx_todo_changeme1
-        i1 = model.position2index(srow-1, scol)
-        i2 = model.position2index(erow-1, ecol)
-        if token.LPAR <= toktype and toktype <= token.OP:
-            toktype = token.OP
-        elif toktype == token.NAME and keyword.iskeyword(toktext):
-            toktype = _KEYWORD
-        try:
-            color = _colors[toktype]
-        except:
-            return
-        model.set_properties(i1, i2, textcolor=color)
 
-    text = rawtext.decode(coding)
+    text = rawtext.decode(coding)    
     model = TextModel(text)
 
-    tokenize.tokenize(instream, tokeneater)
+    for t in tokenize.tokenize(instream):
+        toktype = t.type
+        if token.LPAR <= toktype and toktype <= token.OP:
+            toktype = token.OP
+        elif toktype == token.NAME and keyword.iskeyword(t.string):
+            toktype = _KEYWORD
+        color = _colors.get(toktype)            
+        if color is not None:
+            srow, scol = t.start
+            erow, ecol = t.end
+            i1 = model.position2index(srow-1, scol)
+            i2 = model.position2index(erow-1, ecol)
+            model.set_properties(i1, i2, textcolor=color)            
+
     return model.copy(0, len(model)-1)
 
 
