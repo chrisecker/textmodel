@@ -368,7 +368,9 @@ def copy_pen(pen):
 
 def copy_brush(brush):
     new = wx.Brush(brush.Colour, brush.Style)
-    if brush.Stipple.Ok():
+    #print(dir(brush.Stipple))
+    #asdasd
+    if brush.Stipple.IsOk():
         new.Stipple = brush.Stipple
     return new
 
@@ -399,7 +401,7 @@ class GraphicsBox(Box):
                      trafo=trafo)
         gc.SetPen(pen)
         gc.SetBrush(brush)
-        gc.SetFont(font)
+        gc.SetFont(font, wx.BLACK)
 
         texel = self.texel
         if texel.frame:
@@ -730,8 +732,8 @@ class NBView(_WXTextView):
     def __init__(self, parent, id=-1,
                  pos=wx.DefaultPosition, size=wx.DefaultSize, style=0, 
                  resize=False, filename=None, maxw=None, logfile=None):
-        if logfile:
-            self._logfile = logfile
+        #if logfile:
+        #    self._logfile = logfile
         self.init_clients()
         self.do_resize = resize
         _WXTextView.__init__(self, parent, id=id, pos=pos, size=size,

@@ -1,7 +1,6 @@
 # -*- coding: latin-1 -*-
 
 
-from __future__ import print_function
 from ..textmodel import texeltree
 from ..textmodel.textmodel import TextModel
 from ..textmodel.texeltree import NewLine, Group, Text, length

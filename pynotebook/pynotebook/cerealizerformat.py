@@ -16,6 +16,7 @@ from io import BytesIO
 
 
 magic = b'pynotebook0'
+cmagic =b'cereal1'
 
 def register(Class, handler=None, classname = None):
     # By default we want to register a class by its short name,
@@ -31,7 +32,9 @@ def register(Class, handler=None, classname = None):
 def dumps(obj):
     s = BytesIO()
     cerealizer.Dumper().dump(obj, s)
-    return magic+s.getvalue()
+    c = s.getvalue()
+    assert c.startswith(cmagic)
+    return magic+c[len(cmagic):]
 
 
 def _replace_styles(texel, table):
@@ -51,7 +54,9 @@ def _replace_styles(texel, table):
             texel.parstyle = table[sid]
 
 def loads(s):
-    s = s[len(magic):]
+    assert s.startswith(magic)
+    s = cmagic+s[len(magic):]
+    
     model =  cerealizer.Dumper().undump(BytesIO(s))
     _replace_styles(model.texel, {})
     return model

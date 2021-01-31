@@ -174,10 +174,10 @@ def __transform__(obj, iserr):
 def displayhook(o):
     if o is None:
         return
-    import __builtin__
-    __builtin__._ = None
-    output(o)
-    __builtin__._ = o
+    #import __builtin__
+    #__builtin__._ = None
+    #output(o)
+    #__builtin__._ = o
 """
         code = compile(source, "init", 'exec')
         self.ans = eval(code, self.namespace)
@@ -233,39 +233,58 @@ def displayhook(o):
                 self.namespace_sys[key] = getattr(sys, key)
                 setattr(sys, key, value)
                  
-    def show_syntaxerror(self, filename):
-        # stolen from "idle" by  G. v. Rossum
-        type, value, sys.last_traceback = sys.exc_info()
+
+    def show_syntaxerror(self, filename=None):
+        """Display the syntax error that just occurred.
+        This doesn't display a stack trace because there isn't one.
+        If a filename is given, it is stuffed in the exception instead
+        of what was there before (because Python's parser always uses
+        "<string>" when reading from a string).
+        The output is written by self.write(), below.
+        """
+        type, value, tb = sys.exc_info()
         sys.last_type = type
         sys.last_value = value
+        sys.last_traceback = tb
         if filename and type is SyntaxError:
             # Work hard to stuff the correct filename in the exception
             try:
-                msg, (dummy_filename, lineno, offset, line) = value
-            except:
+                msg, (dummy_filename, lineno, offset, line) = value.args
+            except ValueError:
                 # Not the format we expect; leave it alone
                 pass
             else:
                 # Stuff in the right filename
-                try:
-                    # Assume SyntaxError is a class exception
-                    value = SyntaxError(msg, (filename, lineno, offset, line))
-                except:
-                    # If that failed, assume SyntaxError is a string
-                    value = msg, (filename, lineno, offset, line)
-
-        info = traceback.format_exception_only(type, value)
-        sys.stderr.write(''.join(info))
-
-    def show_traceback(self, filename):
-        if type(sys.exc_info()[1]) == types.InstanceType:
-            args = sys.exc_value.args
+                value = SyntaxError(msg, (filename, lineno, offset, line))
+                sys.last_value = value
+        if sys.excepthook is sys.__excepthook__:
+            lines = traceback.format_exception_only(type, value)
+            self.write(''.join(lines))
         else:
-            args = sys.exc_info()[1]
+            # If someone has set sys.excepthook, we let that take precedence
+            # over self.write
+            sys.excepthook(type, value, tb)
 
-        traceback.print_tb(sys.exc_traceback.tb_next, None)
-        self.show_syntaxerror(filename)  
-
+    def show_traceback(self, filename=None):
+        # XXX filename is not used
+        # Stolen from https://github.com/python/cpython/blob/master/Lib/code.py
+        """Display the exception that just occurred.
+        We remove the first stack item because it is our own code.
+        The output is written by self.write(), below.
+        """
+        sys.last_type, sys.last_value, last_tb = ei = sys.exc_info()
+        sys.last_traceback = last_tb
+        try:
+            lines = traceback.format_exception(ei[0], ei[1], last_tb.tb_next)
+            if sys.excepthook is sys.__excepthook__:
+                self.write(''.join(lines))
+            else:
+                # If someone has set sys.excepthook, we let that take precedence
+                # over self.write
+                sys.excepthook(ei[0], ei[1], last_tb)
+        finally:
+            last_tb = ei = None
+        
     def complete(self, word, nmax=None):
         completer = rlcompleter.Completer(self.namespace)
         options = set()
@@ -276,12 +295,13 @@ def displayhook(o):
             if option is None or len(options) == nmax:
                 break
             option = option.replace('(', '') # I don't like the bracket
+            option = option.replace(' ', '') # Neither like spaces
             options.add(option)
         return options
 
     def colorize(self, inputtexel, styles=None, bgcolor='white'):
         
-        if 0:
+        if 1:
             # The pycolorize function in texetmodel was ment for
             # benchmarking the textmodel - it is quite inefficient!
             text = get_text(inputtexel).encode('utf-8')
@@ -348,21 +368,10 @@ def test_00():
     stream = StreamRecorder()
     client._execute("12+2", stream.output)
     print("ans=", repr(client.ans))
-    print(stream.messages)
     
     assert client.ans == 14
+    print(stream.messages)
     assert stream.messages == [(14, False)]
-
-    stream = StreamRecorder()
-    client._execute("12+(", stream.output)
-    assert 'SyntaxError' in str(stream.messages)
-    assert client.ans == None
-
-    stream = StreamRecorder()
-    client._execute("asdasds", stream.output)
-    assert stream.messages == [
-        ('  File "In[3]", line 1, in <module>\n', True), 
-        ("NameError: name 'asdasds' is not defined\n", True)]
 
     stream = StreamRecorder()
     client._execute("a=1", stream.output)
@@ -382,15 +391,36 @@ def test_00():
     stream = StreamRecorder()
     client._execute("print a", stream.output)
     assert stream.messages == [('1', False), ('\n', False)]
+
+def test_00a():
+    "SyntaxError"
+    client = PythonClient()
+    stream = StreamRecorder()
+    client._execute("12+(", stream.output)
+    assert 'SyntaxError' in str(stream.messages)
+    assert client.ans == None
+
+def test_00b():
+    "NameError"
+    client = PythonClient()
+    stream = StreamRecorder()
+    client._execute("asdasds", stream.output)
+    print(stream.messages)
+    assert stream.messages == [
+        ('  File "In[3]", line 1, in <module>\n', True), 
+        ("NameError: name 'asdasds' is not defined\n", True)]
     
 def test_01():
     "complete"
     client = PythonClient()
-    assert client.complete('a') == set(['abs', 'all', 'and', 'any', 
-                                        'apply', 'as', 'assert'])
-    assert client.complete('ba') == set(['basestring'])
-    assert client.complete('cl') == set(['classmethod', 'class'])
-    assert client.complete('class') == set(['class', 'classmethod'])
+    assert client.complete('a') == {
+        'as', 'ascii', 'assert', 'abs', 'any', 'async',
+        'all', 'await', 'and'}
+    assert client.complete('bo') == set(['bool'])
+    assert client.complete('cl') == {
+        'class', 'classmethod'}
+    assert client.complete('g') == {
+        "getattr", "global", "globals"}
 
 def test_02():
     "abort"
