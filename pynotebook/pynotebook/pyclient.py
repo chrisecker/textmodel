@@ -127,6 +127,16 @@ class FakeFile:
 
 
 
+def check_expression(source):
+    # True when source is a valid python expression
+    try:
+        code = compile(source, 'tester', 'eval')
+        return True
+    except SyntaxError:
+        return False
+    assert False # Should never happen
+
+    
 class PythonClient(Client):
     name = 'python'
     can_abort = True
@@ -136,15 +146,9 @@ class PythonClient(Client):
         if namespace is None:
             namespace = {}
         self.namespace = namespace
-
-        # custom values of global variables residing in module "sys":
-        self.namespace_sys = dict(
-            stdout = FakeFile(lambda s:self.namespace['output'](s)),
-            stderr = FakeFile(lambda s:self.namespace['output'] \
-                              (s, iserr=True)),
-            displayhook = lambda x:None, # will be replaced during init()
-            )
-
+        self.stdout = FakeFile(lambda s:self.namespace['output'](s))
+        self.stderr = FakeFile(lambda s:self.namespace['output'] \
+                               (s, iserr=True))
         self.init()
 
     def init(self):
@@ -171,18 +175,9 @@ def __transform__(obj, iserr):
         return nbtexels.BitmapRGB(data, size)        
     return obj
 
-def displayhook(o):
-    if o is None:
-        return
-    #import __builtin__
-    #__builtin__._ = None
-    #output(o)
-    #__builtin__._ = o
 """
         code = compile(source, "init", 'exec')
         self.ans = eval(code, self.namespace)
-        self.namespace_sys['displayhook'] = self.namespace['displayhook']
-        del self.namespace['displayhook']
         
     def abort(self):
         self.aborted = True
@@ -202,45 +197,55 @@ def displayhook(o):
         self.namespace['__output__'] = output
         self.counter += 1
         name = 'In[%s]' % self.counter
-        
-        sys_backup = {}        
-        for key, value in self.namespace_sys.items():
-            sys_backup[key] = getattr(sys, key)
-            setattr(sys, key, value)
+
+        bk_stdout = sys.stdout
+        bk_stderr = sys.stderr
+        sys.stdout = self.stdout
+        sys.stderr = self.stderr
             
-        is_expression = False
         self.ans = None
         self.aborted = False
-        ok = False
-        try:
-            try:
-                try:
-                    code = compile(source, name, 'eval')
-                    is_expression = True
-                except SyntaxError:
-                    code = compile(source, name, 'exec')
-                sys.settrace(self.trace_fun)                    
-                self.ans = eval(code, self.namespace)
-                if is_expression:
-                    sys.displayhook(self.ans)
-                ok = True
-            except Exception as e:
-                self.show_traceback(name)
-        finally:
-            # restore global values
-            sys.settrace(None)            
-            for key, value in sys_backup.items():
-                self.namespace_sys[key] = getattr(sys, key)
-                setattr(sys, key, value)
-                 
+        self.is_expression = check_expression(source)
 
+        # Compile
+        if self.is_expression:
+            mode = 'eval'
+        else:
+            mode = 'exec'
+        try:
+            code = compile(source, name, mode)
+        except:
+            # report compilation error
+            sys.stdout = bk_stdout
+            sys.stderr = bk_stderr
+            self.show_syntaxerror()
+            return
+
+        # Run
+        #sys.settrace(self.trace_fun)                    
+        try:
+            self.ans = eval(code, self.namespace)
+        except Exception as e:
+            sys.stdout = bk_stdout
+            sys.stderr = bk_stderr
+            self.show_traceback()
+            return
+
+        sys.stdout = bk_stdout
+        sys.stderr = bk_stderr
+
+        # We do not use sys.displayhook. Instead we set sys._ directly
+        # and output to stdout.
+        sys._ = self.ans
+        if self.ans is not None:
+            self.stdout.write(self.ans)
+                 
     def show_syntaxerror(self, filename=None):
         """Display the syntax error that just occurred.
         This doesn't display a stack trace because there isn't one.
         If a filename is given, it is stuffed in the exception instead
         of what was there before (because Python's parser always uses
         "<string>" when reading from a string).
-        The output is written by self.write(), below.
         """
         type, value, tb = sys.exc_info()
         sys.last_type = type
@@ -257,16 +262,15 @@ def displayhook(o):
                 # Stuff in the right filename
                 value = SyntaxError(msg, (filename, lineno, offset, line))
                 sys.last_value = value
-        if sys.excepthook is sys.__excepthook__:
+        if 1: #sys.excepthook is sys.__excepthook__:
             lines = traceback.format_exception_only(type, value)
-            self.write(''.join(lines))
+            self.stderr.write(''.join(lines))
         else:
             # If someone has set sys.excepthook, we let that take precedence
             # over self.write
             sys.excepthook(type, value, tb)
 
-    def show_traceback(self, filename=None):
-        # XXX filename is not used
+    def show_traceback(self):
         # Stolen from https://github.com/python/cpython/blob/master/Lib/code.py
         """Display the exception that just occurred.
         We remove the first stack item because it is our own code.
@@ -276,8 +280,8 @@ def displayhook(o):
         sys.last_traceback = last_tb
         try:
             lines = traceback.format_exception(ei[0], ei[1], last_tb.tb_next)
-            if sys.excepthook is sys.__excepthook__:
-                self.write(''.join(lines))
+            if 1: #sys.excepthook is sys.__excepthook__:
+                self.stderr.write(''.join(lines))
             else:
                 # If someone has set sys.excepthook, we let that take precedence
                 # over self.write
@@ -299,8 +303,7 @@ def displayhook(o):
             options.add(option)
         return options
 
-    def colorize(self, inputtexel, styles=None, bgcolor='white'):
-        
+    def colorize(self, inputtexel, styles=None, bgcolor='white'):        
         if 1:
             # The pycolorize function in texetmodel was ment for
             # benchmarking the textmodel - it is quite inefficient!
@@ -311,8 +314,7 @@ def displayhook(o):
             except:
                 return inputtexel
         else:
-            colorized = pycolorize(inputtexel, styles=styles, bgcolor=bgcolor)
-            
+            colorized = pycolorize(inputtexel, styles=styles, bgcolor=bgcolor)            
         try:
             assert length(colorized) == length(inputtexel)
         except:
@@ -399,6 +401,7 @@ def test_00a():
     client._execute("12+(", stream.output)
     assert 'SyntaxError' in str(stream.messages)
     assert client.ans == None
+    print(str(stream.messages))
 
 def test_00b():
     "NameError"
