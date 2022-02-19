@@ -1,5 +1,6 @@
 # -*- coding: latin-1 -*-
 
+from __future__ import absolute_import
 import wx
 
 
@@ -27,20 +28,19 @@ def invert_rect_INV(self, x, y, w, h, dc):
     dc.DrawRectangle(x, y, w, h)
 
 
+def invert_rect_TRANSP(self, x, y, w, h, dc):
+    # wx phoenix does not seem to support xor or invert. As an
+    # alternative we draw a semitransparent green Box above the rect.
+    brush = wx.Brush((0, 100, 0, 100), style=wx.BRUSHSTYLE_SOLID)
+    dc.SetBrush(brush)
+    dc.SetPen(wx.TRANSPARENT_PEN)
+    dc.DrawRectangle(x, y, w, h)
+
+            
 def invert_rect_BLIT(self, x, y, w, h, dc):
     dc.Blit(x, y, w, h, dc, x, y, wx.SRC_INVERT)
 
-    
-def invert_rect_FALLBACK(self, x, y, w, h, dc):
-    gcdc = wx.GCDC(dc)
-    r = g = 0
-    b = 128    
-    color = wx.Colour(r, g, b, 50)
-    gcdc.SetBrush(wx.Brush(color))
-    gcdc.SetPen(wx.TRANSPARENT_PEN)
-    gcdc.DrawRectangle(x, y, w, h)
 
-    
 def get_font(style):
     weight = {False : wx.FONTWEIGHT_NORMAL,
               True : wx.FONTWEIGHT_BOLD}[style.get('bold', False)]
@@ -72,8 +72,6 @@ def measure_win(self, text, style):
     style = filled(style)
     font = get_font(style)
     dc = wx.MemoryDC()
-    bmp = wx.EmptyBitmap(1,1)
-    dc.SelectObject(bmp)
     dc.SetFont(font)
     w, h = dc.GetTextExtent(text)
     _cache[key] = w, h
@@ -112,8 +110,6 @@ def measure_gtk(self, text, style):
     font = get_font(style)
     # GC returns wrong font metric values in gtk! We therefore use the DC.  
     dc = wx.MemoryDC()
-    bmp = wx.EmptyBitmap(1,1)
-    dc.SelectObject(bmp)
     dc.SetFont(font)
     w, h = dc.GetTextExtent(text)
     _cache[key] = w, h
@@ -128,8 +124,6 @@ def measure_parts_win(self, text, style):
     style = filled(style)
     font = get_font(style)
     dc = wx.MemoryDC()
-    bmp = wx.EmptyBitmap(1,1)
-    dc.SelectObject(bmp)
     dc.SetFont(font)
     return dc.GetPartialTextExtents(text)
 
@@ -138,8 +132,6 @@ def measure_parts_gtk(self, text, style):
     style = filled(style)
     font = get_font(style)
     dc = wx.MemoryDC()
-    bmp = wx.EmptyBitmap(1,1)
-    dc.SelectObject(bmp)
     dc.SetFont(font)
     return dc.GetPartialTextExtents(text)
 
@@ -166,8 +158,10 @@ class WxDevice:
         measure_parts = measure_parts_win
         buffering = True
     elif "gtk" in wx.version():
-        invert_rect = invert_rect_BLIT
+
+        #invert_rect = invert_rect_BLIT
         #invert_rect = invert_rect_INV
+        invert_rect = invert_rect_TRANSP # on phoenix + gtk
         measure = measure_gtk
         measure_parts = measure_parts_gtk
         buffering = True
@@ -176,9 +170,8 @@ class WxDevice:
         measure = measure_mac
         measure_parts = measure_parts_mac
         buffering = False
-    invert_rect = invert_rect_FALLBACK
 
-    
+
 
 class DCStyler:
     last_style = None
@@ -200,4 +193,37 @@ class DCStyler:
             self.dc.SetTextBackground(wx.NamedColour(_style['bgcolor']))
             self.dc.SetTextForeground(wx.NamedColour(_style['textcolor']))
 
- 
+
+def test_00():
+    def view(dc):
+        frame = wx.Frame(parent=None, title='Hello World')
+        frame.Show()
+        b = wx.Button(frame)           
+        bmp = dc.GetAsBitmap()
+        b.SetBitmap(bmp) 
+        app.MainLoop()
+
+    def prepare_dc():
+        dc = wx.MemoryDC()    
+        bmp = wx.Bitmap(100, 200)
+        dc.SelectObject(bmp)
+
+        b = wx.Brush(wx.Colour(255, 0, 0)) 
+        dc.SetBrush(b) 
+        dc.DrawCircle(100, 100, 50)
+        return dc
+        
+    import wx
+    app = wx.App()
+    device = WxDevice()
+    
+    dc = prepare_dc()
+    device.invert_rect(10, 10, 80, 80, dc)
+    #view(dc)
+
+    # just check that this does not give an exception
+    print(device.measure("asdasd", defaultstyle))
+
+    # just check that this does not give an exception
+    print(device.measure_parts("asdasd", defaultstyle))
+>>>>>>> py3

@@ -1,5 +1,7 @@
 # -*- coding: latin-1 -*-
 
+from __future__ import absolute_import
+from __future__ import print_function
 from .clients import Client, Aborted
 from .nbstream import StreamRecorder
 from .textmodel.textmodel import TextModel
@@ -13,6 +15,7 @@ import rlcompleter
 import types
 import token, tokenize, keyword
 import io
+import six
 
 
 debug = 0
@@ -81,7 +84,9 @@ def pycolorize(texel, styles=None, bgcolor='#FFFFFF'):
             self.l.extend([x for x in join(t, NL) if length(x)])
             self.ai = i
             
-        def __call__(self, toktype, toktext, (srow,scol), (erow,ecol), line):
+        def __call__(self, toktype, toktext, xxx_todo_changeme, xxx_todo_changeme1, line):
+            (srow,scol) = xxx_todo_changeme
+            (erow,ecol) = xxx_todo_changeme1
             if token.LPAR <= toktype and toktype <= token.OP:
                 toktype = token.OP
             elif toktype == token.NAME and keyword.iskeyword(toktext):
@@ -122,6 +127,16 @@ class FakeFile:
 
 
 
+def check_expression(source):
+    # True when source is a valid python expression
+    try:
+        code = compile(source, 'tester', 'eval')
+        return True
+    except SyntaxError:
+        return False
+    assert False # Should never happen
+
+    
 class PythonClient(Client):
     name = 'python'
     can_abort = True
@@ -131,15 +146,9 @@ class PythonClient(Client):
         if namespace is None:
             namespace = {}
         self.namespace = namespace
-
-        # custom values of global variables residing in module "sys":
-        self.namespace_sys = dict(
-            stdout = FakeFile(lambda s:self.namespace['output'](s)),
-            stderr = FakeFile(lambda s:self.namespace['output'] \
-                              (s, iserr=True)),
-            displayhook = lambda x:None, # will be replaced during init()
-            )
-
+        self.stdout = FakeFile(lambda s:self.namespace['output'](s))
+        self.stderr = FakeFile(lambda s:self.namespace['output'] \
+                               (s, iserr=True))
         self.init()
 
     def init(self):
@@ -166,18 +175,9 @@ def __transform__(obj, iserr):
         return nbtexels.BitmapRGB(data, size)        
     return obj
 
-def displayhook(o):
-    if o is None:
-        return
-    import __builtin__
-    __builtin__._ = None
-    output(o)
-    __builtin__._ = o
 """
         code = compile(source, "init", 'exec')
         self.ans = eval(code, self.namespace)
-        self.namespace_sys['displayhook'] = self.namespace['displayhook']
-        del self.namespace['displayhook']
         
     def abort(self):
         self.aborted = True
@@ -197,70 +197,98 @@ def displayhook(o):
         self.namespace['__output__'] = output
         self.counter += 1
         name = 'In[%s]' % self.counter
-        
-        sys_backup = {}        
-        for key, value in self.namespace_sys.items():
-            sys_backup[key] = getattr(sys, key)
-            setattr(sys, key, value)
+
+        bk_stdout = sys.stdout
+        bk_stderr = sys.stderr
+        sys.stdout = self.stdout
+        sys.stderr = self.stderr
             
-        is_expression = False
         self.ans = None
         self.aborted = False
-        ok = False
+        self.is_expression = check_expression(source)
+
+        # Compile
+        if self.is_expression:
+            mode = 'eval'
+        else:
+            mode = 'exec'
         try:
-            try:
-                try:
-                    code = compile(source, name, 'eval')
-                    is_expression = True
-                except SyntaxError:
-                    code = compile(source, name, 'exec')
-                sys.settrace(self.trace_fun)                    
-                self.ans = eval(code, self.namespace)
-                if is_expression:
-                    sys.displayhook(self.ans)
-                ok = True
-            except Exception, e:
-                self.show_traceback(name)
-        finally:
-            # restore global values
-            sys.settrace(None)            
-            for key, value in sys_backup.items():
-                self.namespace_sys[key] = getattr(sys, key)
-                setattr(sys, key, value)
+            code = compile(source, name, mode)
+        except:
+            # report compilation error
+            sys.stdout = bk_stdout
+            sys.stderr = bk_stderr
+            self.show_syntaxerror()
+            return
+
+        # Run
+        #sys.settrace(self.trace_fun)                    
+        try:
+            self.ans = eval(code, self.namespace)
+        except Exception as e:
+            sys.stdout = bk_stdout
+            sys.stderr = bk_stderr
+            self.show_traceback()
+            return
+
+        sys.stdout = bk_stdout
+        sys.stderr = bk_stderr
+
+        # We do not use sys.displayhook. Instead we set sys._ directly
+        # and output to stdout.
+        sys._ = self.ans
+        if self.ans is not None:
+            self.stdout.write(self.ans)
                  
-    def show_syntaxerror(self, filename):
-        # stolen from "idle" by  G. v. Rossum
-        type, value, sys.last_traceback = sys.exc_info()
+    def show_syntaxerror(self, filename=None):
+        """Display the syntax error that just occurred.
+        This doesn't display a stack trace because there isn't one.
+        If a filename is given, it is stuffed in the exception instead
+        of what was there before (because Python's parser always uses
+        "<string>" when reading from a string).
+        """
+        type, value, tb = sys.exc_info()
         sys.last_type = type
         sys.last_value = value
+        sys.last_traceback = tb
         if filename and type is SyntaxError:
             # Work hard to stuff the correct filename in the exception
             try:
-                msg, (dummy_filename, lineno, offset, line) = value
-            except:
+                msg, (dummy_filename, lineno, offset, line) = value.args
+            except ValueError:
                 # Not the format we expect; leave it alone
                 pass
             else:
                 # Stuff in the right filename
-                try:
-                    # Assume SyntaxError is a class exception
-                    value = SyntaxError(msg, (filename, lineno, offset, line))
-                except:
-                    # If that failed, assume SyntaxError is a string
-                    value = msg, (filename, lineno, offset, line)
-
-        info = traceback.format_exception_only(type, value)
-        sys.stderr.write(''.join(info))
-
-    def show_traceback(self, filename):
-        if type(sys.exc_value) == types.InstanceType:
-            args = sys.exc_value.args
+                value = SyntaxError(msg, (filename, lineno, offset, line))
+                sys.last_value = value
+        if 1: #sys.excepthook is sys.__excepthook__:
+            lines = traceback.format_exception_only(type, value)
+            self.stderr.write(''.join(lines))
         else:
-            args = sys.exc_value
+            # If someone has set sys.excepthook, we let that take precedence
+            # over self.write
+            sys.excepthook(type, value, tb)
 
-        traceback.print_tb(sys.exc_traceback.tb_next, None)
-        self.show_syntaxerror(filename)  
-
+    def show_traceback(self):
+        # Stolen from https://github.com/python/cpython/blob/master/Lib/code.py
+        """Display the exception that just occurred.
+        We remove the first stack item because it is our own code.
+        The output is written by self.write(), below.
+        """
+        sys.last_type, sys.last_value, last_tb = ei = sys.exc_info()
+        sys.last_traceback = last_tb
+        try:
+            lines = traceback.format_exception(ei[0], ei[1], last_tb.tb_next)
+            if 1: #sys.excepthook is sys.__excepthook__:
+                self.stderr.write(''.join(lines))
+            else:
+                # If someone has set sys.excepthook, we let that take precedence
+                # over self.write
+                sys.excepthook(ei[0], ei[1], last_tb)
+        finally:
+            last_tb = ei = None
+        
     def complete(self, word, nmax=None):
         completer = rlcompleter.Completer(self.namespace)
         options = set()
@@ -271,12 +299,12 @@ def displayhook(o):
             if option is None or len(options) == nmax:
                 break
             option = option.replace('(', '') # I don't like the bracket
+            option = option.replace(' ', '') # Neither like spaces
             options.add(option)
         return options
 
-    def colorize(self, inputtexel, styles=None, bgcolor='white'):
-        
-        if 0:
+    def colorize(self, inputtexel, styles=None, bgcolor='white'):        
+        if 1:
             # The pycolorize function in texetmodel was ment for
             # benchmarking the textmodel - it is quite inefficient!
             text = get_text(inputtexel).encode('utf-8')
@@ -286,22 +314,21 @@ def displayhook(o):
             except:
                 return inputtexel
         else:
-            colorized = pycolorize(inputtexel, styles=styles, bgcolor=bgcolor)
-            
+            colorized = pycolorize(inputtexel, styles=styles, bgcolor=bgcolor)            
         try:
             assert length(colorized) == length(inputtexel)
         except:
-            print "colorized:"
+            print("colorized:")
             dump(colorized)
-            print "input"
+            print("input")
             dump(inputtexel)
             return inputtexel
         return colorized
 
     def help(self, word):
-        import __builtin__
+        import six.moves.builtins
         ns = {}
-        ns.update(__builtin__.__dict__)
+        ns.update(six.moves.builtins.__dict__)
         ns.update(self.namespace)        
         try:
             obj = locate(word, ns)
@@ -310,9 +337,9 @@ def displayhook(o):
         import pydoc
         try:
             return pydoc.plain(pydoc.render_doc(obj, "Help on %s"))
-        except Exception, e:
+        except Exception as e:
             try:
-                return unicode(e)
+                return six.text_type(e)
             except UnicodeDecodeError:
                 return str(e)
 
@@ -323,13 +350,13 @@ def locate(path, ns):
     try:
         obj = ns[parts[0]]
     except KeyError:
-        raise NameError, path
+        raise NameError(path)
 
     for part in parts[1:]:
         try:
             obj = getattr(obj, part)
         except AttributeError:
-            raise NameError, path
+            raise NameError(path)
     return obj
 
 
@@ -342,22 +369,11 @@ def test_00():
 
     stream = StreamRecorder()
     client._execute("12+2", stream.output)
-    print "ans=", repr(client.ans)
-    print stream.messages
+    print("ans=", repr(client.ans))
     
     assert client.ans == 14
+    print(stream.messages)
     assert stream.messages == [(14, False)]
-
-    stream = StreamRecorder()
-    client._execute("12+(", stream.output)
-    assert 'SyntaxError' in str(stream.messages)
-    assert client.ans == None
-
-    stream = StreamRecorder()
-    client._execute("asdasds", stream.output)
-    assert stream.messages == [
-        ('  File "In[3]", line 1, in <module>\n', True), 
-        ("NameError: name 'asdasds' is not defined\n", True)]
 
     stream = StreamRecorder()
     client._execute("a=1", stream.output)
@@ -377,15 +393,37 @@ def test_00():
     stream = StreamRecorder()
     client._execute("print a", stream.output)
     assert stream.messages == [('1', False), ('\n', False)]
+
+def test_00a():
+    "SyntaxError"
+    client = PythonClient()
+    stream = StreamRecorder()
+    client._execute("12+(", stream.output)
+    assert 'SyntaxError' in str(stream.messages)
+    assert client.ans == None
+    print(str(stream.messages))
+
+def test_00b():
+    "NameError"
+    client = PythonClient()
+    stream = StreamRecorder()
+    client._execute("asdasds", stream.output)
+    print(stream.messages)
+    assert stream.messages == [
+        ('  File "In[3]", line 1, in <module>\n', True), 
+        ("NameError: name 'asdasds' is not defined\n", True)]
     
 def test_01():
     "complete"
     client = PythonClient()
-    assert client.complete('a') == set(['abs', 'all', 'and', 'any', 
-                                        'apply', 'as', 'assert'])
-    assert client.complete('ba') == set(['basestring'])
-    assert client.complete('cl') == set(['classmethod', 'class'])
-    assert client.complete('class') == set(['class', 'classmethod'])
+    assert client.complete('a') == {
+        'as', 'ascii', 'assert', 'abs', 'any', 'async',
+        'all', 'await', 'and'}
+    assert client.complete('bo') == set(['bool'])
+    assert client.complete('cl') == {
+        'class', 'classmethod'}
+    assert client.complete('g') == {
+        "getattr", "global", "globals"}
 
 def test_02():
     "abort"

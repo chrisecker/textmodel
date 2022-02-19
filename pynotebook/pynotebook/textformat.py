@@ -1,6 +1,8 @@
 # -*- coding: latin-1 -*-
 
 
+from __future__ import absolute_import
+from __future__ import print_function
 from .textmodel.textmodel import TextModel
 from .textmodel.texeltree import NULL_TEXEL
 
@@ -104,8 +106,8 @@ Zeile 2
 """
     m = fromtext(text)
     #m.texel.dump()
-    print totext(m)
+    print(totext(m))
     t = totext(m)
-    print repr(text)
-    print repr(t)
+    print(repr(text))
+    print(repr(t))
     assert t == text

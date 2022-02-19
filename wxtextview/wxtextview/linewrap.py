@@ -1,5 +1,6 @@
 # -*- coding: latin-1 -*-
 
+from __future__ import print_function
 from .testdevice import TESTDEVICE
 from .boxes import TabulatorBox, TextBox, EmptyTextBox, NewlineBox, Row
 
@@ -134,6 +135,6 @@ def test_01():
     boxes = []
     for text in "ff gg_hh ii jj".split('_'):
         boxes.append(TextBox(text))
-    print str(simple_linewrap(boxes, 5))
+    print(str(simple_linewrap(boxes, 5)))
     assert str(simple_linewrap(boxes, 5)) == \
         "[Row[TB('ff ')], Row[TB('gg'), TB('hh ')], Row[TB('ii jj')]]"

@@ -1,6 +1,7 @@
 # -*- coding: latin-1 -*-
 
 
+from __future__ import absolute_import
 import wx
 import  wx.lib.colourselect as  csel
 import  wx.lib.rcsizer  as rcs
@@ -9,6 +10,7 @@ from .textmodel.viewbase import ViewBase
 from .textmodel.texeltree import EMPTYSTYLE
 from .textmodel.styles import create_style
 from .wxtextview.wxdevice import defaultstyle
+from six.moves import map
 
 
 
@@ -35,7 +37,7 @@ class Inspector(wx.Frame, ViewBase):
         sizer2.Add(self.fontface, 0, wx.ALL|wx.EXPAND, 5)
         sizer3 = wx.BoxSizer(wx.VERTICAL)
 
-        choices = map(str, (8, 9, 10, 12, 14, 16, 18, 20, 22, 24, 26, 30))
+        choices = list(map(str, (8, 9, 10, 12, 14, 16, 18, 20, 22, 24, 26, 30)))
 
         fun = lambda e:self.set_properties(fontsize=int(self.size.GetValue()))
         self.size = wx.ComboBox(

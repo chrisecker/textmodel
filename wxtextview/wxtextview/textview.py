@@ -1,10 +1,13 @@
 # -*- coding: latin-1 -*-
 
 
+from __future__ import print_function
+from __future__ import absolute_import
 from ..textmodel.viewbase import ViewBase, overridable_property
 from ..textmodel.modelbase import Model
 from ..textmodel.textmodel import dump_range
 from ..textmodel import TextModel
+from six.moves import range
 
 
 debug = 0
@@ -14,7 +17,7 @@ def undo(info):
     if callable(info[0]):
         func = info[0]
         args = info[1:]    
-        redo = apply(func, args)
+        redo = func(*args)
     else:
         redo = []
         for child in reversed(info):
@@ -56,9 +59,9 @@ class TextView(ViewBase, Model):
     def join_undo(self, info2, info1):
         # we are joining similar undo entries
         if 0:
-            print "join"
-            print "info1=", info1
-            print "info2=", info2
+            print("join")
+            print("info1=", info1)
+            print("info2=", info2)
         if info1[0] == info2[0]:
             if info1[0] == self._remove:
                 i1, i2 = info1[1:]
@@ -214,7 +217,7 @@ class TextView(ViewBase, Model):
         index = self.index
         memo = []
         model = self.model
-        for line in reversed(range(firstrow, lastrow+1)):
+        for line in reversed(list(range(firstrow, lastrow+1))):
             i = model.linestart(line)
             for j in range(i, i+n+1):
                 if j > len(model): break
@@ -241,7 +244,7 @@ class TextView(ViewBase, Model):
         model = self.model
         lastrow = firstrow+len(memo)-1
         memo = list(memo)
-        for line in reversed(range(firstrow, lastrow+1)):
+        for line in reversed(list(range(firstrow, lastrow+1))):
             i = model.linestart(line)
             model.insert(i, memo[0])
             memo = memo[1:]
@@ -283,9 +286,9 @@ class TextView(ViewBase, Model):
         if action == 'dump_info':
             dump_range(model.texel, e1, e2)
             row, col = model.index2position(index)
-            print "index=", index
-            print "row=", row
-            print "col=", col
+            print("index=", index)
+            print("row=", row)
+            print("col=", col)
 
         elif action == 'dump_boxes':
             layout.dump_boxes(0, 0, 0)

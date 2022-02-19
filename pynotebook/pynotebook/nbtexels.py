@@ -1,13 +1,14 @@
 # -*- coding: latin-1 -*-
 
 
+from __future__ import absolute_import
 from .textmodel.textmodel import TextModel, dump_range
 from .textmodel.texeltree import Texel, T, G, NL, Container, Single, \
     iter_childs, dump, NULL_TEXEL, length, grouped, copy
 
 import wx
-import StringIO
 import base64    
+import io
 
 
 
@@ -33,7 +34,7 @@ class TextCell(Cell):
 
 class ScriptingCell(Cell):
 
-    client_name = 'direct python'
+    client_name = 'python'
 
     input = property(lambda s:s.childs[1])
     output = property(lambda s:s.childs[3])
@@ -103,11 +104,11 @@ def find_cell(texel, i, i0=0):
 def _bitmap_saver(bitmap):
     # we convert images to png before saving to save disk space
     w, h = bitmap.size
-    im = wx.ImageFromData(w, h, bitmap.data)
+    im = wx.Image(w, h, bitmap.data)
     if isinstance(bitmap, BitmapRGBA):
         im.SetAlphaBuffer(bitmap.alpha)
-    output = StringIO.StringIO()
-    im.SaveStream(output, wx.BITMAP_TYPE_PNG)
+    output = io.BytesIO()
+    im.SaveFile(output, wx.BITMAP_TYPE_PNG)
 
     r = base64.b64encode(output.getvalue())
     return base64.b64encode(output.getvalue())
@@ -116,9 +117,9 @@ def _bitmap_saver(bitmap):
 
 def _bitmap_loader(data):
     pngdata = base64.b64decode(data)
-    stream = StringIO.StringIO(pngdata)
-    image = wx.ImageFromStream(stream, type=wx.BITMAP_TYPE_ANY)
-    return (image.Width, image.Height), image.Data, image.AlphaData
+    stream = io.BytesIO(pngdata)
+    image = wx.Image(stream, type=wx.BITMAP_TYPE_ANY)
+    return (image.Width, image.Height), image.GetData(), image.GetAlpha()
 
 
 
@@ -204,7 +205,7 @@ def test_01():
     app = wx.App()
 
     im = wx.ArtProvider.GetBitmap(wx.ART_WARNING, size=(128, 128)).ConvertToImage()
-    texel = BitmapRGBA(im.GetData(), im.GetAlphaData(), im.GetSize())
+    texel = BitmapRGBA(im.GetData(), im.GetAlpha(), im.GetSize())
     s = pickle.dumps(texel)
     obj = pickle.loads(s)
     s2 = pickle.dumps(obj)

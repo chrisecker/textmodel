@@ -1,6 +1,8 @@
 # -*- coding: latin-1 -*-
 
 
+from __future__ import absolute_import
+from __future__ import print_function
 from .textmodel import texeltree
 from .textmodel.textmodel import TextModel
 from .textmodel.styles import create_style, updated_style, EMPTYSTYLE
@@ -21,7 +23,8 @@ from .nbtexels import Cell, ScriptingCell, TextCell, Graphics, find_cell, \
 from .clients import ClientPool
 from .pyclient import PythonClient
 from .nbstream import Stream, StreamRecorder
-from .controlled import controlled
+from .nblogging import logged
+from functools import reduce
 import string
 import wx
 import sys
@@ -365,7 +368,9 @@ def copy_pen(pen):
 
 def copy_brush(brush):
     new = wx.Brush(brush.Colour, brush.Style)
-    if brush.Stipple.Ok():
+    #print(dir(brush.Stipple))
+    #asdasd
+    if brush.Stipple.IsOk():
         new.Stipple = brush.Stipple
     return new
 
@@ -396,7 +401,7 @@ class GraphicsBox(Box):
                      trafo=trafo)
         gc.SetPen(pen)
         gc.SetBrush(brush)
-        gc.SetFont(font)
+        gc.SetFont(font, wx.BLACK)
 
         texel = self.texel
         if texel.frame:
@@ -421,11 +426,11 @@ class GraphicsBox(Box):
 
         try:
             draw(texel.items)
-        except Exception, e:
+        except Exception as e:
             dc.SetBrush(wx.RED_BRUSH)
             dc.SetPen(wx.RED_PEN)
             dc.DrawRectangle(x, y, self.width, self.height)
-            print >>sys.stderr, e
+            print(e, file=sys.stderr)
         draw = None
         
     def get_index(self, x, y):
@@ -523,7 +528,7 @@ class Builder(BuilderBase):
         try:
             assert calc_length(l) == length(texel)
         except:
-            print "handler=", handler
+            print("handler=", handler)
             raise
         return tuple(l)
 
@@ -634,13 +639,12 @@ class Builder(BuilderBase):
 
     def BitmapRGB_handler(self, texel):
         w, h = texel.size
-        bitmap = wx.BitmapFromBuffer(w, h, texel.data)
+        bitmap = wx.Bitmap.FromBuffer(w, h, texel.data)
         return [BitmapBox(bitmap, device=self.device)]
 
     def BitmapRGBA_handler(self, texel):
         w, h = texel.size
-        im = wx.ImageFromDataWithAlpha(w, h, texel.data, texel.alpha)
-        bitmap = wx.BitmapFromImage(im)
+        bitmap = wx.Bitmap.FromBufferAndAlpha(w, h, texel.data, texel.alpha)
         return [BitmapBox(bitmap, device=self.device)]
 
     ### Builder methods
@@ -713,14 +717,23 @@ def strip_cells(texel):
     return [texel]
 
 
+def logged(f):
+    def new_f(nbview, *args, **kwds):
+        nbview.log(f.__name__, args, kwds)
+        return f(nbview, *args, **kwds)
+    return new_f
+
 
 class NBView(_WXTextView):
     temp_range = (0, 0)
     ScriptingCell = ScriptingCell
     _maxw = 0 # will be set later
+    _logfile = None
     def __init__(self, parent, id=-1,
                  pos=wx.DefaultPosition, size=wx.DefaultSize, style=0, 
-                 resize=False, filename=None, maxw=None):
+                 resize=False, filename=None, maxw=None, logfile=None):
+        #if logfile:
+        #    self._logfile = logfile
         self.init_clients()
         self.do_resize = resize
         _WXTextView.__init__(self, parent, id=id, pos=pos, size=size,
@@ -751,19 +764,19 @@ class NBView(_WXTextView):
   
     def _load(self, filename):
         s = open(filename, 'rb').read()
-        import cerealizerformat        
+        from . import cerealizerformat        
         model = cerealizerformat.loads(s)
         reset_numbers(model.texel)
         self.set_model(model)
 
-    @controlled
+    @logged
     def set_model(self, model):
         # Only meant to be called on fresh NBViews. Therefore we do
         # not reset cursor, selection etc.
         _WXTextView.set_model(self, model)
 
     def save(self, filename):        
-        import cerealizerformat
+        from . import cerealizerformat
         s = cerealizerformat.dumps(self.model)
         open(filename, 'wb').write(s)
 
@@ -843,7 +856,7 @@ class NBView(_WXTextView):
         row, col = model.index2position(j)
         text = model.get_text(model.linestart(row), j)
         i = len(text)-1
-        while i>=0 and text[i] in string.letters+string.digits+"_.":
+        while i>=0 and text[i] in string.ascii_letters+string.digits+"_.":
             i -= 1
         if j == i:
             return ''
@@ -853,6 +866,24 @@ class NBView(_WXTextView):
     def handle_action(self, action, shift=False, memo=None):
         complete_count = self.complete_count
         self.clear_temp()
+        if action != 'paste':
+            self.log('handle_action', (action, shift,), {})
+        else:
+            # Paste is a bit tricky to log. We have to make sure,
+            # that in the replay situation the exact same material
+            # is inserted. Therefore we figure out what has been
+            # pasted and log this as an insertion.
+            model = self.model
+            index = self.index
+            if memo is not None:
+                self.insert(index, memo)
+            else:
+                n0 = len(model)
+                _WXTextView.handle_action(self, action, shift)
+                n = len(model)-n0
+                memo = model.copy(index, index+n)
+            self.log('handle_action', (action, shift, memo), {})
+            return
         if action == 'complete_or_help':
             if complete_count > 0:
                 action = 'help'
@@ -926,13 +957,10 @@ class NBView(_WXTextView):
     def find_cell(self):
         return find_cell(self.model.texel, self.index)
 
-    @controlled
+    @logged
     def execute(self):
         self.clear_temp()
-        try:
-            i0, cell = self.find_cell()
-        except NotFound:
-            return
+        i0, cell = self.find_cell()
         if not isinstance(cell, ScriptingCell):
             self.index = i0+length(cell)
             return
@@ -961,7 +989,7 @@ class NBView(_WXTextView):
                 break
             self.execute()
 
-    @controlled
+    @logged
     def reset_interpreter(self):
         self.init_clients()
 
@@ -1002,11 +1030,11 @@ class NBView(_WXTextView):
         self.clear_temp()
         _WXTextView.redo(self)
 
-    @controlled
+    @logged
     def remove_output(self):
         self.transform(strip_output)
 
-    @controlled
+    @logged
     def split_cell(self):
         i = self.index
         self.transform(lambda texel, i=i:split_cell(texel, i))
@@ -1024,7 +1052,7 @@ class NBView(_WXTextView):
 
     can_insert_textcell = can_insert_pycell = between_cells
 
-    @controlled
+    @logged
     def insert_textcell(self):
         "Insert text cell"
         cell = TextCell(NULL_TEXEL)
@@ -1032,7 +1060,7 @@ class NBView(_WXTextView):
         self.insert(i, mk_textmodel(cell))
         self.index = i+1
 
-    @controlled
+    @logged
     def insert_pycell(self):
         "Insert python cell"
         cell = ScriptingCell(NULL_TEXEL, NULL_TEXEL)
@@ -1040,10 +1068,46 @@ class NBView(_WXTextView):
         self.insert(i, mk_textmodel(cell))
         self.index = i+1
 
-    set_index = controlled(_WXTextView.set_index)
-    set_selection = controlled(_WXTextView.set_selection)
+    set_index = logged(_WXTextView.set_index)
+    set_selection = logged(_WXTextView.set_selection)
 
+    ### Simple logging facility ###    
+    # It allows to record and replay everything the user
+    # enters. Logging is ment for debugging. It will be removed once
+    # all errors are fixed :-)
 
+    def log(self, descr, args, kwds):
+        if self._logfile is None: 
+            return
+        import six.moves.cPickle
+        s = six.moves.cPickle.dumps((descr, args, kwds))
+        f = open(self._logfile, 'ab')
+        f.write("%i\n" % len(s))
+        f.write(s)
+        f.close()
+
+    def load_log(self, filename):
+        import six.moves.cPickle
+        log = []
+        f = open(filename, 'rb')
+        while 1:
+            l = f.readline()
+            if not l:
+                break
+            n = int(l)
+            s = f.read(n)
+            name, args, kwds = six.moves.cPickle.loads(s)
+            log.append((name, args, kwds))
+        return log
+                
+    def replay(self, log):
+        for name, args, kwds in log:
+            f = getattr(self, name)
+            f(*args, **kwds)
+
+    def replay_logfile(self, filename):
+        log = self.load_log(filename)
+        self.replay(log)
 
 
 def init_testing(redirect=True):
@@ -1348,3 +1412,4 @@ def demo_01():
     ns['app'].MainLoop()
 
 
+>>>>>>> py3

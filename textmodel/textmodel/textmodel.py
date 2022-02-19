@@ -1,6 +1,8 @@
 # -*- coding: latin-1 -*-
 
 
+from __future__ import absolute_import
+from __future__ import print_function
 from .texeltree import Text, Group, NewLine, Tabulator, insert, takeout, \
     ENDMARK, is_homogeneous, provides_childs, grouped, length, iter_childs, depth, \
     is_list_efficient, is_root_efficient, strip2list, EMPTYSTYLE
@@ -10,6 +12,7 @@ from .styles import updated_style, create_style, get_styles, set_styles, \
 from .weights import find_weight, get_weight, NotFound
 from .modelbase import Model
 import re
+from six.moves import range
 
 
 
@@ -41,7 +44,7 @@ def dump_range(texel, i1, i2, i0=0, indent=0):
     s = texel.__class__.__name__
     if texel.is_text:
         s += " "+repr(texel.text)
-    print " "*indent+"%i:%i %s" % (i0, i0+length(texel), s)
+    print(" "*indent+"%i:%i %s" % (i0, i0+length(texel), s))
     if provides_childs(texel):
         skip = False
         for j1, j2, child in iter_childs(texel):
@@ -49,7 +52,7 @@ def dump_range(texel, i1, i2, i0=0, indent=0):
                 dump_range(child, i1-j1, i2-j1, i0+j1, indent+4)
                 skip = False
             elif not skip:
-                print " "*indent+'...'
+                print(" "*indent+'...')
                 skip = True # skip output of more '...'
 
 
@@ -68,7 +71,8 @@ class TextModel(Model):
         """Creates a new textmodel with text $text$ and uniform style."""
         return self.__class__(text, **properties)
 
-    def __init__(self, text=u'', **properties):
+    def __init__(self, text='', **properties):
+        assert type(text) == str
         style = updated_style(self.defaultstyle, properties)
         self.ENDMARK = ENDMARK.set_style(style)
         l = []
@@ -108,9 +112,9 @@ class TextModel(Model):
         if i2 is None:
             i2 = length(self.texel)
         if i1<0:
-            raise IndexError, i1
+            raise IndexError(i1)
         if i2>len(self):
-            raise IndexError, i2
+            raise IndexError(i2)
         return _get_text(self.texel, i1, i2)
 
     def get_style(self, i):
@@ -265,7 +269,6 @@ class TextModel(Model):
         rest, removed = takeout(self.texel, i1, i2)
         model = self.create_textmodel()
         model.texel = grouped(removed)
-        assert len(model) == i2-i1
         return model
 
     def __add__(self, other):
@@ -299,27 +302,25 @@ class TextModel(Model):
         row1, col1 = self.index2position(i1)
         row2, col2 = self.index2position(i2)
 
-        n = len(self)
         rest, kern = takeout(self.texel, i1, i2)
         self.texel = grouped(rest)
 
         model = self.create_textmodel()
         model.texel = grouped(kern)
 
-        assert len(model) == i2-i1
-        assert n-len(self) == i2-i1
-        #assert check(self.texel)
-        
         self.notify_views('removed', i1, model)
+        #assert check(self.texel)
         return model
 
 
 
-def pycolorize(rawtext, coding='latin-1'):
+def pycolorize(rawtext, coding='latin-1'): # XXX is latin-1 ok?
     # used for benchmarking
-    import cStringIO
-    rawtext+='\n'
-    instream = cStringIO.StringIO(rawtext).readline
+    assert type(rawtext) == bytes
+    
+    from io import BytesIO
+    rawtext += b'\n' # XXX still needed in py3?
+    instream = BytesIO(rawtext).readline
 
     import token, tokenize, keyword
     _KEYWORD = token.NT_OFFSET + 1
@@ -335,23 +336,24 @@ def pycolorize(rawtext, coding='latin-1'):
         _KEYWORD:           '#C00000',
         #_TEXT:              '#000000',
     }
-    def tokeneater(toktype, toktext, (srow,scol), (erow,ecol), line):
-        i1 = model.position2index(srow-1, scol)
-        i2 = model.position2index(erow-1, ecol)
-        if token.LPAR <= toktype and toktype <= token.OP:
-            toktype = token.OP
-        elif toktype == token.NAME and keyword.iskeyword(toktext):
-            toktype = _KEYWORD
-        try:
-            color = _colors[toktype]
-        except:
-            return
-        model.set_properties(i1, i2, textcolor=color)
 
-    text = rawtext.decode(coding)
+    text = rawtext.decode(coding)    
     model = TextModel(text)
 
-    tokenize.tokenize(instream, tokeneater)
+    for t in tokenize.tokenize(instream):
+        toktype = t.type
+        if token.LPAR <= toktype and toktype <= token.OP:
+            toktype = token.OP
+        elif toktype == token.NAME and keyword.iskeyword(t.string):
+            toktype = _KEYWORD
+        color = _colors.get(toktype)            
+        if color is not None:
+            srow, scol = t.start
+            erow, ecol = t.end
+            i1 = model.position2index(srow-1, scol)
+            i2 = model.position2index(erow-1, ecol)
+            model.set_properties(i1, i2, textcolor=color)            
+
     return model.copy(0, len(model)-1)
 
 
@@ -383,7 +385,7 @@ def test_00():
         t.remove(i, i+1)
         assert isinstance(t.texel, Text)
 
-    # Groups of onyl one element should be opened
+    # Groups of only one element should be opened
     for i in range(len(text1)):
         t = TextModel(text1)
         t.texel = Group([t.texel])
@@ -396,6 +398,7 @@ def test_00():
         t1 = TextModel(text1, fontsize=20)
         t.insert(len(t), t1)
         t.remove(i, i+1)
+        #print ("removed", i, i+1, t.texel)
         assert isinstance(t.texel, Group)
         assert len(t.texel.childs) == 2
         assert isinstance(t.texel.childs[0], Text)

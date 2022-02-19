@@ -1,3 +1,5 @@
+import six
+from sys import intern
 # -*- coding: latin-1 -*-
 
 
@@ -14,7 +16,7 @@ class Properties(object):
     def set(self, **kw):
         """set(name=value, ...) sets property values according to the given
         keyword arguments."""
-        for name, value in kw.iteritems():
+        for name, value in six.iteritems(kw):
             try:
                 getattr(self, 'set_' + name)(value)
             except AttributeError:
@@ -23,7 +25,7 @@ class Properties(object):
                 try:
                     obj = getattr(self.__class__, name)
                 except :
-                    raise AttributeError, name
+                    raise AttributeError(name)
                 obj.fset(self, value)
 
 

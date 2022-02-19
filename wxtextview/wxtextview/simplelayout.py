@@ -28,6 +28,7 @@ from .linewrap import simple_linewrap
 from .rect import Rect
 from .builder import BuilderBase
 from .builder import Factory as _Factory
+from six.moves import range
 
 
 
@@ -75,7 +76,7 @@ def create_paragraphs(textboxes, maxw=0, wordwrap=True, Paragraph=Paragraph, \
         i1 = 0
         for box in textboxes:
             i2 = i1+len(box)
-            print i1, i2, repr(box)[:50]
+            print(i1, i2, repr(box)[:50])
             i1 = i2
         raise
     r = []
@@ -321,7 +322,7 @@ def xxtest_02b():
     box = _grouped(insert_paragraphs(box, 5, paragraphs))
     box.dump_boxes(0, 0, 0)
     assert get_envelope(box, 0, 1) == (0, 5)
-    print get_envelope(box, 0, 6)
+    print(get_envelope(box, 0, 6))
     assert get_envelope(box, 0, 6) == (5, 12)
 
 def test_03():
@@ -355,18 +356,18 @@ def test_05():
     assert tree_depth(p1) == 0
     tmp = _grouped([p1])
     assert not tmp.is_group
-    print tmp
-    tmp.dump()
+    print(tmp)
+    tmp.dump_boxes(0, 0, 0)
     assert tmp is p1
 
     p2 = Paragraph([Row([t2, NL])])
-    print p2, tree_depth(p2)
+    print(p2, tree_depth(p2))
     assert tree_depth(p2) == 0
     
     tmp = _grouped([p1, p2])
-    tmp.dump()
+    tmp.dump_boxes(0, 0, 0)
     assert tmp.is_group
-    print tree_depth(tmp)
+    print(tree_depth(tmp))
     assert tree_depth(tmp) == 1
     # ...
 

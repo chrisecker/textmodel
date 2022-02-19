@@ -8,14 +8,16 @@
 # TODO:
 # - Commandline arguments --silent, --redirect
 
+from __future__ import absolute_import
+from __future__ import print_function
 import sys
-sys.path.insert(0, "../textmodel/")
-
 import types
 import traceback
-import StringIO
 import inspect
-
+try:
+    from StringIO import StringIO
+except ImportError:
+    from io import StringIO
 
 
 def get_tb(skip=0):
@@ -36,8 +38,8 @@ class Tester:
         self.reset_buffer()
 
     def reset_buffer(self):
-        self.stdoutbuffer = StringIO.StringIO()
-        self.stderrbuffer = StringIO.StringIO()
+        self.stdoutbuffer = StringIO()
+        self.stderrbuffer = StringIO()
         
     def redirect_io(self):
         #print "stdout:", sys.stdout
@@ -57,7 +59,7 @@ class Tester:
         doc = getattr(obj, '__doc__', '') or ''
         text = '> %s: %s' % (name, doc)
         text += '.'*(60-len(text))
-        print text,
+        print(text, end=' ')
         if self.redirect:
             self.reset_buffer()
             self.redirect_io()        
@@ -81,27 +83,28 @@ class Tester:
             finally:
                 self.restore_io()
         if ok:
-            print "ok"
+            print("ok")
             if not self.redirect:
                 return
             if self.silent:
                 return
-            if self.stdoutbuffer.len:
-                print "stdout:"
-                print self.stdoutbuffer.getvalue()
-            if self.stderrbuffer.len:
-                print "stderr:"                
-                print self.stderrbuffer.getvalue()
+            if self.stdoutbuffer.getvalue():
+                print("\nstdout:")
+                print(self.stdoutbuffer.getvalue())
+            if self.stderrbuffer.getvalue():
+                print("\nstderr:")                
+                print(self.stderrbuffer.getvalue())
                 
         else:
+            print("error")
             if self.stdoutbuffer.len:
-                print "stdout:"
-                print self.stdoutbuffer.getvalue()
+                print("\nstdout:")
+                print(self.stdoutbuffer.getvalue())
             if self.stderrbuffer.len:
-                print "stderr:"                
-                print self.stderrbuffer.getvalue()
-            print "error"
-            print tb
+                print("\nstderr:")                
+                print(self.stderrbuffer.getvalue())
+            print()
+            print(tb)
         return ok
 
     
@@ -118,8 +121,8 @@ def test_library(modulname, silent=False, profile=False, names=()):
         names.sort()
 
         
-    hashes = '#' * ((60-len(filename))/2)
-    print " %s %s %s" % (hashes, filename, hashes)
+    hashes = '#' * int((60-len(filename))/2)
+    print(" %s %s %s" % (hashes, filename, hashes))
     tester = Tester(silent=silent, profile=profile)
     n_ok = 0
     n = 0
@@ -129,11 +132,13 @@ def test_library(modulname, silent=False, profile=False, names=()):
         ok = tester.test_callable(name, obj)
         if ok:
             n_ok += 1
-    print "Number of tests:\t%i" % n
-    print "Tests failed:   \t%i" % (n-n_ok)
+    print("Number of tests:\t%i" % n)
+    print("Tests failed:   \t%i" % (n-n_ok))
 
 
 import sys
+sys.path.append("etc/") # path to contract module, needed for
+                        # debugging
 
 profile = False
 silent = False
@@ -147,15 +152,15 @@ for name in sys.argv:
         sys.argv.remove(name)
         
 
-import textmodel
-print "path=", textmodel.__path__
+import wxtextview
+print("path=", wxtextview.__path__)
 name = sys.argv[1]
-print name
+print(name)
 if name.lower().endswith('.py'):
     name = name[:-3]
 filename = name.replace('/', '.')
 fun_names = sys.argv[2:]
-print "testing:", filename
+print("testing:", filename)
 #print "testing functions:", fun_names
 test_library(filename, names=fun_names, silent=silent, profile=profile)
     

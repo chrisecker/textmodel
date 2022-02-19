@@ -2,6 +2,7 @@
 
 
 from copy import copy as shallow_copy
+from functools import reduce
 
 
 debug = 0
@@ -73,6 +74,11 @@ class Text(Texel):
     def __repr__(self):
         return "T(%s)" % repr(self.text)
 
+    def set_style(self, style):
+        clone = shallow_copy(self)
+        clone.style = style
+        return clone
+    
     def __setstate__(self, state):
         self.__dict__ = state.copy()
         self.style = as_style(self.style)
@@ -301,8 +307,8 @@ def _join(l1, l2):
        is_clean(__return__)
        calc_length(l1)+calc_length(l2) == calc_length(__return__)
     """
-    l1 = filter(length, l1) # strip off empty elements
-    l2 = filter(length, l2) #
+    l1 = list(filter(length, l1)) # strip off empty elements
+    l2 = list(filter(length, l2)) #
     if not l1:
         return l2
     if not l2:
@@ -348,8 +354,8 @@ def _fuse(l1, l2):
        is_homogeneous(l2)
        calc_length(l1)+calc_length(l2) == calc_length(__return__)
     """
-    l1 = filter(length, l1) # strip off empty elements
-    l2 = filter(length, l2) #
+    l1 = list(filter(length, l1)) # strip off empty elements
+    l2 = list(filter(length, l2)) #
     if not l1:
         return l2
     if not l2:
@@ -434,8 +440,8 @@ def insert(texel, i, stuff):
 def takeout(texel, i1, i2):
     """Takes out all content between *i1* and *i2*.
 
-    Returns the rest and the cut out piece (kernel), i.e.
-    G([a, b, c]).takeout(i1, i2) will return G([a, c]), b.
+    Returns the outer rest and the inner cut out piece, i.e.  G([a, b,
+    c]).takeout(1, 2) will return G([a, c]), b.
 
     *Texel* must be root efficient. Kernel and rest are guaranteed to
     be list efficient. Depths can change.
@@ -470,26 +476,28 @@ def takeout(texel, i1, i2):
     if i1 <= 0 and i2 >= length(texel): # 3. fully contained
         return [], strip2list(texel)
 
-    # Note that singles always fall under case 2 or 3. Beyond this
+    # Note that singles always fall under case 2 or 3. Beyond ths
     # point we only have G, C or T.
 
     if texel.is_group:
-        r1 = []; r2 = []; r3 = []; r4 = []
-        k1 = []; k2 = []; k3 = []
+        r1 = []; r2 = []; r3 = []; r4 = [] # outer rest
+        k1 = []; k2 = []; k3 = [] # inner kernel
         for j1, j2, child in iter_childs(texel):
-            if j2 <= i1: #1
+            # formal prove of if-conditions in notebook 26.08.2020
+            # collecting parts can still be simplified, see same entry
+            if j2 <= i1:
                 r1.append(child)
-            elif i1 <= j1 <= j2 <= i2: #2
-                k2.append(child)
-            elif j1 <= i1 <= j2: #3
+            elif j1 < i1:
                 r, k = takeout(child, max(i1-j1, 0), min(i2-j1, length(child)))
                 r2.extend(r)
                 k1.extend(k)
-            elif j1 <= i2 <= j2: #4
+            elif j2 <= i2:
+                k2.append(child)
+            elif j1 < i2:
                 r, k = takeout(child, max(i1-j1, 0), min(i2-j1, length(child)))
                 r3.extend(r)
                 k3.extend(k)
-            elif i2 <= j1: #5
+            else:
                 r4.append(child)
         # Note that we are returning a list of elements which have
         # been in the content before. So even if texel is only root
@@ -497,10 +505,12 @@ def takeout(texel, i1, i2):
         # the list r1, r2, r3, r4 and k1, k2, k3 is
         # homogeneous. Therefore join gives us list efficient return
         # values.
-        if not is_clean(r2):
-            dump_list(r2)
-        if not is_clean(r3):
-            dump_list(r3)
+
+        if debug:
+            if not is_clean(r2):
+                dump_list(r2)
+            if not is_clean(r3):
+                dump_list(r3)
 
         tmp = fuse(r2, r3)
         return join(r1, tmp, r4), join(k1, k2, k3)
@@ -518,15 +528,51 @@ def takeout(texel, i1, i2):
         raise IndexError((i1, i2))
 
     elif texel.is_text:
-        r1 = texel.text[:i1]
-        r2 = texel.text[i2:]
-        r3 = texel.text[i1:i2]
-        s = texel.style
-        return [Text(r1+r2, s)], [Text(r3, s)]
+        r = texel.text[:i1]
+        s = texel.text[i1:i2]
+        t = texel.text[i2:]        
+        style = texel.style
+        return [Text(r+t, style)], [Text(s, style)]
 
     assert False
 
 
+    
+def checked_takeout(takeout):
+    def checked(texel, i1, i2):
+        assert is_root_efficient(texel)
+        __return__ = takeout(texel, i1, i2)
+        outer, inner = __return__
+
+        assert is_elementlist(__return__[0])
+        assert is_elementlist(__return__[1])
+        assert is_homogeneous(__return__[0])
+        assert is_homogeneous(__return__[1])
+        try:
+            assert calc_length(__return__[0])+i2-i1 == length(texel)
+        except:
+            
+            print(calc_length(__return__[0])+i2-i1, length(texel))
+            print("in:", texel, i1, i2)
+            print("outer:", outer)
+            print("inner:", inner)            
+            raise
+        assert calc_length(__return__[1]) == i2-i1
+        #out("takeout", texel, i1, i2)
+        #out(__return__[0])
+        #out(__return__[1])
+        #dump_list(__return__[0])
+        assert is_clean(__return__[0])
+        assert is_clean(__return__[1])
+        assert is_list_efficient(__return__[0])
+        assert is_list_efficient(__return__[1])
+        return __return__
+    return checked
+
+if debug:
+    takeout = checked_takeout(takeout)
+
+    
 def copy(root, i1, i2):
     """Copy all content of *root* between *i1* and *i2*.
 
@@ -785,7 +831,7 @@ def is_elementlist(l):
     """Returns True if *l* is a list of Elements.
     """
     if not type(l) in (tuple, list):
-        print "not a list or tuple", type(l), l.__class__ # XXX remove this
+        print("not a list or tuple", type(l), l.__class__) # XXX remove this
         return False
     return not False in [isinstance(x, Texel) for x in l]
 
@@ -809,18 +855,18 @@ def mindepth(l):
 
 
 def out(*args):
-    print repr(args)[1:-1]
+    print(repr(args)[1:-1])
     return True
 
 
 def dump(texel, i=0):
-    print (" "*i)+str(texel.__class__.__name__), texel.weights,
+    print((" "*i)+str(texel.__class__.__name__), texel.weights, end=' ')
     if texel.is_text:
-        print repr(texel.text), texel.style
+        print(repr(texel.text), texel.style)
     elif isinstance(texel, NewLine):
-        print texel.parstyle
+        print(texel.parstyle)
     else:
-        print
+        print()
     if texel.is_group or texel.is_container:
         for i1, i2, child in iter_childs(texel):
             dump(child, i+2)
@@ -828,19 +874,19 @@ def dump(texel, i=0):
 
 
 def dump_list(l):
-    print "Dumping list (efficient: %s)" % is_list_efficient(l)
+    print("Dumping list (efficient: %s)" % is_list_efficient(l))
     for i, element in enumerate(l):
-        print "Dumping element no. %i" % i,
-        print "(efficient: %s)" % is_efficient(element)
+        print ("Dumping element no. %i" % i, end=' ')
+        print ("(efficient: %s)" % is_efficient(element))
         dump(element)
     return True
 
 
 # ---- Testing ----
 
-if debug: # enable contract checking
-     import contract
-     contract.checkmod(__name__)
+if 0 and debug: # enable contract checking
+    import contract
+    contract.checkmod(__name__)
 
 
 def test_00():
@@ -996,28 +1042,6 @@ def test_08():
     assert get_pieces(grouped(r)) == ['01234C']
     assert get_text(grouped(k)) == "56789AB"
 
-    t1 = T("0123456789")
-    t2 = T("ABCDEFGHIJ")
-    g = G((t1, t2))
-    t = get_text(g)
-    for i in range(20):
-        for j in range(i, 20):
-            r, k = takeout(g, i, j)
-            assert get_text(grouped(r)) == t[:i]+t[j:]
-            assert get_text(grouped(k)) == t[i:j]
-
-    t1 = T("0123456789")
-    t2 = T("ABCDEFGHIJ")
-    t3 = T("klmnopqrst")
-    t4 = T("UVWXYZ,.-*")
-    g = G((t1, t2, t3, t4))
-    t = get_text(g)
-    for i in range(len(t)):
-        for j in range(i, len(t)):
-            r, k = takeout(g, i, j)
-            assert get_text(grouped(r)) == t[:i]+t[j:]
-            assert get_text(grouped(k)) == t[i:j]
-
     
 def test_09():
     "pickle"
@@ -1026,7 +1050,7 @@ def test_09():
     t1 = T("012345678", style=s1)
     t2 = T("ABC", style=s2)
     g = G((t1, t2))
-    from cPickle import dumps, loads 
+    from pickle import dumps, loads 
     t1_ = loads(dumps(t1))
     assert t1.style is t1_.style
     assert t1.text == t1_.text    
@@ -1038,3 +1062,27 @@ def test_09():
     assert t2.style is t2_.style
     assert t1.text == t1_.text    
     assert t2.text == t2_.text    
+
+
+def test_10():
+    "set_style"
+    s1 = as_style(dict(color='red'))
+    s2 = as_style(dict(color='blue'))
+    t1 = T("012345678", style=s1)
+    t2 = t1.set_style(s2)
+    assert t1.style == dict(color='red')
+    assert t2.style == dict(color='blue')
+
+
+def test_11():
+    "set_parstyle"
+    s1 = as_style(dict(base='h1'))
+    s2 = as_style(dict(base='h2'))
+    nl1 = NL.set_parstyle(s1)
+    nl2 = NL.set_parstyle(s2)
+    print(NL.parstyle)
+    assert NL.parstyle == dict()
+    assert nl1.parstyle == dict(base='h1')
+    assert nl2.parstyle == dict(base='h2')
+
+

@@ -58,7 +58,7 @@ class Factory:
         try:
             assert calc_length(l) == i2-i1
         except:
-            print "handler=", handler
+            print("handler=", handler)
             raise
         return tuple(l)
         
