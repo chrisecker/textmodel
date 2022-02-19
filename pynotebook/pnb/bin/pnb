@@ -190,7 +190,7 @@ class MainWindow(wx.Frame):
         dlg = wx.FileDialog(
             self, message="Choose a file",
             wildcard=wildcard,
-            style=wx.OPEN | wx.MULTIPLE | wx.CHANGE_DIR
+            style=wx.FD_OPEN | wx.FD_MULTIPLE | wx.FD_CHANGE_DIR
             )
         if dlg.ShowModal() == wx.ID_OK:
             paths = dlg.GetPaths()
@@ -212,7 +212,7 @@ class MainWindow(wx.Frame):
         dlg = wx.FileDialog(
             self, message="Save File as ...", 
             defaultFile="", wildcard=wildcard, 
-            style=wx.SAVE|wx.OVERWRITE_PROMPT
+            style=wx.FD_SAVE|wx.FD_OVERWRITE_PROMPT
             )
         if dlg.ShowModal() == wx.ID_OK:
             path = dlg.GetPath()
@@ -285,7 +285,7 @@ class MainWindow(wx.Frame):
  
         def _dump_styles(texel, i=0):
             if texel.is_single or texel.is_text:
-                print i, ":", i+length(texel), id(texel.style), texel.__class__.__name__
+                print(i, ":", i+length(texel), id(texel.style), texel.__class__.__name__)
             else:
                 for child in texel.childs:
                     _dump_styles(child, i)
@@ -390,7 +390,7 @@ def main(argv=None):
     if logging:
         global logdir
         logdir = TemporaryDirectory()
-        print "Log files are stored in directory", logdir.name
+        print("Log files are stored in directory", logdir.name)
 
     app = wx.App(redirect=redirect)
 
