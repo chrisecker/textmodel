@@ -23,7 +23,6 @@ from .nbtexels import Cell, ScriptingCell, TextCell, Graphics, find_cell, \
 from .clients import ClientPool
 from .pyclient import PythonClient
 from .nbstream import Stream, StreamRecorder
-from .nblogging import logged
 from functools import reduce
 import string
 import wx
@@ -717,13 +716,6 @@ def strip_cells(texel):
     return [texel]
 
 
-def logged(f):
-    def new_f(nbview, *args, **kwds):
-        nbview.log(f.__name__, args, kwds)
-        return f(nbview, *args, **kwds)
-    return new_f
-
-
 class NBView(_WXTextView):
     temp_range = (0, 0)
     ScriptingCell = ScriptingCell
@@ -769,7 +761,6 @@ class NBView(_WXTextView):
         reset_numbers(model.texel)
         self.set_model(model)
 
-    @logged
     def set_model(self, model):
         # Only meant to be called on fresh NBViews. Therefore we do
         # not reset cursor, selection etc.
@@ -866,24 +857,6 @@ class NBView(_WXTextView):
     def handle_action(self, action, shift=False, memo=None):
         complete_count = self.complete_count
         self.clear_temp()
-        if action != 'paste':
-            self.log('handle_action', (action, shift,), {})
-        else:
-            # Paste is a bit tricky to log. We have to make sure,
-            # that in the replay situation the exact same material
-            # is inserted. Therefore we figure out what has been
-            # pasted and log this as an insertion.
-            model = self.model
-            index = self.index
-            if memo is not None:
-                self.insert(index, memo)
-            else:
-                n0 = len(model)
-                _WXTextView.handle_action(self, action, shift)
-                n = len(model)-n0
-                memo = model.copy(index, index+n)
-            self.log('handle_action', (action, shift, memo), {})
-            return
         if action == 'complete_or_help':
             if complete_count > 0:
                 action = 'help'
@@ -957,7 +930,6 @@ class NBView(_WXTextView):
     def find_cell(self):
         return find_cell(self.model.texel, self.index)
 
-    @logged
     def execute(self):
         self.clear_temp()
         i0, cell = self.find_cell()
@@ -989,7 +961,6 @@ class NBView(_WXTextView):
                 break
             self.execute()
 
-    @logged
     def reset_interpreter(self):
         self.init_clients()
 
@@ -1030,11 +1001,9 @@ class NBView(_WXTextView):
         self.clear_temp()
         _WXTextView.redo(self)
 
-    @logged
     def remove_output(self):
         self.transform(strip_output)
 
-    @logged
     def split_cell(self):
         i = self.index
         self.transform(lambda texel, i=i:split_cell(texel, i))
@@ -1052,7 +1021,6 @@ class NBView(_WXTextView):
 
     can_insert_textcell = can_insert_pycell = between_cells
 
-    @logged
     def insert_textcell(self):
         "Insert text cell"
         cell = TextCell(NULL_TEXEL)
@@ -1060,7 +1028,6 @@ class NBView(_WXTextView):
         self.insert(i, mk_textmodel(cell))
         self.index = i+1
 
-    @logged
     def insert_pycell(self):
         "Insert python cell"
         cell = ScriptingCell(NULL_TEXEL, NULL_TEXEL)
@@ -1068,46 +1035,6 @@ class NBView(_WXTextView):
         self.insert(i, mk_textmodel(cell))
         self.index = i+1
 
-    set_index = logged(_WXTextView.set_index)
-    set_selection = logged(_WXTextView.set_selection)
-
-    ### Simple logging facility ###    
-    # It allows to record and replay everything the user
-    # enters. Logging is ment for debugging. It will be removed once
-    # all errors are fixed :-)
-
-    def log(self, descr, args, kwds):
-        if self._logfile is None: 
-            return
-        import six.moves.cPickle
-        s = six.moves.cPickle.dumps((descr, args, kwds))
-        f = open(self._logfile, 'ab')
-        f.write("%i\n" % len(s))
-        f.write(s)
-        f.close()
-
-    def load_log(self, filename):
-        import six.moves.cPickle
-        log = []
-        f = open(filename, 'rb')
-        while 1:
-            l = f.readline()
-            if not l:
-                break
-            n = int(l)
-            s = f.read(n)
-            name, args, kwds = six.moves.cPickle.loads(s)
-            log.append((name, args, kwds))
-        return log
-                
-    def replay(self, log):
-        for name, args, kwds in log:
-            f = getattr(self, name)
-            f(*args, **kwds)
-
-    def replay_logfile(self, filename):
-        log = self.load_log(filename)
-        self.replay(log)
 
 
 def init_testing(redirect=True):
@@ -1411,5 +1338,3 @@ def demo_01():
     testing.pyshell(ns)
     ns['app'].MainLoop()
 
-
->>>>>>> py3

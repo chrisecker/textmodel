@@ -165,9 +165,9 @@ class BitmapRGBA(Single):
 
     def draw(self, gc, state):
         w, h = self.size
-        im = wx.ImageFromData(w, h, self.data)
+        im = wx.Image(w, h, self.data)
         im.SetAlphaBuffer(self.alpha)
-        bitmap = wx.BitmapFromImage(im)
+        bitmap = wx.Bitmap(im)
         m = gc.CreateMatrix()
         gc.SetTransform(m)
         gc.ConcatTransform(state['trafo'])

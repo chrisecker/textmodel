@@ -226,4 +226,3 @@ def test_00():
 
     # just check that this does not give an exception
     print(device.measure_parts("asdasd", defaultstyle))
->>>>>>> py3

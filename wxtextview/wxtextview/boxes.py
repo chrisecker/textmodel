@@ -770,6 +770,3 @@ def test_04():
     l = replace_boxes(g2, 0, 0, [t3])
     assert get_alltext(l) == 'xyz'
 
-
-
->>>>>>> py3

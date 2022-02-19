@@ -32,10 +32,9 @@ def _normalize_color(color):
     if isinstance(color, wx.Colour):
         return color.asTuple()+(color.Alpha(), )
     elif isinstance(color, str):
-        c = wx.Colour()
-        c.SetFromString(color)
-        return tuple(c,)+(c.Alpha(), )
-    elif isinstance(color, list) or isinstance(color, tuple):
+        c = wx.Colour(color)
+        return tuple(c)
+    elif type(color) in (list, tuple) and len(color) in (3, 4):        
         return tuple(color)
     else:
         raise ValueError('Not a valid color specification: %s' % repr(color))
@@ -258,7 +257,7 @@ class Arc:
         
     def draw(self, gc, state):
         p = gc.CreatePath()
-        p.AddArc(self.x, self.y, self.r, self.start, self.end)
+        p.AddArc(self.x, self.y, self.r, self.start, self.end, True)
         p.Transform(state['matrix'])
         gc.DrawPath(p)
 

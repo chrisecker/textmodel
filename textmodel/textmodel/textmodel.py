@@ -195,7 +195,7 @@ class TextModel(Model):
     def set_properties(self, i1, i2, **properties):
         """Sets the text properties between *i1* and *i2*."""
         if not (-1 <= i1 <= i2 <= len(self)):
-            raise IndexError, (i1, i2)
+            raise IndexError((i1, i2))
         memo = get_styles(self.texel, i1, i2)
         self.texel = grouped(
             set_properties(self.texel, i1, i2, properties))
@@ -206,7 +206,7 @@ class TextModel(Model):
     def set_styles(self, i, styles):
         """Sets the styling of a span of text. Usually used by undo."""
         if not (0 <= i <= len(self)):
-            raise IndexError, i        
+            raise IndexError(i)        
         n = sum([entry[0] for entry in styles])
         memo = get_styles(self.texel, i, i+n)
         iterator = StyleIterator(iter(styles))
@@ -218,7 +218,7 @@ class TextModel(Model):
     def set_parproperties(self, i1, i2, **properties):
         """Sets the paragraph properties between *i1* and *i2*."""
         if not (0 <= i1 <= i2 <= len(self)):
-            raise IndexError, (i1, i2)
+            raise IndexError((i1, i2))
         memo = get_parstyles(self.texel, i1, i2)
         self.texel = grouped(
             set_parproperties(self.texel, i1, i2, properties))
@@ -229,7 +229,7 @@ class TextModel(Model):
     def set_parstyles(self, i, styles):
         """Sets the paragraph style of a span of text. Usually used by undo."""
         if not (0 <= i1 <= i2 <= len(self)):
-            raise IndexError, (i1, i2)
+            raise IndexError((i1, i2))
         n = sum([entry[0] for entry in styles])
         memo = get_styles(self.texel, i, i+n)
         iterator = StyleIterator(iter(styles))
