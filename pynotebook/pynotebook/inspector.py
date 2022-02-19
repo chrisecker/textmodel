@@ -20,6 +20,7 @@ class Inspector(wx.Frame, ViewBase):
         wx.Frame.__init__(self, *args, title='Text format',
                           style=wx.DEFAULT_FRAME_STYLE|wx.FRAME_FLOAT_ON_PARENT
                                |wx.FRAME_TOOL_WINDOW, **kwds)
+        self.Bind(wx.EVT_WINDOW_DESTROY, self.on_destroy)
         sizer1 = wx.BoxSizer( wx.VERTICAL )
         panel = wx.Panel(self)
         panel.SetBackgroundColour(wx.SystemSettings.GetColour(wx.SYS_COLOUR_BTNFACE))
@@ -100,6 +101,8 @@ class Inspector(wx.Frame, ViewBase):
         self.Layout()
         sizer1.Fit( self )
 
+    def on_destroy(self, event):
+        self.destroy()
 
     def index_changed(self, textview):
         self.update()
