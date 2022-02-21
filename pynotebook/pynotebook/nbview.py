@@ -1,8 +1,6 @@
 # -*- coding: latin-1 -*-
 
 
-#from __future__ import absolute_import
-#from __future__ import print_function
 from .textmodel import texeltree
 from .textmodel.textmodel import TextModel
 from .textmodel.styles import create_style, updated_style, EMPTYSTYLE
@@ -498,11 +496,21 @@ class Builder(BuilderBase):
     def get_device(self):
         return self.device
 
+    stylesheet = dict(
+        normal = dict(),
+        h0 = dict(fontsize=18, bold=True, role='title'),
+        h1 = dict(fontsize=16, bold=True, bgcolor="red", role='title'),
+        h2 = dict(fontsize=14, bold=True, role='title'),
+        h3 = dict(fontsize=12, bold=True, role='title'),
+        list = dict(indent=24, bullet='-')
+    )
+    
     def mk_style(self, style):
         # This can overriden e.g. to implement style sheets. The
         # default behaviour is to use the paragraph style and add the
         # text styles.
-        r = self.parstyle.copy()
+        name = self.parstyle.get('base', 'normal')
+        r = self.stylesheet[name].copy()
         r.update(style)
         return r
 

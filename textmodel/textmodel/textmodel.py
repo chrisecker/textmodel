@@ -228,8 +228,8 @@ class TextModel(Model):
 
     def set_parstyles(self, i, styles):
         """Sets the paragraph style of a span of text. Usually used by undo."""
-        if not (0 <= i1 <= i2 <= len(self)):
-            raise IndexError((i1, i2))
+        if not (0 <= i <= len(self)):
+            raise IndexError(i)
         n = sum([entry[0] for entry in styles])
         memo = get_styles(self.texel, i, i+n)
         iterator = StyleIterator(iter(styles))
@@ -238,6 +238,13 @@ class TextModel(Model):
         self.notify_views('properties_changed', i, i+n)
         return memo
 
+    def set_parstyle(self, i, style):
+        # XXX Inefficient. Do we need this?
+        row, col = self.index2position(i)
+        tmp = self.lineend(row)
+        i2 = tmp+1
+        return self.set_parstyles(i, [(i2-i, style)])
+    
     def insert(self, i, text):
         """Inserts *text* at position *i*."""
         row, col = self.index2position(i)

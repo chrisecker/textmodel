@@ -269,6 +269,7 @@ class TextView(ViewBase, Model):
         index = self.index
         layout = self.layout
         style = self.current_style()
+        parstyle = model.get_parstyle(index)
         row, col = self.current_position()
         rect = layout.get_rect(index, 0, 0)
         x = rect.x1
@@ -365,12 +366,16 @@ class TextView(ViewBase, Model):
         elif action == 'select_all':
             self.selection = (0, len(model))
         elif action == 'insert_newline':
-            self.insert(index, self._TextModel('\n', **style))
+           tmp = self._TextModel('\n', **style)
+           tmp.set_parstyle(0, parstyle)
+           self.insert(index, tmp)            
         elif action == 'insert_newline_indented':
             i = model.linestart(row)
             s = model.get_text(i, index)
             l = s[:len(s)-len(s.lstrip())]
-            self.insert(index, self._TextModel('\n'+l, **style))
+            tmp = self._TextModel('\n'+l, **style)
+            tmp.set_parstyle(0, parstyle)
+            self.insert(index, tmp)            
         elif action == 'backspace':
             if self.has_selection():
                 j1, j2 = layout.extend_range(s1-1, s2)

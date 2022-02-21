@@ -20,22 +20,15 @@ class Inspector(wx.Frame, ViewBase):
         wx.Frame.__init__(self, *args, title='Text format',
                           style=wx.DEFAULT_FRAME_STYLE|wx.FRAME_FLOAT_ON_PARENT
                                |wx.FRAME_TOOL_WINDOW, **kwds)
-        self.Bind(wx.EVT_WINDOW_DESTROY, self.on_destroy)
+        self.Bind(wx.EVT_WINDOW_DESTROY, self.on_destroy) 
         sizer1 = wx.BoxSizer( wx.VERTICAL )
         panel = wx.Panel(self)
         panel.SetBackgroundColour(wx.SystemSettings.GetColour(wx.SYS_COLOUR_BTNFACE))
         self.SetBackgroundColour(panel.BackgroundColour)
         sizer2 = wx.BoxSizer(wx.VERTICAL)
-
-        e = wx.FontEnumerator()
-        e.EnumerateFacenames()
-        faces = sorted(e.GetFacenames())
-        self.faces = ['']+faces
-        self.fontface = wx.Choice(
-            panel, choices=['<default font>']+faces)
-        self.fontface.Bind(wx.EVT_CHOICE, self.on_face)
-
-        sizer2.Add(self.fontface, 0, wx.ALL|wx.EXPAND, 5)
+        self.basestyle = wx.Choice(panel)
+        self.basestyle.Bind(wx.EVT_CHOICE, self.on_basestyle)
+        sizer2.Add(self.basestyle, 0, wx.ALL|wx.EXPAND, 5)
         sizer3 = wx.BoxSizer(wx.VERTICAL)
 
         choices = list(map(str, (8, 9, 10, 12, 14, 16, 18, 20, 22, 24, 26, 30)))
@@ -120,21 +113,56 @@ class Inspector(wx.Frame, ViewBase):
         facename = self.faces[i]
         self.set_properties(facename = facename)
 
+    def on_basestyle(self, event=None):
+        textview = self.model
+        textmodel = textview.model
+        i1, i2  = sorted(textview.selection)
+
+        # Ineffiziente Art, den nächsten NL zu finden
+        row, col = textmodel.index2position(i2)
+        tmp = textmodel.lineend(row)
+        i2 = tmp+1
+        
+        stylesheet = textview.builder.stylesheet
+        i = self.basestyle.Selection
+        name = self._stylenames[i]
+        style = create_style(base=name) # XXX sollte mk_style verwenden
+
+        # Der Textview sollte das Setzen von Parstyles
+        #vorsehen. Bisher geht das nicht, daher wird auch kein Undo
+        #erzeugt.
+        #textview.set_parstyles(i1, [(i2-i1, style)])
+
+        # HACK:
+        print("set_parstyles(i1, [(i2-i1, style)])", i1, [(i2-i1, style)])
+        textmodel.set_parstyles(i1, [(i2-i1, style)])
+        
+        # textmodel.set_parproperties(i1, i2, base=name)
+        
     def set_properties(self, **properties):
         textview = self.model
         i1, i2  = sorted(textview.selection)
         textview.set_properties(i1, i2, **properties)
 
+    _stylenames = ()
     def update(self):
         textview = self.model
         index = textview.index
         textmodel = textview.model
+        stylesheet = textview.builder.stylesheet
+        parstyle = textmodel.get_parstyle(index)
         style = defaultstyle.copy()
         style.update(textmodel.get_parstyle(index))
         style.update(textmodel.get_style(max(0, index-1)))
-        face = style['facename']
-        i = self.faces.index(face)
-        self.fontface.Selection = i
+        #face = style['facename']
+        #i = self.faces.index(face)
+        #self.fontface.Selection = i
+        stylenames = sorted(stylesheet.keys())
+        if stylenames != self._stylenames:            
+            self.basestyle.SetItems(stylenames)
+            self._stylenames = stylenames
+        i = self._stylenames.index(parstyle.get('base', 'normal'))
+        self.basestyle.SetSelection(i)        
         self.fgcolor.SetValue(style['textcolor'])
         self.bgcolor.SetValue(style['bgcolor'])
         self.underline.SetValue(style['underline'])
@@ -143,38 +171,20 @@ class Inspector(wx.Frame, ViewBase):
         self.size.SetValue(str(style['fontsize']))
 
 
-class ParagraphSettings:
-    title = 'Paragraph'
-    style = EMPTYSTYLE
-    bullets = False
-    enumeration = False # is this an enumerated element?
-    section = False     # is this a section change?
-    align = 'left'
-
-
-class HeadingSettings(ParagraphSettings):
-    title = 'Heading'
-    section = True
-    style = create_style(
-        fontsize = 16,
-        facename = 'Courier',
-        weight = 'bold'
-        )
-
-
-class ListSettings(ParagraphSettings):
-    title = 'List'
-    enumeration = True
-
 
 def demo_00():
     from .nbview import NBView
-    from .nbtexels import TextCell, NULL_TEXEL, mk_textmodel
+    
+    from .nbtexels import TextCell, NULL_TEXEL, mk_textmodel, TextModel
+
+    from .textmodel.texeltree import T
     app = wx.App(redirect=True)
     frame = wx.Frame(None)
     win = wx.Panel(frame)
     view = NBView(win)
-    cell = TextCell(NULL_TEXEL)
+    text = TextModel(u"Some\ntext\n...").texel
+    print("text=", repr(text))
+    cell = TextCell(text)
     view.model.insert(0, mk_textmodel(cell))
     box = wx.BoxSizer(wx.VERTICAL)
     box.Add(view, 1, wx.ALL|wx.GROW, 1)
