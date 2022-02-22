@@ -231,7 +231,7 @@ class TextModel(Model):
         if not (0 <= i <= len(self)):
             raise IndexError(i)
         n = sum([entry[0] for entry in styles])
-        memo = get_styles(self.texel, i, i+n)
+        memo = get_parstyles(self.texel, i, i+n)
         iterator = StyleIterator(iter(styles))
         self.texel = grouped(
             set_parstyles(self.texel, i, iterator))

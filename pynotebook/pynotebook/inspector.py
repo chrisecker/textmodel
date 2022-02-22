@@ -1,20 +1,18 @@
 # -*- coding: latin-1 -*-
 
 
-from __future__ import absolute_import
 import wx
-import  wx.lib.colourselect as  csel
-import  wx.lib.rcsizer  as rcs
+import wx.lib.colourselect as csel
 
 from .textmodel.viewbase import ViewBase
 from .textmodel.texeltree import EMPTYSTYLE
 from .textmodel.styles import create_style
 from .wxtextview.wxdevice import defaultstyle
-from six.moves import map
 
 
 
 class Inspector(wx.Frame, ViewBase):
+    sizes = (8, 9, 10, 12, 14, 16, 18, 20, 22, 24, 26, 30)
     def __init__(self, *args, **kwds):
         ViewBase.__init__(self)
         wx.Frame.__init__(self, *args, title='Text format',
@@ -31,7 +29,7 @@ class Inspector(wx.Frame, ViewBase):
         sizer2.Add(self.basestyle, 0, wx.ALL|wx.EXPAND, 5)
         sizer3 = wx.BoxSizer(wx.VERTICAL)
 
-        choices = list(map(str, (8, 9, 10, 12, 14, 16, 18, 20, 22, 24, 26, 30)))
+        choices = list(map(str, self.sizes))
 
         fun = lambda e:self.set_properties(fontsize=int(self.size.GetValue()))
         self.size = wx.ComboBox(
@@ -126,21 +124,13 @@ class Inspector(wx.Frame, ViewBase):
         stylesheet = textview.builder.stylesheet
         i = self.basestyle.Selection
         name = self._stylenames[i]
-        style = create_style(base=name) # XXX sollte mk_style verwenden
 
-        # Der Textview sollte das Setzen von Parstyles
-        #vorsehen. Bisher geht das nicht, daher wird auch kein Undo
-        #erzeugt.
-        #textview.set_parstyles(i1, [(i2-i1, style)])
-
-        # HACK:
-        print("set_parstyles(i1, [(i2-i1, style)])", i1, [(i2-i1, style)])
-        textmodel.set_parstyles(i1, [(i2-i1, style)])
+        textview.set_parproperties(i1, i2, base=name)
         
-        # textmodel.set_parproperties(i1, i2, base=name)
-        
-    def set_properties(self, **properties):
+    def set_properties(self, **properties):        
         textview = self.model
+        if not textview.has_selection():
+            return
         i1, i2  = sorted(textview.selection)
         textview.set_properties(i1, i2, **properties)
 
@@ -154,9 +144,6 @@ class Inspector(wx.Frame, ViewBase):
         style = defaultstyle.copy()
         style.update(textmodel.get_parstyle(index))
         style.update(textmodel.get_style(max(0, index-1)))
-        #face = style['facename']
-        #i = self.faces.index(face)
-        #self.fontface.Selection = i
         stylenames = sorted(stylesheet.keys())
         if stylenames != self._stylenames:            
             self.basestyle.SetItems(stylenames)
@@ -173,17 +160,15 @@ class Inspector(wx.Frame, ViewBase):
 
 
 def demo_00():
-    from .nbview import NBView
-    
+    from .nbview import NBView    
     from .nbtexels import TextCell, NULL_TEXEL, mk_textmodel, TextModel
-
     from .textmodel.texeltree import T
+    
     app = wx.App(redirect=True)
     frame = wx.Frame(None)
     win = wx.Panel(frame)
     view = NBView(win)
     text = TextModel(u"Some\ntext\n...").texel
-    print("text=", repr(text))
     cell = TextCell(text)
     view.model.insert(0, mk_textmodel(cell))
     box = wx.BoxSizer(wx.VERTICAL)

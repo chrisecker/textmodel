@@ -158,6 +158,20 @@ class TextView(ViewBase, Model):
         styles = self.model.set_styles(i, styles)
         return self._set_styles, i, styles
 
+    def set_parstyle(self, i, style):
+        styles = self.model.set_parstyle(i, style)
+        info = self._set_parstyles, i, styles
+        self.add_undo(info)
+
+    def set_parproperties(self, i1, i2, **properties):
+        styles = self.model.set_parproperties(i1, i2, **properties)
+        info = self._set_parstyles, i1, styles
+        self.add_undo(info)
+
+    def _set_parstyles(self, i, styles):
+        styles = self.model.set_parstyles(i, styles)
+        return self._set_parstyles, i, styles
+    
     def transform(self, fun):
         # Apply a tranforming function to the texeltree. Can change
         # index.
