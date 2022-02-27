@@ -303,8 +303,7 @@ class Font:
         gc.SetFont(font)
 
 
-class Text:
-    regname = 'GraphicsText'
+class GraphicsText:
     def __init__(self, text, point, align=(0, 0)):
         self.text = text
         self.point = point
@@ -318,6 +317,8 @@ class Text:
         gc.SetTransform(state['matrix'])
         gc.DrawText(self.text, x+dx, y+dy)
         gc.SetTransform(state['trafo'])
+
+Text = GraphicsText # alias
 
 
 class Translate:
@@ -368,12 +369,13 @@ class Scale:
 def register_classes():
     from .cerealizerformat import register
     import types
+    registered = set()
     for name, value in globals().items():
         if type(value) is type:
-            if hasattr(value, 'regname'):
-                register(value, classname=value.regname)
-            else:
-                register(value)
+            if value in registered:
+                continue
+            register(value)
+            registered.add(value)
 
 
 def init_testing(redirect=True):
