@@ -122,19 +122,6 @@ class FillColor:
         gc.SetBrush(brush) 
 
 
-class Dot: # remove this?
-    def __init__(self, xxx_todo_changeme):
-        (x, y) = xxx_todo_changeme
-        self.x = x
-        self.y = y
-
-    def draw(self, gc, state):
-        p = gc.CreatePath()
-        p.AddCircle(self.x, self.y, 5)
-        p.Transform(state['matrix'])
-        gc.DrawPath(p)
-
-
 class Line:
     def __init__(self, *points):
         self.points = tuple(points)
