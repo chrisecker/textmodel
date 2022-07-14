@@ -6,7 +6,7 @@ from functools import reduce
 
 
 debug = 0
-nmax = 15
+nmax = 16
 
 def set_nmax(n):
     """Sets *nmax* to the value *i*.
@@ -15,8 +15,11 @@ def set_nmax(n):
        should be between nmax/2 and nmax for efficient trees).
     """
     global nmax
+    if n % 4:
+        raise ValueError("nmax must be a multiple of 4.")    
     nmax = n
 
+    
 EMPTYSTYLE = {}
 style_pool = {():EMPTYSTYLE}
 
@@ -281,18 +284,35 @@ def groups(l):
     if N == 0:
         return r
 
-    n = N // nmax
-    if n*nmax < N:
-        n = n+1
-    rest = n*nmax-N
+    assert nmax % 4 == 0 # nmax must be multiple of 4
+    s = 3*(nmax // 4)
+    
+    n = N // s
+    rest = N % s
+    assert N == rest+n*s
 
-    a = nmax-float(rest)/n
-    b = a
-    while l:
-        i = int(b+1e-10)
-        r.append(Group(l[:i]))
-        l = l[i:]
-        b = b-i+a
+    if rest > n*(nmax-s):
+        n += 1
+
+    elif s < 2*rest:
+        n += 1
+
+    m = N // n
+    t = N % n
+    assert N == n*m+t
+    
+    i1 = 0
+    for i in range(n-t):
+        i2 = i1+m
+        r.append(Group(l[i1:i2]))
+        i1 = i2
+
+    for i in range(t):
+        i2 = i1+m+1
+        r.append(Group(l[i1:i2]))
+        i1 = i2
+
+    assert i2 == len(l)
     return r
 
 
@@ -906,7 +926,7 @@ def test_00():
 
 def test_01():
     "growth in insert"
-    set_nmax(3)
+    set_nmax(4)
     g = Group([T("a"), T("b"), T("c")])
     assert depth(g) == 1
     assert get_pieces(g) == ['a', 'b', 'c']
@@ -916,7 +936,7 @@ def test_01():
 
 def test_02():
     "maintaining tree efficency in insert / takeout"
-    set_nmax(3)
+    set_nmax(4)
     texel = Group([])
     import random
     for i in range(100):
